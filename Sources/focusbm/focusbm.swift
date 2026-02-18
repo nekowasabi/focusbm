@@ -260,11 +260,8 @@ extension FocusBM {
         @Option(name: .shortAndLong, help: "コンテキストで絞り込み")
         var context: String?
 
-        @Option(name: .long, help: "出力フォーマット: human | fzf | json")
+        @Option(name: .long, help: "出力フォーマット: human | fzf")
         var format: String = "human"
-
-        @Flag(name: .long, help: "Alfred Script Filter JSON を出力")
-        var alfred: Bool = false
 
         mutating func run() throws {
             let store = BookmarkStore.loadYAML()
@@ -274,17 +271,11 @@ extension FocusBM {
                 bookmarks = bookmarks.filter { $0.context == ctx }
             }
 
-            if alfred {
-                outputAlfred(bookmarks)
-            } else {
-                switch format {
-                case "fzf":
-                    outputFzf(bookmarks)
-                case "json":
-                    outputJSON(bookmarks)
-                default:
-                    outputHuman(bookmarks)
-                }
+            switch format {
+            case "fzf":
+                outputFzf(bookmarks)
+            default:
+                outputHuman(bookmarks)
             }
         }
 
@@ -302,45 +293,6 @@ extension FocusBM {
         private func outputFzf(_ bookmarks: [Bookmark]) {
             for bm in bookmarks {
                 print("\(bm.id)\t\(bm.context)/\(bm.id) (\(bm.appName))")
-            }
-        }
-
-        private func outputJSON(_ bookmarks: [Bookmark]) {
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            if let data = try? encoder.encode(bookmarks),
-               let json = String(data: data, encoding: .utf8) {
-                print(json)
-            }
-        }
-
-        private func outputAlfred(_ bookmarks: [Bookmark]) {
-            struct AlfredItem: Encodable {
-                let uid: String
-                let title: String
-                let subtitle: String
-                let arg: String
-                let autocomplete: String
-            }
-            struct AlfredOutput: Encodable {
-                let items: [AlfredItem]
-            }
-
-            let items = bookmarks.map { bm in
-                AlfredItem(
-                    uid: bm.id,
-                    title: bm.id,
-                    subtitle: bm.description,
-                    arg: bm.id,
-                    autocomplete: bm.id
-                )
-            }
-
-            let output = AlfredOutput(items: items)
-            let encoder = JSONEncoder()
-            if let data = try? encoder.encode(output),
-               let json = String(data: data, encoding: .utf8) {
-                print(json)
             }
         }
     }

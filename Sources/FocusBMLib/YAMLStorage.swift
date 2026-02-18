@@ -2,10 +2,6 @@ import Foundation
 import Yams
 
 extension BookmarkStore {
-    public static var legacyJsonPath: URL {
-        return storePath.deletingLastPathComponent().appendingPathComponent("bookmarks.json")
-    }
-
     /// V1 YAML文字列をV2形式に変換する
     public static func migrateV1YAML(_ yaml: String) throws -> String {
         var result = yaml
@@ -42,22 +38,7 @@ extension BookmarkStore {
             }
         }
 
-        // JSON移行
-        if FileManager.default.fileExists(atPath: legacyJsonPath.path) {
-            return migrateFromJSON() ?? BookmarkStore()
-        }
-
         return BookmarkStore()
-    }
-
-    private static func migrateFromJSON() -> BookmarkStore? {
-        let decoder = JSONDecoder()
-        guard let data = try? Data(contentsOf: legacyJsonPath),
-              let store = try? decoder.decode(BookmarkStore.self, from: data) else {
-            return nil
-        }
-        try? store.saveYAML()
-        return store
     }
 
     public func saveYAML() throws {
