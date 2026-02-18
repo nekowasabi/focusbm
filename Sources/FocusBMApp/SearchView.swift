@@ -35,29 +35,41 @@ struct SearchView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
-                    List(Array(viewModel.filtered.enumerated()), id: \.element.id) { index, bookmark in
-                        BookmarkRow(
-                            bookmark: bookmark,
-                            isSelected: index == viewModel.selectedIndex
-                        )
-                        .id(bookmark.id)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            viewModel.selectedIndex = index
-                            if viewModel.restoreSelected() {
-                                panel?.close()
+                    ScrollView {
+                        LazyVStack(spacing: 2) {
+                            ForEach(Array(viewModel.filtered.enumerated()), id: \.element.id) { index, bookmark in
+                                BookmarkRow(
+                                    bookmark: bookmark,
+                                    isSelected: index == viewModel.selectedIndex,
+                                    shortcutIndex: index < 9 ? index : nil
+                                )
+                                .id(bookmark.id)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(index == viewModel.selectedIndex
+                                            ? Color.accentColor.opacity(0.2)
+                                            : Color.clear)
+                                )
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    viewModel.selectedIndex = index
+                                    if viewModel.restoreSelected() {
+                                        panel?.close()
+                                    }
+                                }
                             }
                         }
-                        .listRowBackground(
-                            index == viewModel.selectedIndex
-                                ? Color.accentColor.opacity(0.2)
-                                : Color.clear
-                        )
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 4)
                     }
-                    .listStyle(.plain)
                     .onChange(of: viewModel.selectedIndex) { newIndex in
                         if let bm = viewModel.filtered[safe: newIndex] {
-                            proxy.scrollTo(bm.id)
+                            withAnimation {
+                                proxy.scrollTo(bm.id, anchor: .bottom)
+                            }
                         }
                     }
                 }
@@ -75,7 +87,6 @@ struct SearchView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
         }
-        .background(KeyEventHandling(viewModel: viewModel, panel: panel))
         .onChange(of: viewModel.isActive) { active in
             if active {
                 isSearchFieldFocused = true
@@ -91,44 +102,3 @@ extension Array {
     }
 }
 
-// Handle keyboard events (up/down/enter/escape)
-struct KeyEventHandling: NSViewRepresentable {
-    let viewModel: SearchViewModel
-    weak var panel: SearchPanel?
-
-    func makeNSView(context: Context) -> KeyEventView {
-        let view = KeyEventView()
-        view.viewModel = viewModel
-        view.panel = panel
-        return view
-    }
-
-    func updateNSView(_ nsView: KeyEventView, context: Context) {
-        nsView.viewModel = viewModel
-        nsView.panel = panel
-    }
-}
-
-class KeyEventView: NSView {
-    var viewModel: SearchViewModel?
-    var panel: SearchPanel?
-
-    override var acceptsFirstResponder: Bool { true }
-
-    override func keyDown(with event: NSEvent) {
-        switch event.keyCode {
-        case 126: // Up arrow
-            viewModel?.moveUp()
-        case 125: // Down arrow
-            viewModel?.moveDown()
-        case 36: // Return/Enter
-            if viewModel?.restoreSelected() == true {
-                panel?.close()
-            }
-        case 53: // Escape
-            panel?.close()
-        default:
-            super.keyDown(with: event)
-        }
-    }
-}

@@ -4,6 +4,7 @@ import FocusBMLib
 
 class SearchPanel: NSPanel {
     private let viewModel: SearchViewModel
+    private var localKeyMonitor: Any?
 
     init(viewModel: SearchViewModel) {
         self.viewModel = viewModel
@@ -43,5 +44,65 @@ class SearchPanel: NSPanel {
 
     override func cancelOperation(_ sender: Any?) {
         close()
+    }
+
+    override func makeKeyAndOrderFront(_ sender: Any?) {
+        super.makeKeyAndOrderFront(sender)
+        startLocalKeyMonitor()
+    }
+
+    override func close() {
+        stopLocalKeyMonitor()
+        super.close()
+    }
+
+    // 数字キー 1-9 の keyCode
+    private static let digitKeyCodes: [UInt16: Int] = [
+        18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9
+    ]
+
+    private func startLocalKeyMonitor() {
+        guard localKeyMonitor == nil else { return }
+        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+
+            // Cmd+1〜9: 候補をダイレクト復元
+            if event.modifierFlags.contains(.command),
+               let number = Self.digitKeyCodes[event.keyCode] {
+                let index = number - 1
+                if index < self.viewModel.filtered.count {
+                    self.viewModel.selectedIndex = index
+                    if self.viewModel.restoreSelected() {
+                        self.close()
+                    }
+                }
+                return nil
+            }
+
+            switch event.keyCode {
+            case 126: // Up arrow
+                self.viewModel.moveUp()
+                return nil
+            case 125: // Down arrow
+                self.viewModel.moveDown()
+                return nil
+            case 53: // Escape
+                self.close()
+                return nil
+            default:
+                return event
+            }
+        }
+    }
+
+    private func stopLocalKeyMonitor() {
+        if let monitor = localKeyMonitor {
+            NSEvent.removeMonitor(monitor)
+            localKeyMonitor = nil
+        }
+    }
+
+    deinit {
+        stopLocalKeyMonitor()
     }
 }
