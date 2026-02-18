@@ -168,7 +168,26 @@ swift test
 swift build -c release
 ```
 
-## インストール（CLI）
+## インストール
+
+### メニューバーアプリ（FocusBMApp.app）
+
+バンドルスクリプトでリリースビルド済みの `.app` バンドルを生成できる。
+
+```sh
+# .app バンドルを作成（リリースビルド → FocusBMApp.app 生成）
+./scripts/bundle.sh
+
+# /Applications にインストール
+cp -r FocusBMApp.app /Applications/
+
+# 起動
+open FocusBMApp.app
+```
+
+ダブルクリックや `open` コマンドでネイティブアプリとして起動する（ターミナル不要）。
+
+### CLI（focusbm）
 
 ```sh
 swift build -c release
