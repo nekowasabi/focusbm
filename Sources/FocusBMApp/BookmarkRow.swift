@@ -4,6 +4,7 @@ import FocusBMLib
 struct BookmarkRow: View {
     let bookmark: Bookmark
     let isSelected: Bool
+    let shortcutIndex: Int?  // 0-based; nil if >= 9
 
     var body: some View {
         HStack {
@@ -20,13 +21,24 @@ struct BookmarkRow: View {
                         .font(.system(.body, design: .monospaced))
                         .fontWeight(isSelected ? .bold : .regular)
                     Spacer()
-                    Text("[\(bookmark.context)]")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.15))
-                        .cornerRadius(4)
+                    if bookmark.context != "default" {
+                        Text("[\(bookmark.context)]")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.15))
+                            .cornerRadius(4)
+                    }
+                    if let idx = shortcutIndex {
+                        Text("⌘\(idx + 1)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.accentColor.opacity(0.1))
+                            .cornerRadius(4)
+                    }
                 }
 
                 HStack {
