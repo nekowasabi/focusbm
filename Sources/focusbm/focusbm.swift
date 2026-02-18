@@ -2,30 +2,6 @@ import ArgumentParser
 import Foundation
 import FocusBMLib
 
-// ブラウザ判定用 bundleId リスト
-private let browserBundleIds = [
-    "com.microsoft.edgemac", "com.google.Chrome",
-    "com.brave.Browser", "com.apple.Safari", "org.mozilla.firefox",
-]
-
-private func isBrowser(bundleId: String) -> Bool {
-    browserBundleIds.contains(bundleId)
-}
-
-// Restore/RestoreContext/Switch で共有するブックマーク復元ロジック
-private func restoreBookmark(_ bookmark: Bookmark) throws {
-    switch bookmark.state {
-    case .browser(let urlPattern, _, let tabIndex):
-        try AppleScriptBridge.restoreBrowserTab(
-            bundleId: bookmark.bundleIdPattern,
-            url: urlPattern,
-            tabIndex: tabIndex
-        )
-    case .app:
-        try AppleScriptBridge.activateApp(bundleId: bookmark.bundleIdPattern)
-    }
-}
-
 private func pipeThroughFzf(_ input: String) throws -> String {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -152,7 +128,7 @@ extension FocusBM {
             let (appName, bundleId, windowTitle) = try AppleScriptBridge.getFrontAppInfo()
 
             let state: AppState
-            if isBrowser(bundleId: bundleId) {
+            if AppleScriptBridge.isBrowser(bundleId: bundleId) {
                 state = (try? AppleScriptBridge.getBrowserState(bundleId: bundleId)) ?? .app(windowTitle: windowTitle)
             } else {
                 state = .app(windowTitle: windowTitle)
@@ -194,7 +170,7 @@ extension FocusBM {
                 throw ValidationError("Bookmark '\(name)' not found. Run `focusbm list` to see available bookmarks.")
             }
 
-            try restoreBookmark(bookmark)
+            try BookmarkRestorer.restore(bookmark)
             print("✓ Restored: [\(name)] \(bookmark.description)")
         }
     }
@@ -228,7 +204,7 @@ extension FocusBM {
 
             for bm in targets {
                 do {
-                    try restoreBookmark(bm)
+                    try BookmarkRestorer.restore(bm)
                     print("  ✓ \(bm.id): \(bm.description)")
                     if wait {
                         Thread.sleep(forTimeInterval: 0.5)
@@ -328,7 +304,7 @@ extension FocusBM {
             let selected = try pipeThroughFzf(input)
             guard let id = selected.split(separator: "\t").first.map(String.init) else { return }
             guard let bm = bookmarks.first(where: { $0.id == id }) else { return }
-            try restoreBookmark(bm)
+            try BookmarkRestorer.restore(bm)
             print("✓ Switched to: [\(bm.id)] \(bm.description)")
         }
     }

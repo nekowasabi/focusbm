@@ -14,6 +14,16 @@ public enum AppleScriptError: Error, LocalizedError {
 }
 
 public struct AppleScriptBridge {
+    // ブラウザ判定用 bundleId リスト
+    public static let browserBundleIds = [
+        "com.microsoft.edgemac", "com.google.Chrome",
+        "com.brave.Browser", "com.apple.Safari", "org.mozilla.firefox",
+    ]
+
+    public static func isBrowser(bundleId: String) -> Bool {
+        browserBundleIds.contains(bundleId)
+    }
+
     public static func run(_ script: String) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")

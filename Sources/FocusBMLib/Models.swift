@@ -69,6 +69,7 @@ public struct Bookmark: Codable, Identifiable {
 }
 
 public struct BookmarkStore: Codable {
+    public var settings: AppSettings?
     public var bookmarks: [Bookmark] = []
 
     public init() {}
@@ -80,4 +81,75 @@ public struct BookmarkStore: Codable {
         return configDir.appendingPathComponent("bookmarks.yml")
     }
 
+}
+
+// MARK: - Settings
+
+public struct HotkeySettings: Codable, Equatable {
+    public var togglePanel: String
+
+    public init(togglePanel: String = "cmd+ctrl+b") {
+        self.togglePanel = togglePanel
+    }
+}
+
+public struct AppSettings: Codable, Equatable {
+    public var hotkey: HotkeySettings
+    public var displayNumber: Int?
+
+    public init(hotkey: HotkeySettings = HotkeySettings(), displayNumber: Int? = nil) {
+        self.hotkey = hotkey
+        self.displayNumber = displayNumber
+    }
+}
+
+// MARK: - Hotkey Parsing
+
+public struct HotkeyModifiers: OptionSet {
+    public let rawValue: UInt
+    public init(rawValue: UInt) { self.rawValue = rawValue }
+
+    public static let command = HotkeyModifiers(rawValue: 1 << 0)
+    public static let control = HotkeyModifiers(rawValue: 1 << 1)
+    public static let option  = HotkeyModifiers(rawValue: 1 << 2)
+    public static let shift   = HotkeyModifiers(rawValue: 1 << 3)
+}
+
+public struct ParsedHotkey {
+    public let modifiers: HotkeyModifiers
+    public let key: String
+}
+
+public struct HotkeyParser {
+    public static func parse(_ hotkeyString: String) -> ParsedHotkey {
+        let parts = hotkeyString.lowercased().split(separator: "+").map(String.init)
+        var modifiers = HotkeyModifiers()
+        var key = ""
+
+        for part in parts {
+            switch part {
+            case "cmd", "command": modifiers.insert(.command)
+            case "ctrl", "control": modifiers.insert(.control)
+            case "opt", "option", "alt": modifiers.insert(.option)
+            case "shift": modifiers.insert(.shift)
+            default: key = part
+            }
+        }
+
+        return ParsedHotkey(modifiers: modifiers, key: key)
+    }
+}
+
+// MARK: - Bookmark Search
+
+public struct BookmarkSearcher {
+    public static func filter(bookmarks: [Bookmark], query: String) -> [Bookmark] {
+        guard !query.isEmpty else { return bookmarks }
+        let q = query.lowercased()
+        return bookmarks.filter { bm in
+            bm.id.lowercased().contains(q) ||
+            bm.appName.lowercased().contains(q) ||
+            bm.context.lowercased().contains(q)
+        }
+    }
 }
