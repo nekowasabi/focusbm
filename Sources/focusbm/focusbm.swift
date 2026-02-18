@@ -1,0 +1,409 @@
+import ArgumentParser
+import Foundation
+import FocusBMLib
+
+// ブラウザ判定用 bundleId リスト
+private let browserBundleIds = [
+    "com.microsoft.edgemac", "com.google.Chrome",
+    "com.brave.Browser", "com.apple.Safari", "org.mozilla.firefox",
+]
+
+private func isBrowser(bundleId: String) -> Bool {
+    browserBundleIds.contains(bundleId)
+}
+
+// Restore/RestoreContext/Switch で共有するブックマーク復元ロジック
+private func restoreBookmark(_ bookmark: Bookmark) throws {
+    switch bookmark.state {
+    case .browser(let urlPattern, _, let tabIndex):
+        try AppleScriptBridge.restoreBrowserTab(
+            bundleId: bookmark.bundleIdPattern,
+            url: urlPattern,
+            tabIndex: tabIndex
+        )
+    case .app:
+        try AppleScriptBridge.activateApp(bundleId: bookmark.bundleIdPattern)
+    }
+}
+
+private func pipeThroughFzf(_ input: String) throws -> String {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    process.arguments = ["fzf", "--with-nth=2..", "--delimiter=\t"]
+    let inputPipe = Pipe()
+    let outputPipe = Pipe()
+    process.standardInput = inputPipe
+    process.standardOutput = outputPipe
+    try process.run()
+    inputPipe.fileHandleForWriting.write(input.data(using: .utf8)!)
+    inputPipe.fileHandleForWriting.closeFile()
+    process.waitUntilExit()
+    guard process.terminationStatus == 0 else {
+        throw AppleScriptError.executionFailed("fzf cancelled or not found")
+    }
+    let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+    return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+}
+
+@main
+struct FocusBM: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "focusbm",
+        abstract: "macOS アプリフォーカスのブックマークツール",
+        subcommands: [Add.self, Edit.self, Save.self, Restore.self, RestoreContext.self, List.self, Delete.self, Switch.self]
+    )
+}
+
+// MARK: - add
+
+extension FocusBM {
+    struct Add: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "ブックマークを手動追加（YAML テンプレート生成）"
+        )
+
+        @Argument(help: "ブックマーク名")
+        var name: String
+
+        @Argument(help: "アプリの bundleId（正規表現可）")
+        var bundleIdPattern: String
+
+        @Option(name: .shortAndLong, help: "コンテキスト")
+        var context: String = "default"
+
+        @Option(help: "表示用アプリ名（省略時は bundleIdPattern）")
+        var appName: String?
+
+        @Option(help: "ブラウザ URL パターン（指定するとブラウザブックマークになる）")
+        var url: String?
+
+        @Option(help: "タブインデックス")
+        var tabIndex: Int?
+
+        mutating func run() throws {
+            let displayName = appName ?? bundleIdPattern
+            let state: AppState
+            if let urlPattern = url {
+                state = .browser(urlPattern: urlPattern, title: displayName, tabIndex: tabIndex)
+            } else {
+                state = .app(windowTitle: "")
+            }
+
+            var store = BookmarkStore.loadYAML()
+            store.bookmarks.removeAll { $0.id == name }
+            let bookmark = Bookmark(
+                id: name,
+                appName: displayName,
+                bundleIdPattern: bundleIdPattern,
+                context: context,
+                state: state,
+                createdAt: ISO8601DateFormatter().string(from: Date())
+            )
+            store.bookmarks.append(bookmark)
+            try store.saveYAML()
+            print("✓ Added: [\(name)] \(bookmark.description)")
+            print("  → \(BookmarkStore.storePath.path) を編集して詳細を調整できます")
+        }
+    }
+}
+
+// MARK: - edit
+
+extension FocusBM {
+    struct Edit: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "ブックマーク YAML をエディタで開く"
+        )
+
+        mutating func run() throws {
+            let path = BookmarkStore.storePath.path
+            // ファイルが存在しない場合は空の store を作成
+            if !FileManager.default.fileExists(atPath: path) {
+                try BookmarkStore().saveYAML()
+            }
+            let editor = ProcessInfo.processInfo.environment["EDITOR"] ?? "vi"
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+            process.arguments = [editor, path]
+            process.standardInput = FileHandle.standardInput
+            process.standardOutput = FileHandle.standardOutput
+            process.standardError = FileHandle.standardError
+            try process.run()
+            process.waitUntilExit()
+        }
+    }
+}
+
+// MARK: - save
+
+extension FocusBM {
+    struct Save: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "現在フォーカス中のアプリからブックマーク保存（補助コマンド）"
+        )
+
+        @Argument(help: "ブックマーク名（エイリアス）")
+        var name: String
+
+        @Option(name: .shortAndLong, help: "コンテキスト（タグ）")
+        var context: String = "default"
+
+        mutating func run() throws {
+            let (appName, bundleId, windowTitle) = try AppleScriptBridge.getFrontAppInfo()
+
+            let state: AppState
+            if isBrowser(bundleId: bundleId) {
+                state = (try? AppleScriptBridge.getBrowserState(bundleId: bundleId)) ?? .app(windowTitle: windowTitle)
+            } else {
+                state = .app(windowTitle: windowTitle)
+            }
+
+            var store = BookmarkStore.loadYAML()
+            // 同名が存在する場合は上書き
+            store.bookmarks.removeAll { $0.id == name }
+            let bookmark = Bookmark(
+                id: name,
+                appName: appName,
+                bundleIdPattern: bundleId,
+                context: context,
+                state: state,
+                createdAt: ISO8601DateFormatter().string(from: Date())
+            )
+            store.bookmarks.append(bookmark)
+            try store.saveYAML()
+
+            print("✓ Saved: [\(name)] \(bookmark.description)")
+        }
+    }
+}
+
+// MARK: - restore
+
+extension FocusBM {
+    struct Restore: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "ブックマークを復元してフォーカス"
+        )
+
+        @Argument(help: "ブックマーク名")
+        var name: String
+
+        mutating func run() throws {
+            let store = BookmarkStore.loadYAML()
+            guard let bookmark = store.bookmarks.first(where: { $0.id == name }) else {
+                throw ValidationError("Bookmark '\(name)' not found. Run `focusbm list` to see available bookmarks.")
+            }
+
+            try restoreBookmark(bookmark)
+            print("✓ Restored: [\(name)] \(bookmark.description)")
+        }
+    }
+}
+
+// MARK: - restore-context
+
+extension FocusBM {
+    struct RestoreContext: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "restore-context",
+            abstract: "コンテキスト内の全ブックマークを一括復元"
+        )
+
+        @Argument(help: "コンテキスト名")
+        var context: String
+
+        @Flag(name: .shortAndLong, help: "各復元の間に待機（0.5秒）")
+        var wait: Bool = false
+
+        mutating func run() throws {
+            let store = BookmarkStore.loadYAML()
+            let targets = store.bookmarks.filter { $0.context == context }
+
+            guard !targets.isEmpty else {
+                throw ValidationError("No bookmarks found in context '\(context)'. Run `focusbm list` to see available contexts.")
+            }
+
+            print("Restoring \(targets.count) bookmark(s) in context '\(context)'...")
+            var errors: [(String, Error)] = []
+
+            for bm in targets {
+                do {
+                    try restoreBookmark(bm)
+                    print("  ✓ \(bm.id): \(bm.description)")
+                    if wait {
+                        Thread.sleep(forTimeInterval: 0.5)
+                    }
+                } catch {
+                    errors.append((bm.id, error))
+                    print("  ✗ \(bm.id): \(error.localizedDescription)")
+                }
+            }
+
+            if errors.isEmpty {
+                print("Done. All \(targets.count) bookmark(s) restored.")
+            } else {
+                print("Done with \(errors.count) error(s).")
+            }
+        }
+    }
+}
+
+// MARK: - list
+
+extension FocusBM {
+    struct List: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "list",
+            abstract: "ブックマーク一覧を表示"
+        )
+
+        @Option(name: .shortAndLong, help: "コンテキストで絞り込み")
+        var context: String?
+
+        @Option(name: .long, help: "出力フォーマット: human | fzf | json")
+        var format: String = "human"
+
+        @Flag(name: .long, help: "Alfred Script Filter JSON を出力")
+        var alfred: Bool = false
+
+        mutating func run() throws {
+            let store = BookmarkStore.loadYAML()
+            var bookmarks = store.bookmarks
+
+            if let ctx = context {
+                bookmarks = bookmarks.filter { $0.context == ctx }
+            }
+
+            if alfred {
+                outputAlfred(bookmarks)
+            } else {
+                switch format {
+                case "fzf":
+                    outputFzf(bookmarks)
+                case "json":
+                    outputJSON(bookmarks)
+                default:
+                    outputHuman(bookmarks)
+                }
+            }
+        }
+
+        private func outputHuman(_ bookmarks: [Bookmark]) {
+            if bookmarks.isEmpty { print("No bookmarks found."); return }
+            let grouped = Dictionary(grouping: bookmarks) { $0.context }
+            for ctx in grouped.keys.sorted() {
+                print("\n[\(ctx)]")
+                for bm in grouped[ctx]! {
+                    print("  \(bm.id.padding(toLength: 20, withPad: " ", startingAt: 0))  \(bm.description)")
+                }
+            }
+        }
+
+        private func outputFzf(_ bookmarks: [Bookmark]) {
+            for bm in bookmarks {
+                print("\(bm.id)\t\(bm.context)/\(bm.id) (\(bm.appName))")
+            }
+        }
+
+        private func outputJSON(_ bookmarks: [Bookmark]) {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            if let data = try? encoder.encode(bookmarks),
+               let json = String(data: data, encoding: .utf8) {
+                print(json)
+            }
+        }
+
+        private func outputAlfred(_ bookmarks: [Bookmark]) {
+            struct AlfredItem: Encodable {
+                let uid: String
+                let title: String
+                let subtitle: String
+                let arg: String
+                let autocomplete: String
+            }
+            struct AlfredOutput: Encodable {
+                let items: [AlfredItem]
+            }
+
+            let items = bookmarks.map { bm in
+                AlfredItem(
+                    uid: bm.id,
+                    title: bm.id,
+                    subtitle: bm.description,
+                    arg: bm.id,
+                    autocomplete: bm.id
+                )
+            }
+
+            let output = AlfredOutput(items: items)
+            let encoder = JSONEncoder()
+            if let data = try? encoder.encode(output),
+               let json = String(data: data, encoding: .utf8) {
+                print(json)
+            }
+        }
+    }
+}
+
+// MARK: - switch (fzf interactive)
+
+extension FocusBM {
+    struct Switch: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "switch",
+            abstract: "fzf でブックマークを絞り込み選択して復元"
+        )
+
+        @Option(name: .shortAndLong, help: "コンテキスト絞り込み")
+        var context: String?
+
+        mutating func run() throws {
+            let store = BookmarkStore.loadYAML()
+            var bookmarks = store.bookmarks
+
+            if let ctx = context {
+                bookmarks = bookmarks.filter { $0.context == ctx }
+            }
+
+            guard !bookmarks.isEmpty else {
+                print("ブックマークが見つかりません")
+                return
+            }
+
+            let lines = bookmarks.map { "\($0.id)\t\($0.context)/\($0.id) (\($0.appName))" }
+            let input = lines.joined(separator: "\n")
+            let selected = try pipeThroughFzf(input)
+            guard let id = selected.split(separator: "\t").first.map(String.init) else { return }
+            guard let bm = bookmarks.first(where: { $0.id == id }) else { return }
+            try restoreBookmark(bm)
+            print("✓ Switched to: [\(bm.id)] \(bm.description)")
+        }
+    }
+}
+
+// MARK: - delete
+
+extension FocusBM {
+    struct Delete: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "ブックマークを削除"
+        )
+
+        @Argument(help: "ブックマーク名")
+        var name: String
+
+        mutating func run() throws {
+            var store = BookmarkStore.loadYAML()
+            let before = store.bookmarks.count
+            store.bookmarks.removeAll { $0.id == name }
+
+            guard store.bookmarks.count < before else {
+                throw ValidationError("Bookmark '\(name)' not found.")
+            }
+
+            try store.saveYAML()
+            print("✓ Deleted: \(name)")
+        }
+    }
+}

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>bundleid</key>
+    <string>com.focusbm.alfred</string>
+    <key>name</key>
+    <string>focusbm</string>
+    <key>description</key>
+    <string>Focus bookmark switcher</string>
+    <key>version</key>
+    <string>2.0</string>
+    <key>createdby</key>
+    <string>focusbm</string>
+    <key>objects</key>
+    <array>
+        <dict>
+            <key>type</key>
+            <string>alfred.workflow.input.scriptfilter</string>
+            <key>uid</key>
+            <string>input-scriptfilter</string>
+            <key>config</key>
+            <dict>
+                <key>keyword</key>
+                <string>fb</string>
+                <key>title</key>
+                <string>Focus Bookmark</string>
+                <key>script</key>
+                <string>export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+focusbm list --alfred</string>
+                <key>runningsubtext</key>
+                <string>Loading bookmarks...</string>
+                <key>withspace</key>
+                <true/>
+                <key>type</key>
+                <integer>0</integer>
+            </dict>
+        </dict>
+        <dict>
+            <key>type</key>
+            <string>alfred.workflow.action.script</string>
+            <key>uid</key>
+            <string>action-script</string>
+            <key>config</key>
+            <dict>
+                <key>script</key>
+                <string>export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+focusbm restore "{query}"</string>
+                <key>type</key>
+                <integer>0</integer>
+            </dict>
+        </dict>
+    </array>
+    <key>connections</key>
+    <dict>
+        <key>input-scriptfilter</key>
+        <array>
+            <dict>
+                <key>destinationuid</key>
+                <string>action-script</string>
+            </dict>
+        </array>
+    </dict>
+    <key>uidata</key>
+    <dict>
+        <key>input-scriptfilter</key>
+        <dict>
+            <key>xpos</key>
+            <integer>100</integer>
+            <key>ypos</key>
+            <integer>100</integer>
+        </dict>
+        <key>action-script</key>
+        <dict>
+            <key>xpos</key>
+            <integer>300</integer>
+            <key>ypos</key>
+            <integer>100</integer>
+        </dict>
+    </dict>
+</dict>
+</plist>
