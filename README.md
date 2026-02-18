@@ -63,6 +63,9 @@ focusbm add mywork com.example.app --app-name "My App" --context work
 # ブラウザブックマーク（URL パターン指定）
 focusbm add pr com.microsoft.edgemac --url "github.com/pulls" --context dev
 
+# ブラウザブックマーク（タブインデックス指定）
+focusbm add slack com.google.Chrome --url "app.slack.com" --tab-index 3 --context work
+
 # 正規表現パターン
 focusbm add taskchute "^com\\.electron\\.taskchute" --app-name "TaskChute Cloud"
 ```
@@ -109,12 +112,6 @@ focusbm list --context project-a
 
 # fzf と連携（パイプ入力用フォーマット）
 focusbm list --format fzf
-
-# JSON 出力
-focusbm list --format json
-
-# Alfred Script Filter 用 JSON 出力
-focusbm list --alfred
 ```
 
 ### ブックマークを削除する
@@ -130,8 +127,6 @@ focusbm delete mywork
 ```
 ~/.config/focusbm/bookmarks.yml
 ```
-
-旧バージョンの JSON 形式（`bookmarks.json`）が存在する場合は、初回起動時に自動的に YAML へ移行する。
 
 旧形式（V1）の `bookmarks.yml` が存在する場合は、初回読み込み時に自動的に V2 形式へ変換する（元ファイルは `.bak` として保持）。
 
@@ -158,6 +153,7 @@ bookmarks:
       type: browser
       urlPattern: "github.com/myorg/pull"
       title: "PR Review"
+      tabIndex: 2
     createdAt: "2025-02-18T09:00:00Z"
 ```
 
@@ -165,6 +161,7 @@ bookmarks:
 
 - **bundleIdPattern** — アプリのバンドル ID を正規表現パターンで指定。`^com\.electron\.taskchute` のように前方一致や完全一致を指定可能
 - **urlPattern** — ブラウザのアクティブタブ URL の部分一致パターン
+- **tabIndex** — ブラウザのタブインデックス（1始まり）。復元時に `tabIndex` が指定されていれば該当タブへ直接切り替える。`urlPattern` と併用した場合は `tabIndex` を優先しつつ URL で検証し、一致しなければ URL でフォールバック検索する。省略時は `urlPattern` のみで検索
 
 ## プロジェクト構成
 
