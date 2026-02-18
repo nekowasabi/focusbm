@@ -24,6 +24,12 @@ let package = Package(
             path: "Sources/focusbm",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        .executableTarget(
+            name: "FocusBMApp",
+            dependencies: ["FocusBMLib"],
+            path: "Sources/FocusBMApp",
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
         .testTarget(
             name: "focusbmTests",
             dependencies: [
