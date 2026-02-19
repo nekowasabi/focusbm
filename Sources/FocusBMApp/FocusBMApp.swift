@@ -60,12 +60,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if AXIsProcessTrusted() {
                 timer.invalidate()
                 self?.permissionTimer = nil
-                // まず現在のプロセスで EventTap 作成を試みる
-                self?.startEventTap()
-                if self?.eventTap != nil {
-                    return  // 成功 — 再起動不要
-                }
-                // 失敗した場合のみ再起動
+                // 権限付与後は必ず再起動する。
+                // CGEventTap のオブジェクト作成（tapCreate）は成功しても、
+                // 権限付与直後はシステムがイベント配送を完全に有効化するまで
+                // 遅延が生じる。再起動が最も確実。
                 self?.relaunchSelf()
             }
         }

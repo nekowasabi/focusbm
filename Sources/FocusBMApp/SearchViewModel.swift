@@ -10,10 +10,12 @@ class SearchViewModel: ObservableObject {
     @Published var filtered: [Bookmark] = []
     @Published var selectedIndex: Int = 0
     @Published var isActive: Bool = false
+    @Published var listFontSize: Double? = nil
 
     func load() {
         let store = BookmarkStore.loadYAML()
         bookmarks = store.bookmarks
+        listFontSize = store.settings?.listFontSize
         filterBookmarks()
     }
 

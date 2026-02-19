@@ -101,3 +101,43 @@ import Yams
     let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
     #expect(decoded.settings?.displayNumber == 1)
 }
+
+// MARK: - listFontSize
+
+@Test func test_appSettings_listFontSize_default() {
+    let settings = AppSettings()
+    #expect(settings.listFontSize == nil)
+}
+
+@Test func test_appSettings_listFontSize_fromYAML() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+      listFontSize: 15.0
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.listFontSize == 15.0)
+}
+
+@Test func test_appSettings_listFontSize_omitted() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.listFontSize == nil)
+}
+
+@Test func test_appSettings_listFontSize_roundTrip() throws {
+    var store = BookmarkStore()
+    store.settings = AppSettings()
+    store.settings?.listFontSize = 16.0
+
+    let text = try YAMLEncoder().encode(store)
+    let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
+    #expect(decoded.settings?.listFontSize == 16.0)
+}

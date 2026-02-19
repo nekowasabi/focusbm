@@ -5,12 +5,27 @@ struct BookmarkRow: View {
     let bookmark: Bookmark
     let isSelected: Bool
     let shortcutIndex: Int?  // 0-based; nil if >= 9
+    let fontSize: Double?
+
+    private var resolvedBodyFont: Font {
+        if let size = fontSize {
+            return .system(size: size, design: .monospaced)
+        }
+        return .system(.body, design: .monospaced)
+    }
+
+    private var resolvedCaptionFont: Font {
+        if let size = fontSize {
+            return .system(size: size * 0.85)
+        }
+        return .caption
+    }
 
     var body: some View {
         HStack {
             // Selection indicator
             Text(isSelected ? "▸" : " ")
-                .font(.system(.body, design: .monospaced))
+                .font(resolvedBodyFont)
                 .foregroundColor(.accentColor)
                 .frame(width: 16)
 
@@ -18,7 +33,7 @@ struct BookmarkRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
                     Text(bookmark.id)
-                        .font(.system(.body, design: .monospaced))
+                        .font(resolvedBodyFont)
                         .fontWeight(isSelected ? .bold : .regular)
                     Spacer()
                     if bookmark.context != "default" {
@@ -43,12 +58,12 @@ struct BookmarkRow: View {
 
                 HStack {
                     Text(bookmark.appName)
-                        .font(.caption)
+                        .font(resolvedCaptionFont)
                         .foregroundColor(.secondary)
 
                     if case .browser(let url, _, _) = bookmark.state {
                         Text("— \(url)")
-                            .font(.caption)
+                            .font(resolvedCaptionFont)
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
                     }

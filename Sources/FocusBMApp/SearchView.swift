@@ -41,7 +41,8 @@ struct SearchView: View {
                                 BookmarkRow(
                                     bookmark: bookmark,
                                     isSelected: index == viewModel.selectedIndex,
-                                    shortcutIndex: index < 9 ? index : nil
+                                    shortcutIndex: index < 9 ? index : nil,
+                                    fontSize: viewModel.listFontSize
                                 )
                                 .id(bookmark.id)
                                 .frame(maxWidth: .infinity, alignment: .leading)

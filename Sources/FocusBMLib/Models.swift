@@ -96,10 +96,16 @@ public struct HotkeySettings: Codable, Equatable {
 public struct AppSettings: Codable, Equatable {
     public var hotkey: HotkeySettings
     public var displayNumber: Int?
+    public var listFontSize: Double?
 
-    public init(hotkey: HotkeySettings = HotkeySettings(), displayNumber: Int? = nil) {
+    public init(
+        hotkey: HotkeySettings = HotkeySettings(),
+        displayNumber: Int? = nil,
+        listFontSize: Double? = nil
+    ) {
         self.hotkey = hotkey
         self.displayNumber = displayNumber
+        self.listFontSize = listFontSize
     }
 }
 
