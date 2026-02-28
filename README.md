@@ -141,8 +141,10 @@ YAML の `settings` セクションで変更できます（後述）。
 ## 対応アプリ
 
 - **ブラウザ** — アクティブタブの URL パターン・タイトル・タブインデックスを保存・復元
-  - Microsoft Edge, Google Chrome, Brave Browser, Safari, Firefox
+  - Microsoft Edge, Google Chrome, Brave Browser, Safari — URL でのタブ検索・切り替え対応
+  - Firefox — **`tabIndex` 指定時のみ** Cmd+N ショートカット経由でタブ切り替え（後述）
 - **その他のアプリ** — ウィンドウタイトルを保存し、bundleIdPattern（正規表現対応）でアプリを前面に表示
+- **floating window アプリ** — Cmd+Tab に表示されない LSUIElement アプリ（Alter など）の floating window を実行時に動的列挙して切り替え
 
 ---
 
@@ -263,6 +265,49 @@ bookmarks:
 - **bundleIdPattern** — アプリのバンドル ID を正規表現パターンで指定。`^com\.electron\.taskchute` のように前方一致や完全一致を指定可能
 - **urlPattern** — ブラウザのアクティブタブ URL の部分一致パターン
 - **tabIndex** — ブラウザのタブインデックス（1始まり）。復元時に `tabIndex` が指定されていれば該当タブへ直接切り替える。`urlPattern` と併用した場合は `tabIndex` を優先しつつ URL で検証し、一致しなければ URL でフォールバック検索する。省略時は `urlPattern` のみで検索
+
+### Firefox を使う場合の注意事項
+
+Firefox は AppleScript の「タブ列挙・URL 検索」API（`tabs of windows`）を持たないため、Chrome/Safari とは動作が異なります。
+
+| 条件 | 動作 |
+|------|------|
+| `tabIndex` あり | Cmd+N ショートカットを System Events 経由で送信し、N 番目のタブへジャンプ |
+| `tabIndex: 9` 以上 | Cmd+9（最後のタブ）へジャンプ（Firefox 公式仕様） |
+| `tabIndex` なし | Firefox をアクティブ化するだけ（タブ切り替えなし） |
+
+**Firefox ブックマークの推奨設定:**
+
+```yaml
+- id: github
+  appName: Firefox
+  bundleIdPattern: org.mozilla.firefox
+  context: dev
+  state:
+    type: browser
+    urlPattern: github.com   # 参考情報として記述（検索には使われない）
+    title: GitHub
+    tabIndex: 3              # 左から何番目のタブか（1始まり）を指定
+  createdAt: "2025-01-01T00:00:00Z"
+```
+
+> **注意**: `tabIndex` はタブの位置が変わると機能しなくなります。常に同じ位置に固定して使うか、ピン留めタブとして固定することを推奨します。
+
+### floating window アプリ（Alter など）
+
+Cmd+Tab に表示されない LSUIElement アプリの floating window をパネルから切り替えたい場合は `type: floatingWindows` を使います。ウィンドウタイトルはアプリ起動時に自動取得されるため YAML への記述は不要です。
+
+```yaml
+- id: alter
+  appName: Alter            # アプリ名（CGWindowList のマッチに使用）
+  bundleIdPattern: ""       # bundleId 不要
+  context: tools
+  state:
+    type: floatingWindows   # 実行時に動的列挙
+  createdAt: "2025-01-01T00:00:00Z"
+```
+
+パネルを開いた時点で存在する floating window が候補として表示されます（例: `Alter - Search the web - Hello`）。
 
 ---
 
