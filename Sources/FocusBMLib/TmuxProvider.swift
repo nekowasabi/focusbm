@@ -31,18 +31,25 @@ public struct TmuxPane {
 
     public var isAIAgent: Bool {
         let t = title.lowercased()
-        return command == "claude" ||
-               title.contains("Claude Code") ||
-               command == "aider" ||
+        // コマンド名で直接判定できるエージェント（終了すればコマンドがシェルに戻る）
+        if command == "claude" || command == "aider" || command == "gemini" ||
+           command == "copilot" || command == "agent" {
+            return true
+        }
+        // タイトル含有で判定する場合、コマンドがシェルなら終了済みと判断
+        if isShellCommand { return false }
+        return title.contains("Claude Code") ||
                t.contains("aider") ||
-               command == "gemini" ||
                t.contains("gemini") ||
-               t.contains("codex") ||          // codex runs as node
-               command == "copilot" ||
+               t.contains("codex") ||
                t.contains("copilot") ||
-               command == "agent" ||
                t.contains("openai") ||
                t.contains("ai agent")
+    }
+
+    private var isShellCommand: Bool {
+        let shells = ["zsh", "bash", "fish", "sh", "dash", "tcsh", "csh", "ksh", "nu"]
+        return shells.contains(command)
     }
 
     public var agentStatus: TmuxAgentStatus {
