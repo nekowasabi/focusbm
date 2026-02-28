@@ -403,6 +403,146 @@ Phase 4 (応用):  Ghostty対応 + 動的AIエージェント検出
 
 ---
 
+## 指摘事項の要件整理・妥当性検討（コードベース調査結果）
+
+> **調査日**: 2026-02-28
+> **調査ファイル**: Models.swift, AppleScriptBridge.swift, BookmarkRestorer.swift, SearchPanel.swift, SearchViewModel.swift
+
+### コードベース現状サマリー
+
+| ファイル | 現状の制約 |
+|---------|-----------|
+| `Models.swift` | `bundleIdPattern: String`（必須）、AppState は `.browser/.app/.floatingWindows` の3バリアント |
+| `AppleScriptBridge.swift:128-139` | bundleIdPattern のみでマッチング（完全一致 → 正規表現の2段階）|
+| `BookmarkRestorer.swift` | state による switch 分岐、`.app` は `activateApp` のみ呼ぶ |
+| `SearchPanel.swift:69-80` | Cmd+1-9 は `searchItems.count` ベース（クエリ変更でインデックスがずれる）|
+| `SearchViewModel.updateItems()` | インライン `contains` フィルタ（BookmarkSearcher.filter は UI 未使用） |
+
+---
+
+### 機能2: アプリ名フォールバック — 確定要件
+
+```
+findRunningApp の拡張ロジック:
+1. bundleIdPattern がある → 既存ロジック（完全一致 → 正規表現）
+2. bundleIdPattern が nil → appName で全アプリを検索
+   - localizedName に対して contains（case insensitive）
+   - 同名複数アプリが存在する場合:
+     a. 追加条件（windowTitle 等）を満たすものを優先
+     b. 条件マッチがなければ first を利用
+```
+
+**変更ファイル:**
+- `Models.swift`: `bundleIdPattern: String?` に Optional 化
+- `AppleScriptBridge.swift:findRunningApp()`: appName フォールバック追加
+- `BookmarkRestorer.swift`: bundleIdPattern が nil の場合の処理追加
+- `Tests/focusbmTests/AppSettingsTests.swift`: Optional 対応テスト
+
+**妥当性:** ✅ 低リスク（既存 YAML との後方互換性あり）
+
+---
+
+### 機能3+4: tmux 動的検出 + AI セッション移動 — 確定要件
+
+```yaml
+# YAML 設計（指摘反映後）
+- id: claude-agent
+  appName: WezTerm
+  state:
+    type: tmux
+    paneCommand: "claude"   # nil の場合は全ペイン対象
+    windowName: "agent"     # オプション絞り込み（省略可）
+    sessionName: "main"     # オプション絞り込み（省略可）
+```
+
+**動作フロー（確定）:**
+1. `tmux list-panes -a -F "#{session_name}:#{window_name}:#{pane_current_command}:#{pane_id}"` 実行
+2. `paneCommand` でフィルタ（指定時）
+3. `windowName`/`sessionName` で追加絞り込み（指定時）
+4. 候補複数 → SearchPanel に候補リストを表示してユーザーが選択
+5. 候補1つ → 直接移動
+6. 候補0（tmux なし or 条件不一致）→ ターミナルアプリをアクティブ化するだけ
+
+**AI エージェントコマンド一覧（YAML設定）:**
+```yaml
+settings:
+  aiAgentCommands:
+    - claude
+    - aider
+    - cursor
+    - codex
+    - gemini
+    - agent
+    - copilot
+```
+
+**変更ファイル:**
+- `Models.swift`: `AppState.tmux` バリアント追加
+- `BookmarkRestorer.swift`: `.tmux` ケース追加
+- `Sources/FocusBMLib/TmuxBridge.swift`（新規）: `listPanes()`, `switchToPane()` 実装
+- `SearchViewModel.swift`: tmux 候補が複数の場合のリスト表示ロジック
+
+**妥当性:** ⚠️ 中程度リスク（`pane_current_command` はシェル内プロセスを検出できない問題あり）
+
+---
+
+### 機能5: プロセス状態取得速度 — 確定要件
+
+```
+キャッシュ戦略（指摘反映後）:
+  - tmuxペイン情報: 1分間キャッシュ（DispatchQueue.global でポーリング）
+  - アプリ起動状態: NSWorkspace 通知（didLaunchApp/didTerminateApp）でキャッシュ更新
+  - ステータスインジケーター: 🟢（動作中）/ ⚫（未検出）をブックマーク横に表示
+```
+
+**変更ファイル:**
+- `SearchViewModel.swift`: `ProcessStatusCache` 追加（tmux ポーリング）
+- `BookmarkRow.swift`: 🟢/⚫ インジケーター表示
+
+**妥当性:** ✅ 実装可能（バッテリー消費ほぼゼロ）
+
+---
+
+### 機能6: ファジー検索 — 確定要件
+
+```
+Cmd+1-9 挙動変更（指摘反映後）:
+  - query が空 → 従来通りインデックスで選択
+  - query あり → Cmd+1-9 を無効化（Enter のみで選択）
+
+jsmigemo 検討結果:
+  → Swift/macOS ネイティブには移植困難（JS ライブラリのため）
+  → ローマ字→日本語変換は対応しない（Noticed but not fixed）
+```
+
+**変更ファイル:**
+- `Models.swift`: `BookmarkSearcher.fuzzyScore()` 追加、`filter()` 置き換え
+- `SearchViewModel.updateItems()`: `BookmarkSearcher.filter` を使うよう統一（重複解消）
+- `SearchPanel.swift:69-80`: query 空のときのみ Cmd+1-9 有効化
+- `Tests/focusbmTests/ModelsTests.swift`: fuzzy テスト追加
+
+**妥当性:** ✅ ライブラリ不要で実装可能
+
+---
+
+### 確定実装順序
+
+| Phase | 機能 | 工数 |
+|-------|------|------|
+| Phase 1 | アプリ名フォールバック | 0.5日 |
+| Phase 1 | ファジー検索 + Cmd+1-9 挙動修正 | 1日 |
+| Phase 2 | プロセス状態キャッシュ + インジケーター | 0.5日 |
+| Phase 3 | tmux 動的検出 + AI セッション移動 | 2日 |
+
+### 非対応決定事項
+
+| 項目 | 理由 |
+|------|------|
+| jsmigemo | Swift 移植コスト高、JS ライブラリのため |
+| WezTerm/iTerm2 固有 CLI | tmux 経由で代替可能、Phase 3 以降に先送り |
+
+---
+
 ## 検証方法
 
 - アプリ名判定: `swift run focusbm save` + `bundleIdPattern`省略でブックマーク保存 → `focusbm restore` で復元確認
