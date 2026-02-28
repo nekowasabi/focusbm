@@ -104,15 +104,19 @@ public struct AppSettings: Codable, Equatable {
     public var hotkey: HotkeySettings
     public var displayNumber: Int?
     public var listFontSize: Double?
+    /// tmux AIエージェントペインを検索UIに表示するか（デフォルト: true）
+    public var showTmuxAgents: Bool?
 
     public init(
         hotkey: HotkeySettings = HotkeySettings(),
         displayNumber: Int? = nil,
-        listFontSize: Double? = nil
+        listFontSize: Double? = nil,
+        showTmuxAgents: Bool? = nil
     ) {
         self.hotkey = hotkey
         self.displayNumber = displayNumber
         self.listFontSize = listFontSize
+        self.showTmuxAgents = showTmuxAgents
     }
 }
 

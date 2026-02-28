@@ -16,12 +16,14 @@ class SearchViewModel: ObservableObject {
     // パネル表示時に enumerate() の結果をキャッシュ（キーストロークごとの AX IPC を回避）
     private var floatingWindowCache: [String: [FloatingWindowEntry]] = [:]
     private var tmuxPaneCache: [TmuxPane] = []
+    private var showTmuxAgents: Bool = true
 
     /// YAML を読み込んで bookmarks を更新する。AX API は呼ばない（起動時にも安全）。
     func load() {
         let store = BookmarkStore.loadYAML()
         bookmarks = store.bookmarks
         listFontSize = store.settings?.listFontSize
+        showTmuxAgents = store.settings?.showTmuxAgents ?? true
         updateItems()
     }
 
@@ -43,7 +45,12 @@ class SearchViewModel: ObservableObject {
     }
 
     /// tmux AIエージェントペインをパネル表示時に1回だけ取得してキャッシュ
+    /// settings.showTmuxAgents が false の場合はスキップ
     private func loadTmuxPanes() {
+        guard showTmuxAgents else {
+            tmuxPaneCache = []
+            return
+        }
         tmuxPaneCache = (try? TmuxProvider.listAIAgentPanes()) ?? []
     }
 
