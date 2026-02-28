@@ -281,3 +281,41 @@ import Testing
 @Test func test_terminalBundleIdToEmoji_nil() {
     #expect(TmuxProvider.terminalBundleIdToEmoji(nil) == "❓")
 }
+
+// MARK: - Codex終了後のゴースト検出防止テスト
+
+@Test func test_isAIAgent_codexRunning_nodeCommand() {
+    let pane = TmuxPane(paneId: "%10", sessionName: "main", windowIndex: 0,
+                        windowName: "codex", command: "node", title: "codex cli", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+}
+
+@Test func test_isAIAgent_codexExited_shellCommand_zsh() {
+    let pane = TmuxPane(paneId: "%11", sessionName: "main", windowIndex: 0,
+                        windowName: "codex", command: "zsh", title: "codex cli", currentPath: "/tmp")
+    #expect(pane.isAIAgent == false)
+}
+
+@Test func test_isAIAgent_codexExited_shellCommand_bash() {
+    let pane = TmuxPane(paneId: "%12", sessionName: "main", windowIndex: 0,
+                        windowName: "codex", command: "bash", title: "codex cli", currentPath: "/tmp")
+    #expect(pane.isAIAgent == false)
+}
+
+@Test func test_isAIAgent_codexExited_shellCommand_fish() {
+    let pane = TmuxPane(paneId: "%13", sessionName: "main", windowIndex: 0,
+                        windowName: "codex", command: "fish", title: "codex cli", currentPath: "/tmp")
+    #expect(pane.isAIAgent == false)
+}
+
+@Test func test_isAIAgent_claudeCodeExited_shellCommand() {
+    let pane = TmuxPane(paneId: "%14", sessionName: "main", windowIndex: 0,
+                        windowName: "dev", command: "zsh", title: "Claude Code - project", currentPath: "/tmp")
+    #expect(pane.isAIAgent == false)
+}
+
+@Test func test_isAIAgent_aiderExited_shellCommand() {
+    let pane = TmuxPane(paneId: "%15", sessionName: "main", windowIndex: 0,
+                        windowName: "dev", command: "bash", title: "aider session", currentPath: "/tmp")
+    #expect(pane.isAIAgent == false)
+}
