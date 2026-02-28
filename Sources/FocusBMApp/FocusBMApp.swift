@@ -233,6 +233,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             panel.close()
         } else {
             viewModel.load()
+            viewModel.refreshForPanel()  // AX キャッシュ更新（起動時ではなくパネル表示時のみ）
             viewModel.query = ""
             viewModel.selectedIndex = 0
             viewModel.isActive = false

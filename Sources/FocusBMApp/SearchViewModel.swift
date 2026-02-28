@@ -16,10 +16,16 @@ class SearchViewModel: ObservableObject {
     // パネル表示時に enumerate() の結果をキャッシュ（キーストロークごとの AX IPC を回避）
     private var floatingWindowCache: [String: [FloatingWindowEntry]] = [:]
 
+    /// YAML を読み込んで bookmarks を更新する。AX API は呼ばない（起動時にも安全）。
     func load() {
         let store = BookmarkStore.loadYAML()
         bookmarks = store.bookmarks
         listFontSize = store.settings?.listFontSize
+        updateItems()
+    }
+
+    /// パネル表示時に呼ぶ。AX API でキャッシュを更新してから候補リストを再構築する。
+    func refreshForPanel() {
         cacheFloatingWindows()
         updateItems()
     }

@@ -230,6 +230,7 @@ public struct AppleScriptBridge {
         let keyStr = index <= 8 ? "\(index)" : "9"
         let script = """
         tell application id "\(escapedBundleId)" to activate
+        delay 0.3
         tell application "System Events"
             keystroke "\(keyStr)" using {command down}
         end tell
