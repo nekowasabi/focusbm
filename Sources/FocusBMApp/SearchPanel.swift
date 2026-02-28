@@ -70,7 +70,7 @@ class SearchPanel: NSPanel {
             if event.modifierFlags.contains(.command),
                let number = Self.digitKeyCodes[event.keyCode] {
                 let index = number - 1
-                if index < self.viewModel.filtered.count {
+                if index < self.viewModel.searchItems.count {
                     self.viewModel.selectedIndex = index
                     if self.viewModel.restoreSelected() {
                         self.close()

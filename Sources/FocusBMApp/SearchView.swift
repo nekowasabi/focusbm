@@ -28,8 +28,8 @@ struct SearchView: View {
 
             Divider()
 
-            // Bookmark list
-            if viewModel.filtered.isEmpty {
+            // Item list
+            if viewModel.searchItems.isEmpty {
                 Text("No bookmarks found")
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -37,14 +37,14 @@ struct SearchView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 2) {
-                            ForEach(Array(viewModel.filtered.enumerated()), id: \.element.id) { index, bookmark in
+                            ForEach(Array(viewModel.searchItems.enumerated()), id: \.element.id) { index, item in
                                 BookmarkRow(
-                                    bookmark: bookmark,
+                                    searchItem: item,
                                     isSelected: index == viewModel.selectedIndex,
                                     shortcutIndex: index < 9 ? index : nil,
                                     fontSize: viewModel.listFontSize
                                 )
-                                .id(bookmark.id)
+                                .id(item.id)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
@@ -67,9 +67,9 @@ struct SearchView: View {
                         .padding(.vertical, 4)
                     }
                     .onChange(of: viewModel.selectedIndex) { newIndex in
-                        if let bm = viewModel.filtered[safe: newIndex] {
+                        if let item = viewModel.searchItems[safe: newIndex] {
                             withAnimation {
-                                proxy.scrollTo(bm.id, anchor: .bottom)
+                                proxy.scrollTo(item.id, anchor: .bottom)
                             }
                         }
                     }

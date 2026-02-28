@@ -5,6 +5,7 @@ import Yams
 public enum AppState: Codable {
     case browser(urlPattern: String, title: String, tabIndex: Int?)
     case app(windowTitle: String)
+    case floatingWindows  // 実行時に CGWindowList + AXUIElement で動的列挙
 
     private enum CodingKeys: String, CodingKey {
         case type, urlPattern, title, tabIndex, windowTitle
@@ -21,6 +22,8 @@ public enum AppState: Codable {
         case .app(let windowTitle):
             try container.encode("app", forKey: .type)
             try container.encode(windowTitle, forKey: .windowTitle)
+        case .floatingWindows:
+            try container.encode("floatingWindows", forKey: .type)
         }
     }
 
@@ -33,6 +36,8 @@ public enum AppState: Codable {
             let title = try container.decode(String.self, forKey: .title)
             let tabIndex = try container.decodeIfPresent(Int.self, forKey: .tabIndex)
             self = .browser(urlPattern: urlPattern, title: title, tabIndex: tabIndex)
+        case "floatingWindows":
+            self = .floatingWindows
         default:
             let windowTitle = try container.decode(String.self, forKey: .windowTitle)
             self = .app(windowTitle: windowTitle)
@@ -64,6 +69,8 @@ public struct Bookmark: Codable, Identifiable {
             return "\(appName): \(title) (\(urlPattern))\(tab)"
         case .app(let windowTitle):
             return "\(appName): \(windowTitle)"
+        case .floatingWindows:
+            return "\(appName): [floating windows]"
         }
     }
 }
@@ -156,6 +163,53 @@ public struct BookmarkSearcher {
             bm.id.lowercased().contains(q) ||
             bm.appName.lowercased().contains(q) ||
             bm.context.lowercased().contains(q)
+        }
+    }
+}
+
+// MARK: - SearchItem
+
+/// Bookmark（静的）と FloatingWindowEntry（動的）を統合する表示型
+public enum SearchItem: Identifiable {
+    case bookmark(Bookmark)
+    case floatingWindow(FloatingWindowEntry)
+
+    public var id: String {
+        switch self {
+        case .bookmark(let b): return b.id
+        case .floatingWindow(let f): return f.id
+        }
+    }
+
+    public var displayName: String {
+        switch self {
+        case .bookmark(let b): return b.id
+        case .floatingWindow(let f): return f.displayName
+        }
+    }
+
+    public var appName: String {
+        switch self {
+        case .bookmark(let b): return b.appName
+        case .floatingWindow(let f): return f.appName
+        }
+    }
+
+    public var context: String {
+        switch self {
+        case .bookmark(let b): return b.context
+        case .floatingWindow: return ""
+        }
+    }
+
+    /// browser 状態の場合のみ URL パターンを返す
+    public var urlPattern: String? {
+        switch self {
+        case .bookmark(let b):
+            if case .browser(let url, _, _) = b.state { return url }
+            return nil
+        case .floatingWindow:
+            return nil
         }
     }
 }

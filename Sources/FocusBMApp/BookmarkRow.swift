@@ -2,7 +2,7 @@ import SwiftUI
 import FocusBMLib
 
 struct BookmarkRow: View {
-    let bookmark: Bookmark
+    let searchItem: SearchItem
     let isSelected: Bool
     let shortcutIndex: Int?  // 0-based; nil if >= 9
     let fontSize: Double?
@@ -29,15 +29,15 @@ struct BookmarkRow: View {
                 .foregroundColor(.accentColor)
                 .frame(width: 16)
 
-            // Bookmark info
+            // Item info
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text(bookmark.id)
+                    Text(searchItem.displayName)
                         .font(resolvedBodyFont)
                         .fontWeight(isSelected ? .bold : .regular)
                     Spacer()
-                    if bookmark.context != "default" {
-                        Text("[\(bookmark.context)]")
+                    if !searchItem.context.isEmpty && searchItem.context != "default" {
+                        Text("[\(searchItem.context)]")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 6)
@@ -57,11 +57,11 @@ struct BookmarkRow: View {
                 }
 
                 HStack {
-                    Text(bookmark.appName)
+                    Text(searchItem.appName)
                         .font(resolvedCaptionFont)
                         .foregroundColor(.secondary)
 
-                    if case .browser(let url, _, _) = bookmark.state {
+                    if let url = searchItem.urlPattern {
                         Text("— \(url)")
                             .font(resolvedCaptionFont)
                             .foregroundStyle(.tertiary)
