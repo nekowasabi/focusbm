@@ -162,9 +162,11 @@ public struct AppleScriptBridge {
                 return "false"
             end tell
             """
-            let result = try run(script)
+            let result = (try? run(script)) ?? "false"
             if result == "true" { return }
-            throw AppleScriptError.executionFailed("Tab index \(idx) not found")
+            // Chrome 系失敗 or Firefox → Cmd+N ショートカットで代替
+            try switchToTabByShortcut(bundleId: bundleId, index: idx)
+            return
         }
 
         // tabIndex + URL: tabIndex を優先しつつ URL で検証
@@ -184,12 +186,14 @@ public struct AppleScriptBridge {
                 return "false"
             end tell
             """
-            if let result = try? run(script), result == "true" {
-                return
-            }
+            let result = (try? run(script)) ?? "false"
+            if result == "true" { return }
+            // URL 不一致 or Firefox → Cmd+N ショートカットで代替
+            try switchToTabByShortcut(bundleId: bundleId, index: idx)
+            return
         }
 
-        // URL でフォールバック検索
+        // URL のみでフォールバック検索（tabIndex なし）
         let escapedUrl = escapeForAppleScript(url)
         let script = """
         tell application id "\(escapedBundleId)"
@@ -209,9 +213,32 @@ public struct AppleScriptBridge {
             return found as text
         end tell
         """
-        let result = try run(script)
+        // Firefox など AppleScript tabs 非対応ブラウザはここで例外が発生する。
+        // タブが見つからない場合も含め、最低限アプリをアクティブ化する。
+        let result = (try? run(script)) ?? "false"
         if result != "true" {
-            throw AppleScriptError.executionFailed("Tab not found for URL: \(url)")
+            try activateApp(bundleId: bundleId)
+        }
+    }
+
+    /// Cmd+1〜8 で番号指定タブへ、Cmd+9 で最後のタブへ移動する（Firefox 公式ショートカット）。
+    /// Chrome/Safari/Brave でも同じショートカットが使えるため汎用的に動作する。
+    /// System Events 経由のため Accessibility 権限が必要。
+    private static func switchToTabByShortcut(bundleId: String, index: Int) throws {
+        let escapedBundleId = escapeForAppleScript(bundleId)
+        // Cmd+1〜8 は対応タブ番号へ、Cmd+9 は最後のタブ（Firefox / Chrome 共通仕様）
+        let keyStr = index <= 8 ? "\(index)" : "9"
+        let script = """
+        tell application id "\(escapedBundleId)" to activate
+        tell application "System Events"
+            keystroke "\(keyStr)" using {command down}
+        end tell
+        """
+        do {
+            _ = try run(script)
+        } catch {
+            // System Events 失敗（AX 権限なし等）→ アクティブ化のみ
+            try activateApp(bundleId: bundleId)
         }
     }
 }
