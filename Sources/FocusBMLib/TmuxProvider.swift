@@ -30,12 +30,19 @@ public struct TmuxPane {
     public var terminalEmoji: String = "❓"
 
     public var isAIAgent: Bool {
+        let t = title.lowercased()
         return command == "claude" ||
                title.contains("Claude Code") ||
                command == "aider" ||
-               title.lowercased().contains("aider") ||
+               t.contains("aider") ||
                command == "gemini" ||
-               title.lowercased().contains("gemini")
+               t.contains("gemini") ||
+               t.contains("codex") ||          // codex runs as node
+               command == "copilot" ||
+               t.contains("copilot") ||
+               command == "agent" ||
+               t.contains("openai") ||
+               t.contains("ai agent")
     }
 
     public var agentStatus: TmuxAgentStatus {
@@ -58,11 +65,17 @@ public struct TmuxPane {
     }
 
     public var agentName: String {
+        let t = title.lowercased()
         switch command {
-        case "claude": return "Claude Code"
-        case "aider":  return "Aider"
-        case "gemini": return "Gemini"
-        default:       return command
+        case "claude":  return "Claude Code"
+        case "aider":   return "Aider"
+        case "gemini":  return "Gemini"
+        case "copilot": return "Copilot"
+        case "agent":   return "Agent"
+        default:
+            if t.contains("codex")   { return "Codex" }
+            if t.contains("copilot") { return "Copilot" }
+            return command
         }
     }
 
