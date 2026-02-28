@@ -41,25 +41,33 @@ class SearchViewModel: ObservableObject {
     }
 
     func updateItems() {
-        let q = query.lowercased()
         var items: [SearchItem] = []
 
-        for bookmark in bookmarks {
-            if case .floatingWindows = bookmark.state {
-                // キャッシュから取得（AX IPC なし）
-                let entries = floatingWindowCache[bookmark.appName] ?? []
-                let filtered = q.isEmpty ? entries : entries.filter {
-                    $0.displayName.lowercased().contains(q)
-                }
-                items += filtered.map { .floatingWindow($0) }
-            } else {
-                if q.isEmpty ||
-                    bookmark.id.lowercased().contains(q) ||
-                    bookmark.appName.lowercased().contains(q) ||
-                    bookmark.context.lowercased().contains(q) {
+        if query.isEmpty {
+            // クエリなし: YAML 順序を維持（floatingWindows と通常ブックマークを混在）
+            for bookmark in bookmarks {
+                if case .floatingWindows = bookmark.state {
+                    let entries = floatingWindowCache[bookmark.appName] ?? []
+                    items += entries.map { .floatingWindow($0) }
+                } else {
                     items.append(.bookmark(bookmark))
                 }
             }
+        } else {
+            // クエリあり: fuzzy フィルタ（floatingWindows は名前マッチ、通常はスコア順）
+            for bookmark in bookmarks {
+                if case .floatingWindows = bookmark.state {
+                    let entries = (floatingWindowCache[bookmark.appName] ?? []).filter {
+                        BookmarkSearcher.fuzzyScore(text: $0.displayName, query: query) != nil
+                    }
+                    items += entries.map { .floatingWindow($0) }
+                }
+            }
+            let regular = bookmarks.filter {
+                if case .floatingWindows = $0.state { return false }
+                return true
+            }
+            items += BookmarkSearcher.filter(bookmarks: regular, query: query).map { .bookmark($0) }
         }
 
         searchItems = items

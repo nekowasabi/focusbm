@@ -48,12 +48,12 @@ public enum AppState: Codable {
 public struct Bookmark: Codable, Identifiable {
     public var id: String          // ユーザー指定のエイリアス
     public var appName: String
-    public var bundleIdPattern: String
+    public var bundleIdPattern: String?  // 省略可能: nil の場合は appName でマッチング
     public var context: String     // contexts フィルタリング用タグ
     public var state: AppState
     public var createdAt: String  // ISO8601形式
 
-    public init(id: String, appName: String, bundleIdPattern: String, context: String, state: AppState, createdAt: String) {
+    public init(id: String, appName: String, bundleIdPattern: String?, context: String, state: AppState, createdAt: String) {
         self.id = id
         self.appName = appName
         self.bundleIdPattern = bundleIdPattern
@@ -156,14 +156,40 @@ public struct HotkeyParser {
 // MARK: - Bookmark Search
 
 public struct BookmarkSearcher {
+    /// FZF 風サブシーケンスマッチ: クエリの文字が順番通りに text に登場するかチェック
+    /// 戻り値: マッチしない場合 nil、マッチした場合スコア（高いほど関連度高）
+    public static func fuzzyScore(text: String, query: String) -> Int? {
+        let t = text.lowercased()
+        let q = query.lowercased()
+        guard !q.isEmpty else { return 0 }
+        var score = 0
+        var textIdx = t.startIndex
+        for queryChar in q {
+            guard let found = t[textIdx...].firstIndex(of: queryChar) else {
+                return nil  // クエリ文字が順番通りに見つからない
+            }
+            if found == t.startIndex { score += 10 }  // 先頭一致ボーナス
+            if found > t.startIndex {
+                let prev = t.index(before: found)
+                if " -_".contains(t[prev]) { score += 5 }  // 単語区切り直後ボーナス
+            }
+            score += 1
+            textIdx = t.index(after: found)
+        }
+        return score
+    }
+
+    /// fuzzy フィルタ + スコア順ソート
     public static func filter(bookmarks: [Bookmark], query: String) -> [Bookmark] {
         guard !query.isEmpty else { return bookmarks }
-        let q = query.lowercased()
-        return bookmarks.filter { bm in
-            bm.id.lowercased().contains(q) ||
-            bm.appName.lowercased().contains(q) ||
-            bm.context.lowercased().contains(q)
-        }
+        return bookmarks
+            .compactMap { bm -> (Bookmark, Int)? in
+                let texts = [bm.id, bm.appName, bm.context]
+                let maxScore = texts.compactMap { fuzzyScore(text: $0, query: query) }.max()
+                return maxScore.map { (bm, $0) }
+            }
+            .sorted { $0.1 > $1.1 }
+            .map { $0.0 }
     }
 }
 

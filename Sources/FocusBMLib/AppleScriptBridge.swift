@@ -105,37 +105,61 @@ public struct AppleScriptBridge {
         return .browser(urlPattern: url, title: title, tabIndex: tabIndex)
     }
 
-    // アプリをバンドルIDパターンでアクティブにする（正規表現対応、未起動の場合は起動）
-    public static func activateApp(bundleId bundleIdPattern: String) throws {
-        if let app = findRunningApp(matching: bundleIdPattern),
+    /// アプリをアクティブにする（bundleIdPattern が nil の場合は appName でフォールバック）
+    /// 未起動の場合は open コマンドで起動を試みる
+    public static func activateApp(bundleIdPattern: String?, appName: String) throws {
+        if let app = findRunningApp(bundleIdPattern: bundleIdPattern, appName: appName),
            let bid = app.bundleIdentifier {
             let script = "tell application id \"\(escapeForAppleScript(bid))\" to activate"
             _ = try run(script)
         } else {
-            // 未起動: open -b で起動（正規表現パターンの場合は失敗する可能性あり）
+            // 未起動: open で起動を試みる
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            process.arguments = ["-b", bundleIdPattern]
+            if let pattern = bundleIdPattern {
+                process.arguments = ["-b", pattern]
+            } else {
+                process.arguments = ["-a", appName]
+            }
             try process.run()
             process.waitUntilExit()
             if process.terminationStatus != 0 {
-                throw AppleScriptError.executionFailed("Failed to open app with bundleId: \(bundleIdPattern)")
+                let target = bundleIdPattern ?? appName
+                throw AppleScriptError.executionFailed("Failed to open app: \(target)")
             }
         }
     }
 
-    // 正規表現パターンマッチ対応のアプリ検索
-    private static func findRunningApp(matching pattern: String) -> NSRunningApplication? {
-        // 完全一致（高速パス）
-        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: pattern).first {
-            return app
+    /// restoreBrowserTab / switchToTabByShortcut 内部用: 確定した bundleId で起動
+    private static func activateApp(bundleId: String) throws {
+        try activateApp(bundleIdPattern: bundleId, appName: "")
+    }
+
+    /// bundleIdPattern（正規表現対応）または appName でアプリを検索する
+    /// bundleIdPattern が nil の場合は localizedName の contains 検索にフォールバック
+    public static func findRunningApp(bundleIdPattern: String?, appName: String) -> NSRunningApplication? {
+        if let pattern = bundleIdPattern {
+            // 完全一致（高速パス）
+            if let app = NSRunningApplication.runningApplications(withBundleIdentifier: pattern).first {
+                return app
+            }
+            // 正規表現マッチ
+            if let regex = try? NSRegularExpression(pattern: pattern) {
+                let matches = NSWorkspace.shared.runningApplications.filter { app in
+                    guard let bid = app.bundleIdentifier else { return false }
+                    return regex.firstMatch(in: bid, range: NSRange(bid.startIndex..., in: bid)) != nil
+                }
+                if let match = matches.first { return match }
+            }
         }
-        // 正規表現マッチ
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
-        return NSWorkspace.shared.runningApplications.first { app in
-            guard let bid = app.bundleIdentifier else { return false }
-            return regex.firstMatch(in: bid, range: NSRange(bid.startIndex..., in: bid)) != nil
+        // appName フォールバック（localizedName の case-insensitive contains 検索）
+        guard !appName.isEmpty else { return nil }
+        let name = appName.lowercased()
+        let matches = NSWorkspace.shared.runningApplications.filter { app in
+            guard let localName = app.localizedName else { return false }
+            return localName.lowercased().contains(name)
         }
+        return matches.first
     }
 
     // AppleScript 文字列リテラル用エスケープ
