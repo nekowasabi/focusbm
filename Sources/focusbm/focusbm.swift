@@ -26,7 +26,7 @@ struct FocusBM: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "focusbm",
         abstract: "macOS アプリフォーカスのブックマークツール",
-        subcommands: [Add.self, Edit.self, Save.self, Restore.self, RestoreContext.self, List.self, Delete.self, Switch.self]
+        subcommands: [Add.self, Edit.self, Save.self, Restore.self, RestoreContext.self, List.self, Delete.self, Switch.self, TmuxList.self]
     )
 }
 
@@ -306,6 +306,36 @@ extension FocusBM {
             guard let bm = bookmarks.first(where: { $0.id == id }) else { return }
             try BookmarkRestorer.restore(bm)
             print("✓ Switched to: [\(bm.id)] \(bm.description)")
+        }
+    }
+}
+
+// MARK: - tmux-list
+
+extension FocusBM {
+    struct TmuxList: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "tmux-list",
+            abstract: "tmux 内で動作中の AI エージェントセッションを一覧表示"
+        )
+
+        mutating func run() throws {
+            guard TmuxProvider.isTmuxAvailable() else {
+                print("tmux is not running")
+                return
+            }
+
+            let panes = try TmuxProvider.listAIAgentPanes()
+
+            if panes.isEmpty {
+                print("No AI agent sessions found.")
+                return
+            }
+
+            print("Found \(panes.count) AI agent session(s):")
+            for (index, pane) in panes.enumerated() {
+                print("  [\(index)] \(pane.displayName) \(pane.currentPath)")
+            }
         }
     }
 }

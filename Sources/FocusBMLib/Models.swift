@@ -199,11 +199,13 @@ public struct BookmarkSearcher {
 public enum SearchItem: Identifiable {
     case bookmark(Bookmark)
     case floatingWindow(FloatingWindowEntry)
+    case tmuxPane(TmuxPane)
 
     public var id: String {
         switch self {
         case .bookmark(let b): return b.id
         case .floatingWindow(let f): return f.id
+        case .tmuxPane(let p): return p.paneId
         }
     }
 
@@ -211,6 +213,7 @@ public enum SearchItem: Identifiable {
         switch self {
         case .bookmark(let b): return b.id
         case .floatingWindow(let f): return f.displayName
+        case .tmuxPane(let p): return p.displayName
         }
     }
 
@@ -218,6 +221,7 @@ public enum SearchItem: Identifiable {
         switch self {
         case .bookmark(let b): return b.appName
         case .floatingWindow(let f): return f.appName
+        case .tmuxPane(let p): return "session \(p.sessionName), win \(p.windowIndex)"
         }
     }
 
@@ -225,6 +229,7 @@ public enum SearchItem: Identifiable {
         switch self {
         case .bookmark(let b): return b.context
         case .floatingWindow: return ""
+        case .tmuxPane: return "tmux"
         }
     }
 
@@ -235,6 +240,8 @@ public enum SearchItem: Identifiable {
             if case .browser(let url, _, _) = b.state { return url }
             return nil
         case .floatingWindow:
+            return nil
+        case .tmuxPane:
             return nil
         }
     }

@@ -15,6 +15,7 @@ class SearchViewModel: ObservableObject {
 
     // パネル表示時に enumerate() の結果をキャッシュ（キーストロークごとの AX IPC を回避）
     private var floatingWindowCache: [String: [FloatingWindowEntry]] = [:]
+    private var tmuxPaneCache: [TmuxPane] = []
 
     /// YAML を読み込んで bookmarks を更新する。AX API は呼ばない（起動時にも安全）。
     func load() {
@@ -27,6 +28,7 @@ class SearchViewModel: ObservableObject {
     /// パネル表示時に呼ぶ。AX API でキャッシュを更新してから候補リストを再構築する。
     func refreshForPanel() {
         cacheFloatingWindows()
+        loadTmuxPanes()
         updateItems()
     }
 
@@ -38,6 +40,11 @@ class SearchViewModel: ObservableObject {
                 floatingWindowCache[bookmark.appName] = FloatingWindowProvider.enumerate(appName: bookmark.appName)
             }
         }
+    }
+
+    /// tmux AIエージェントペインをパネル表示時に1回だけ取得してキャッシュ
+    private func loadTmuxPanes() {
+        tmuxPaneCache = (try? TmuxProvider.listAIAgentPanes()) ?? []
     }
 
     func updateItems() {
@@ -53,6 +60,8 @@ class SearchViewModel: ObservableObject {
                     items.append(.bookmark(bookmark))
                 }
             }
+            // tmux AIエージェントペインをリストの末尾に追加
+            items += tmuxPaneCache.map { .tmuxPane($0) }
         } else {
             // クエリあり: fuzzy フィルタ（floatingWindows は名前マッチ、通常はスコア順）
             for bookmark in bookmarks {
@@ -68,6 +77,10 @@ class SearchViewModel: ObservableObject {
                 return true
             }
             items += BookmarkSearcher.filter(bookmarks: regular, query: query).map { .bookmark($0) }
+            // tmux ペインを displayName で fuzzy フィルタ
+            items += tmuxPaneCache.filter {
+                BookmarkSearcher.fuzzyScore(text: $0.displayName, query: query) != nil
+            }.map { .tmuxPane($0) }
         }
 
         searchItems = items
@@ -102,6 +115,13 @@ class SearchViewModel: ObservableObject {
         case .floatingWindow(let entry):
             FloatingWindowProvider.focus(entry: entry)
             return true
+        case .tmuxPane(let pane):
+            do {
+                try TmuxProvider.focusPane(pane)
+                return true
+            } catch {
+                return false
+            }
         }
     }
 }
