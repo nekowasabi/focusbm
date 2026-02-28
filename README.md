@@ -312,6 +312,45 @@ Floating windows that exist when the panel is opened are listed as candidates (e
 
 ---
 
+## tmux Integration
+
+focusbm now supports discovering and focusing tmux panes running AI agents.
+
+### Supported AI agents
+
+- Claude Code (`claude`)
+- Aider (`aider`)
+- Gemini (`gemini`)
+
+### Status indicators
+
+| Emoji | Status |
+|-------|--------|
+| ● | Running (thinking/generating) |
+| ○ | Idle (waiting for input) |
+| ⏸ | Plan mode |
+| ⏵ | Accept edits mode |
+
+### Terminal detection
+
+| Terminal | Emoji |
+|----------|-------|
+| Ghostty | 👻 |
+| iTerm2 / Terminal.app | 🍎 |
+| WezTerm | ⚡ |
+| Alacritty | 🔲 |
+
+### CLI verification
+
+```bash
+focusbm tmux-list
+# Found 3 AI agent session(s):
+#   [0] 👻 ● Claude Code — focusbm
+#   [1] 👻 ○ Claude Code — tmux-hint
+```
+
+---
+
 ## Project Structure
 
 ```
