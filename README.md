@@ -1,101 +1,101 @@
 # focusbm
 
-macOS アプリフォーカスのブックマークツール。YAML でアプリの切り替え先を定義し、一発で復元できる **CLI ツール** および **メニューバー常駐アプリ** のセット。
+A bookmark tool for macOS app focus management. Define app switching targets in YAML and instantly restore them with a **CLI tool** and a **menu bar app**.
 
-## 機能概要
+## Overview
 
-| ツール | 形態 | 概要 |
+| Tool | Type | Description |
 |---|---|---|
-| `focusbm` | CLI | サブコマンドでブックマークの追加・復元・管理 |
-| `FocusBMApp` | メニューバーアプリ | グローバルホットキーで呼び出せるフローティング検索パネル |
+| `focusbm` | CLI | Add, restore, and manage bookmarks via subcommands |
+| `FocusBMApp` | Menu bar app | Floating search panel invoked by a global hotkey |
 
 ---
 
-## CLI ツール（focusbm）
+## CLI Tool (focusbm)
 
-### サブコマンド一覧
+### Subcommands
 
-| サブコマンド | 説明 |
+| Subcommand | Description |
 |---|---|
-| `add <name> <bundleId>` | ブックマークを手動追加（YAML テンプレート生成）⭐推奨 |
-| `edit` | ブックマーク YAML をエディタで開く ⭐推奨 |
-| `save <name>` | 現在フォーカス中のアプリからブックマーク保存（補助コマンド） |
-| `restore <name>` | 指定したブックマークを復元してフォーカス |
-| `restore-context <context>` | コンテキスト内の全ブックマークを一括復元 |
-| `switch` | fzf でブックマークを絞り込み選択して復元 |
-| `list` | ブックマーク一覧を表示 |
-| `delete <name>` | 指定したブックマークを削除 |
+| `add <name> <bundleId>` | Manually add a bookmark (generates YAML template) ⭐ Recommended |
+| `edit` | Open the bookmark YAML in your editor ⭐ Recommended |
+| `save <name>` | Save the currently focused app as a bookmark (auxiliary command) |
+| `restore <name>` | Restore and focus the specified bookmark |
+| `restore-context <context>` | Restore all bookmarks in a context at once |
+| `switch` | Filter and select a bookmark using fzf, then restore |
+| `list` | Display the list of bookmarks |
+| `delete <name>` | Delete the specified bookmark |
 
-### 使い方
+### Usage
 
-#### 推奨ワークフロー: YAML 定義 → 復元
+#### Recommended Workflow: Define in YAML → Restore
 
-`save` コマンドは最前面アプリしか取得できないため、**YAML 手動定義が推奨ワークフロー**です。
+Since the `save` command can only capture the frontmost app, **manually defining bookmarks in YAML is the recommended workflow**.
 
-##### 1. ブックマークを追加する（`add` コマンド）
+##### 1. Add a bookmark (`add` command)
 
 ```sh
-# アプリブックマークを追加
+# Add an app bookmark
 focusbm add mywork com.example.app --context work
 
-# 表示名を指定
+# Specify a display name
 focusbm add mywork com.example.app --app-name "My App" --context work
 
-# ブラウザブックマーク（URL パターン指定）
+# Browser bookmark (URL pattern)
 focusbm add pr com.microsoft.edgemac --url "github.com/pulls" --context dev
 
-# ブラウザブックマーク（タブインデックス指定）
+# Browser bookmark (tab index)
 focusbm add slack com.google.Chrome --url "app.slack.com" --tab-index 3 --context work
 
-# 正規表現パターン
+# Regex pattern
 focusbm add taskchute "^com\\.electron\\.taskchute" --app-name "TaskChute Cloud"
 ```
 
-##### 2. YAML を直接編集する
+##### 2. Edit YAML directly
 
 ```sh
-# $EDITOR で YAML を開く
+# Open YAML in $EDITOR
 focusbm edit
 ```
 
-##### 3. ブックマークを復元する
+##### 3. Restore a bookmark
 
 ```sh
 focusbm restore mywork
 
-# fzf で選択して復元
+# Select and restore using fzf
 focusbm switch
 
-# コンテキスト内の全ブックマークを一括復元
+# Restore all bookmarks in a context
 focusbm restore-context work
 ```
 
-#### 補助: 現在のアプリを保存する（`save` コマンド）
+#### Auxiliary: Save the current app (`save` command)
 
-最前面のアプリの状態を素早くブックマークしたい場合に使用できます。ただし、取得できるのは現在フォーカス中のアプリのみです。
+Use this to quickly bookmark the current frontmost app. Note that only the currently focused app can be captured.
 
 ```sh
-# 現在のフォーカス状態を "mywork" という名前で保存
+# Save the current focus state as "mywork"
 focusbm save mywork
 
-# コンテキスト（タグ）を指定して保存
+# Save with a context (tag)
 focusbm save mywork --context project-a
 ```
 
-#### ブックマーク一覧を表示する
+#### Display the bookmark list
 
 ```sh
-# 通常表示（コンテキスト別グループ表示）
+# Default display (grouped by context)
 focusbm list
 
-# コンテキストで絞り込み
+# Filter by context
 focusbm list --context project-a
 
-# fzf と連携（パイプ入力用フォーマット）
+# fzf-compatible output format (for pipe input)
 focusbm list --format fzf
 ```
 
-#### ブックマークを削除する
+#### Delete a bookmark
 
 ```sh
 focusbm delete mywork
@@ -103,93 +103,93 @@ focusbm delete mywork
 
 ---
 
-## メニューバー常駐アプリ（FocusBMApp）
+## Menu Bar App (FocusBMApp)
 
-### 概要
+### Overview
 
-- メニューバーに常駐し、グローバルホットキーで Spotlight 風フローティング検索パネルを呼び出せる
-- パネルからブックマークをインクリメンタル検索して選択するだけでアプリ・ブラウザタブを前面に表示
-- キーボード操作完結（↑↓ で選択、Enter で復元、Esc で閉じる）
+- Lives in the menu bar and brings up a Spotlight-style floating search panel via a global hotkey
+- Incrementally search and select bookmarks from the panel to bring apps or browser tabs to the front
+- Fully keyboard-driven (↑↓ to navigate, Enter to restore, Esc to close)
 
-### 起動方法
+### How to Launch
 
 ```sh
-# デバッグビルドして起動
+# Build debug and run
 swift build
 .build/debug/FocusBMApp
 ```
 
-### グローバルホットキー
+### Global Hotkey
 
-デフォルトのホットキーは **Cmd+Ctrl+B** です。
+The default hotkey is **Cmd+Ctrl+B**.
 
-YAML の `settings` セクションで変更できます（後述）。
+You can change it in the `settings` section of your YAML (see below).
 
-### 必要な権限
+### Required Permissions
 
-アプリ・ブラウザの復元に **アクセシビリティ権限** が必要です。
+**Accessibility permission** is required to restore apps and browser tabs.
 
-初回起動時または復元失敗時に、以下の手順で権限を付与してください。
+On first launch or if restoration fails, grant permission as follows:
 
-1. システム設定 → プライバシーとセキュリティ → アクセシビリティ
-2. `FocusBMApp`（または `.build/debug/FocusBMApp`）を追加してオンにする
+1. System Settings → Privacy & Security → Accessibility
+2. Add `FocusBMApp` (or `.build/debug/FocusBMApp`) and enable it
 
-> ブラウザタブの復元には System Events / AppleScript 経由でのアクセスが必要なため、アクセシビリティ権限が必須です。
-
----
-
-## 対応アプリ
-
-- **ブラウザ** — アクティブタブの URL パターン・タイトル・タブインデックスを保存・復元
-  - Microsoft Edge, Google Chrome, Brave Browser, Safari — URL でのタブ検索・切り替え対応
-  - Firefox — **`tabIndex` 指定時のみ** Cmd+N ショートカット経由でタブ切り替え（後述）
-- **その他のアプリ** — ウィンドウタイトルを保存し、bundleIdPattern（正規表現対応）でアプリを前面に表示
-- **floating window アプリ** — Cmd+Tab に表示されない LSUIElement アプリ（Alter など）の floating window を実行時に動的列挙して切り替え
+> Accessibility permission is required because browser tab restoration relies on System Events / AppleScript access.
 
 ---
 
-## 必要環境
+## Supported Apps
 
-- macOS 13 (Ventura) 以上
-- Swift 6.0 以上
-- Xcode（テスト実行時）
-- fzf（CLI の `switch` コマンド使用時）
+- **Browsers** — Save and restore active tab URL patterns, titles, and tab indices
+  - Microsoft Edge, Google Chrome, Brave Browser, Safari — tab search and switching by URL supported
+  - Firefox — tab switching is supported **only when `tabIndex` is specified**, via the Cmd+N shortcut (see below)
+- **Other apps** — Save window titles and bring apps to the front using bundleIdPattern (supports regex)
+- **Floating window apps** — Dynamically enumerate floating windows of LSUIElement apps (such as Alter) that do not appear in Cmd+Tab, and switch between them at runtime
 
 ---
 
-## ビルド方法
+## Requirements
+
+- macOS 13 (Ventura) or later
+- Swift 6.0 or later
+- Xcode (for running tests)
+- fzf (for the CLI `switch` command)
+
+---
+
+## Building
 
 ```sh
-# デバッグビルド（CLI + メニューバーアプリ両方ビルドされる）
+# Debug build (builds both CLI and menu bar app)
 swift build
 
-# テスト実行
+# Run tests
 swift test
 
-# リリースビルド
+# Release build
 swift build -c release
 ```
 
-## インストール
+## Installation
 
-### メニューバーアプリ（FocusBMApp.app）
+### Menu Bar App (FocusBMApp.app)
 
-バンドルスクリプトでリリースビルド済みの `.app` バンドルを生成できる。
+A bundling script generates a release-built `.app` bundle.
 
 ```sh
-# .app バンドルを作成（リリースビルド → FocusBMApp.app 生成）
+# Create .app bundle (release build → generates FocusBMApp.app)
 ./scripts/bundle.sh
 
-# /Applications にインストール
+# Install to /Applications
 cp -r FocusBMApp.app /Applications/
 
-# 起動
+# Launch
 open FocusBMApp.app
 ```
 
-ダブルクリックや `open` コマンドでネイティブアプリとして起動する（ターミナル不要）。
+Double-click or use the `open` command to launch it as a native app (no terminal required).
 
-### CLI（focusbm）
+### CLI (focusbm)
 
 ```sh
 swift build -c release
@@ -198,23 +198,23 @@ cp .build/release/focusbm /usr/local/bin/focusbm
 
 ---
 
-## データ保存先
+## Data Storage
 
-ブックマークと設定は YAML 形式で以下のパスに保存される。
+Bookmarks and settings are stored in YAML format at the following path:
 
 ```
 ~/.config/focusbm/bookmarks.yml
 ```
 
-旧形式（V1）の `bookmarks.yml` が存在する場合は、初回読み込み時に自動的に V2 形式へ変換する（元ファイルは `.bak` として保持）。
+If a legacy V1 `bookmarks.yml` exists, it will be automatically migrated to V2 format on first load (the original file is preserved as `.bak`).
 
 ---
 
-## YAML 手動編集
+## Manual YAML Editing
 
-`~/.config/focusbm/bookmarks.yml` を直接編集することで、正規表現パターンや各種設定が可能。
+You can directly edit `~/.config/focusbm/bookmarks.yml` to use regex patterns and configure advanced settings.
 
-### ブックマーク定義例
+### Bookmark Definition Examples
 
 ```yaml
 bookmarks:
@@ -239,44 +239,45 @@ bookmarks:
     createdAt: "2025-02-18T09:00:00Z"
 ```
 
-### settings セクション
+### settings Section
 
-`bookmarks.yml` に `settings` セクションを追加することで、メニューバーアプリの動作を設定できる。
+Add a `settings` section to `bookmarks.yml` to configure the menu bar app behavior.
 
 ```yaml
 settings:
   hotkey:
     togglePanel: "cmd+ctrl+b"
   displayNumber: 1
-  listFontSize: 15.0   # 省略時はシステム標準 .body (≈13pt)
+  listFontSize: 15.0   # Defaults to system .body size (≈13pt) if omitted
 
 bookmarks:
   - id: ...
 ```
 
-| キー | 型 | デフォルト | 説明 |
+| Key | Type | Default | Description |
 |---|---|---|---|
-| `settings.hotkey.togglePanel` | 文字列 | `"cmd+ctrl+b"` | 検索パネルを呼び出すグローバルホットキー |
-| `settings.displayNumber` | 整数 | `1` | パネルを表示するディスプレイ番号（1始まり） |
-| `settings.listFontSize` | 小数 | `nil`（≈13pt）| 候補リストのフォントサイズ（pt）。省略時はシステム標準サイズ |
+| `settings.hotkey.togglePanel` | string | `"cmd+ctrl+b"` | Global hotkey to invoke the search panel |
+| `settings.displayNumber` | integer | `1` | Display number where the panel appears (1-based) |
+| `settings.listFontSize` | float | `nil` (≈13pt) | Font size (pt) for the candidate list. Uses system default if omitted |
 
-### フィールド説明
+### Field Descriptions
 
-- **bundleIdPattern** — アプリのバンドル ID を正規表現パターンで指定。`^com\.electron\.taskchute` のように前方一致や完全一致を指定可能
-- **urlPattern** — ブラウザのアクティブタブ URL の部分一致パターン
-- **tabIndex** — ブラウザのタブインデックス（1始まり）。復元時に `tabIndex` が指定されていれば該当タブへ直接切り替える。`urlPattern` と併用した場合は `tabIndex` を優先しつつ URL で検証し、一致しなければ URL でフォールバック検索する。省略時は `urlPattern` のみで検索
+- **bundleIdPattern** — Specifies the app's bundle ID as a regex pattern. Supports prefix or exact match, e.g., `^com\.electron\.taskchute`
+- **urlPattern** — Partial match pattern for the active browser tab's URL
+- **tabIndex** — Browser tab index (1-based). If specified, restoration jumps directly to that tab. When used together with `urlPattern`, `tabIndex` takes priority but falls back to URL search if the URL does not match. If omitted and `urlPattern` is set, the URL is opened directly via `open location` (the `https://` prefix is added automatically). If neither is set, the app is simply activated
 
-### Firefox を使う場合の注意事項
+### Notes on Using Firefox
 
-Firefox は AppleScript の「タブ列挙・URL 検索」API（`tabs of windows`）を持たないため、Chrome/Safari とは動作が異なります。
+Firefox does not have an AppleScript API for enumerating tabs or searching by URL (`tabs of windows`), so its behavior differs from Chrome/Safari.
 
-| 条件 | 動作 |
+| Condition | Behavior |
 |------|------|
-| `tabIndex` あり | Cmd+N ショートカットを System Events 経由で送信し、N 番目のタブへジャンプ |
-| `tabIndex: 9` 以上 | Cmd+9（最後のタブ）へジャンプ（Firefox 公式仕様） |
-| `tabIndex` なし | Firefox をアクティブ化するだけ（タブ切り替えなし） |
+| `tabIndex` specified | Sends Cmd+N shortcut via System Events to jump to the Nth tab |
+| `tabIndex: 9` or higher | Jumps to Cmd+9 (last tab) per Firefox's official behavior |
+| No `tabIndex` / `urlPattern` specified | Opens the URL in a new tab via `open location` (`https://` is added automatically) |
+| Neither `tabIndex` nor `urlPattern` | Simply activates Firefox (no tab switching) |
 
-**Firefox ブックマークの推奨設定:**
+**Recommended Firefox bookmark configuration:**
 
 ```yaml
 - id: github
@@ -285,62 +286,64 @@ Firefox は AppleScript の「タブ列挙・URL 検索」API（`tabs of windows
   context: dev
   state:
     type: browser
-    urlPattern: github.com   # 参考情報として記述（検索には使われない）
+    urlPattern: github.com   # Informational only (not used for search)
     title: GitHub
-    tabIndex: 3              # 左から何番目のタブか（1始まり）を指定
+    tabIndex: 3              # Tab position from the left (1-based)
   createdAt: "2025-01-01T00:00:00Z"
 ```
 
-> **注意**: `tabIndex` はタブの位置が変わると機能しなくなります。常に同じ位置に固定して使うか、ピン留めタブとして固定することを推奨します。
+> **Note**: `tabIndex` will stop working if the tab position changes. It is recommended to keep tabs in fixed positions or pin them.
 
-### floating window アプリ（Alter など）
+### Floating Window Apps (e.g., Alter)
 
-Cmd+Tab に表示されない LSUIElement アプリの floating window をパネルから切り替えたい場合は `type: floatingWindows` を使います。ウィンドウタイトルはアプリ起動時に自動取得されるため YAML への記述は不要です。
+To switch between floating windows of LSUIElement apps that do not appear in Cmd+Tab, use `type: floatingWindows`. Window titles are automatically retrieved at app launch, so you do not need to specify them in YAML.
 
 ```yaml
 - id: alter
-  appName: Alter            # アプリ名（CGWindowList のマッチに使用）
-  bundleIdPattern: ""       # bundleId 不要
+  appName: Alter            # App name (used for CGWindowList matching)
+  bundleIdPattern: ""       # bundleId not required
   context: tools
   state:
-    type: floatingWindows   # 実行時に動的列挙
+    type: floatingWindows   # Dynamically enumerated at runtime
   createdAt: "2025-01-01T00:00:00Z"
 ```
 
-パネルを開いた時点で存在する floating window が候補として表示されます（例: `Alter - Search the web - Hello`）。
+Floating windows that exist when the panel is opened are listed as candidates (e.g., `Alter - Search the web - Hello`).
 
 ---
 
-## プロジェクト構成
+## Project Structure
 
 ```
 focusbm/
 ├── Package.swift
 ├── Sources/
-│   ├── FocusBMLib/              # 共有ライブラリ（ロジック集約）
-│   │   ├── Models.swift         # データモデル・AppSettings
-│   │   ├── BookmarkRestorer.swift  # ブックマーク復元ロジック
-│   │   ├── AppleScriptBridge.swift # AppleScript / System Events ブリッジ
-│   │   └── YAMLStorage.swift    # YAML 読み書き・マイグレーション
-│   ├── focusbm/                 # CLI エントリポイント
+│   ├── FocusBMLib/              # Shared library (core logic)
+│   │   ├── Models.swift         # Data models and AppSettings
+│   │   ├── BookmarkRestorer.swift  # Bookmark restoration logic
+│   │   ├── AppleScriptBridge.swift # AppleScript / System Events bridge
+│   │   ├── FloatingWindowProvider.swift # Floating window enumeration for LSUIElement apps
+│   │   └── YAMLStorage.swift    # YAML read/write and migration
+│   ├── focusbm/                 # CLI entry point
 │   │   └── focusbm.swift
-│   └── FocusBMApp/              # メニューバーアプリ
-│       ├── FocusBMApp.swift     # AppDelegate・メニューバー常駐
-│       ├── SearchPanel.swift    # フローティングパネルウィンドウ
-│       ├── SearchView.swift     # SwiftUI 検索 UI
-│       ├── SearchViewModel.swift # 検索ロジック・状態管理
-│       └── BookmarkRow.swift    # ブックマーク行コンポーネント
+│   └── FocusBMApp/              # Menu bar app
+│       ├── main.swift           # Entry point
+│       ├── FocusBMApp.swift     # AppDelegate and menu bar management
+│       ├── SearchPanel.swift    # Floating panel window
+│       ├── SearchView.swift     # SwiftUI search UI
+│       ├── SearchViewModel.swift # Search logic and state management
+│       └── BookmarkRow.swift    # Bookmark row component
 └── Tests/
     └── focusbmTests/
 ```
 
-### 依存ライブラリ
+### Dependencies
 
-- [swift-argument-parser](https://github.com/apple/swift-argument-parser) — CLI サブコマンド定義
-- [Yams](https://github.com/jpsim/Yams) — YAML エンコード・デコード
+- [swift-argument-parser](https://github.com/apple/swift-argument-parser) — CLI subcommand definitions
+- [Yams](https://github.com/jpsim/Yams) — YAML encoding and decoding
 
 ---
 
-## ライセンス
+## License
 
 MIT
