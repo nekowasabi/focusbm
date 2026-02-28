@@ -214,11 +214,35 @@ public struct AppleScriptBridge {
         end tell
         """
         // Firefox など AppleScript tabs 非対応ブラウザはここで例外が発生する。
-        // タブが見つからない場合も含め、最低限アプリをアクティブ化する。
+        // タブが見つからない場合も含め、urlPattern があれば URL を開き、なければアクティブ化のみ。
         let result = (try? run(script)) ?? "false"
         if result != "true" {
-            try activateApp(bundleId: bundleId)
+            if !url.isEmpty {
+                try openURL(bundleId: bundleId, urlPattern: url)
+            } else {
+                try activateApp(bundleId: bundleId)
+            }
         }
+    }
+
+    /// urlPattern を補完して `open location` で URL を開く（Firefox・Chrome 共通）。
+    /// urlPattern が "https://" 等で始まらない場合は "https://" を補完する。
+    private static func openURL(bundleId: String, urlPattern: String) throws {
+        let escapedBundleId = escapeForAppleScript(bundleId)
+        let fullURL: String
+        if urlPattern.hasPrefix("http://") || urlPattern.hasPrefix("https://") {
+            fullURL = urlPattern
+        } else {
+            fullURL = "https://\(urlPattern)"
+        }
+        let escapedURL = escapeForAppleScript(fullURL)
+        let script = """
+        tell application id "\(escapedBundleId)"
+            open location "\(escapedURL)"
+            activate
+        end tell
+        """
+        _ = try run(script)
     }
 
     /// Cmd+1〜8 で番号指定タブへ、Cmd+9 で最後のタブへ移動する（Firefox 公式ショートカット）。
