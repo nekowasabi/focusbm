@@ -6,8 +6,13 @@ struct BookmarkRow: View {
     let isSelected: Bool
     let shortcutIndex: Int?  // 0-based; nil if >= 9
     let fontSize: Double?
+    let fontName: String?
 
     private var resolvedBodyFont: Font {
+        if let name = fontName {
+            let size = fontSize ?? NSFont.systemFontSize
+            return .custom(name, size: size)
+        }
         if let size = fontSize {
             return .system(size: size, design: .monospaced)
         }
@@ -15,6 +20,10 @@ struct BookmarkRow: View {
     }
 
     private var resolvedCaptionFont: Font {
+        if let name = fontName {
+            let size = fontSize ?? NSFont.systemFontSize
+            return .custom(name, size: size * 0.85)
+        }
         if let size = fontSize {
             return .system(size: size * 0.85)
         }

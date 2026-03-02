@@ -6,10 +6,10 @@ class SearchPanel: NSPanel {
     private let viewModel: SearchViewModel
     private var localKeyMonitor: Any?
 
-    init(viewModel: SearchViewModel) {
+    init(viewModel: SearchViewModel, width: CGFloat = 500, height: CGFloat = 400) {
         self.viewModel = viewModel
 
-        let contentRect = NSRect(x: 0, y: 0, width: 500, height: 400)
+        let contentRect = NSRect(x: 0, y: 0, width: width, height: height)
         super.init(
             contentRect: contentRect,
             styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],

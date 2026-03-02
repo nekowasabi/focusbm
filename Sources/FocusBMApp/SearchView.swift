@@ -42,7 +42,8 @@ struct SearchView: View {
                                     searchItem: item,
                                     isSelected: index == viewModel.selectedIndex,
                                     shortcutIndex: index < 9 ? index : nil,
-                                    fontSize: viewModel.listFontSize
+                                    fontSize: viewModel.listFontSize,
+                                    fontName: viewModel.fontName
                                 )
                                 .id(item.id)
                                 .frame(maxWidth: .infinity, alignment: .leading)

@@ -224,7 +224,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupSearchPanel() {
         viewModel.load()
-        searchPanel = SearchPanel(viewModel: viewModel)
+        let store = BookmarkStore.loadYAML()
+        let w = store.settings?.panelWidth
+        let h = store.settings?.panelHeight
+        searchPanel = SearchPanel(viewModel: viewModel, width: w ?? 500, height: h ?? 400)
     }
 
     @objc private func toggleSearchPanel() {
@@ -237,6 +240,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             viewModel.query = ""
             viewModel.selectedIndex = 0
             viewModel.isActive = false
+            // YAML から最新のパネルサイズを読み込んで適用（centerOnTargetDisplay より前に実行）
+            let store = BookmarkStore.loadYAML()
+            let w = CGFloat(store.settings?.panelWidth ?? 500)
+            let h = CGFloat(store.settings?.panelHeight ?? 400)
+            panel.setContentSize(NSSize(width: w, height: h))
             centerOnTargetDisplay(panel)
             panel.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)

@@ -12,6 +12,7 @@ class SearchViewModel: ObservableObject {
     @Published var selectedIndex: Int = 0
     @Published var isActive: Bool = false
     @Published var listFontSize: Double? = nil
+    @Published var fontName: String? = nil
 
     // パネル表示時に enumerate() の結果をキャッシュ（キーストロークごとの AX IPC を回避）
     private var floatingWindowCache: [String: [FloatingWindowEntry]] = [:]
@@ -23,6 +24,7 @@ class SearchViewModel: ObservableObject {
         let store = BookmarkStore.loadYAML()
         bookmarks = store.bookmarks
         listFontSize = store.settings?.listFontSize
+        fontName = store.settings?.fontName
         showTmuxAgents = store.settings?.showTmuxAgents ?? true
         updateItems()
     }

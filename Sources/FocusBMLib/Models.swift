@@ -106,17 +106,29 @@ public struct AppSettings: Codable, Equatable {
     public var listFontSize: Double?
     /// tmux AIエージェントペインを検索UIに表示するか（デフォルト: true）
     public var showTmuxAgents: Bool?
+    /// パネル幅（デフォルト nil → 500）
+    public var panelWidth: Double?
+    /// パネル高さ（デフォルト nil → 400）
+    public var panelHeight: Double?
+    /// フォント名（デフォルト nil → system monospaced）
+    public var fontName: String?
 
     public init(
         hotkey: HotkeySettings = HotkeySettings(),
         displayNumber: Int? = nil,
         listFontSize: Double? = nil,
-        showTmuxAgents: Bool? = nil
+        showTmuxAgents: Bool? = nil,
+        panelWidth: Double? = nil,
+        panelHeight: Double? = nil,
+        fontName: String? = nil
     ) {
         self.hotkey = hotkey
         self.displayNumber = displayNumber
         self.listFontSize = listFontSize
         self.showTmuxAgents = showTmuxAgents
+        self.panelWidth = panelWidth
+        self.panelHeight = panelHeight
+        self.fontName = fontName
     }
 }
 
