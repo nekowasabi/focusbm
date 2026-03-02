@@ -249,6 +249,9 @@ settings:
     togglePanel: "cmd+ctrl+b"
   displayNumber: 1
   listFontSize: 15.0   # Defaults to system .body size (≈13pt) if omitted
+  panelWidth: 600         # 検索パネルの幅（デフォルト: 500）
+  panelHeight: 500        # 検索パネルの高さ（デフォルト: 400）
+  fontName: "Fira Code"   # フォント名（省略時: system monospaced）
 
 bookmarks:
   - id: ...
@@ -259,6 +262,9 @@ bookmarks:
 | `settings.hotkey.togglePanel` | string | `"cmd+ctrl+b"` | Global hotkey to invoke the search panel |
 | `settings.displayNumber` | integer | `1` | Display number where the panel appears (1-based) |
 | `settings.listFontSize` | float | `nil` (≈13pt) | Font size (pt) for the candidate list. Uses system default if omitted |
+| `settings.panelWidth` | integer | `500` | 検索パネルの幅（px） |
+| `settings.panelHeight` | integer | `400` | 検索パネルの高さ（px） |
+| `settings.fontName` | string | `nil`（システム等幅フォント） | リスト表示のフォント名。省略時はシステムの等幅フォントを使用 |
 
 ### Field Descriptions
 
