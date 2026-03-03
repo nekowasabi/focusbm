@@ -668,6 +668,22 @@ public struct TmuxProvider {
         return ppid
     }
 
+    /// sysctl を使ってプロセス名を取得（p_comm は最大16文字だが "tmux" は4文字なので問題なし）
+    public static func sysctlProcessName(_ pid: pid_t) -> String? {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.size
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        let result = sysctl(&mib, 4, &info, &size, nil, 0)
+        guard result == 0, size > 0 else { return nil }
+        let commSize = MemoryLayout.size(ofValue: info.kp_proc.p_comm)
+        let name = withUnsafePointer(to: &info.kp_proc.p_comm) { ptr in
+            ptr.withMemoryRebound(to: CChar.self, capacity: commSize) { cString in
+                String(cString: cString)
+            }
+        }
+        return name.isEmpty ? nil : name
+    }
+
     // パース処理（テスト可能にするため internal）
     static func parseOutput(_ output: String) throws -> [TmuxPane] {
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }

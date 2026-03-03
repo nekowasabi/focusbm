@@ -8,6 +8,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var searchPanel: SearchPanel?
     private let viewModel = SearchViewModel()
+    private var backgroundRefreshService: BackgroundRefreshService?
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var permissionTimer: Timer?
@@ -15,6 +16,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // ホットキー設定（setupHotkey で更新）
     private var targetKeyCode: CGKeyCode = 11  // 'b'
     private var targetFlags: CGEventFlags = [.maskCommand, .maskControl]
+
+    // YAML キャッシュ（setupSearchPanel で1回だけ読み込み）
+    private var cachedPanelWidth: CGFloat = 500
+    private var cachedPanelHeight: CGFloat = 400
+    private var cachedDisplayNumber: Int? = nil
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Dock アイコンを非表示（メニューバー常駐）
@@ -225,9 +231,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupSearchPanel() {
         viewModel.load()
         let store = BookmarkStore.loadYAML()
-        let w = store.settings?.panelWidth
-        let h = store.settings?.panelHeight
-        searchPanel = SearchPanel(viewModel: viewModel, width: w ?? 500, height: h ?? 400)
+        cachedPanelWidth = CGFloat(store.settings?.panelWidth ?? 500)
+        cachedPanelHeight = CGFloat(store.settings?.panelHeight ?? 400)
+        cachedDisplayNumber = store.settings?.displayNumber
+        searchPanel = SearchPanel(viewModel: viewModel, width: cachedPanelWidth, height: cachedPanelHeight)
+        backgroundRefreshService = BackgroundRefreshService(viewModel: viewModel)
     }
 
     @objc private func toggleSearchPanel() {
@@ -236,32 +244,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             panel.close()
         } else {
             viewModel.load()
-            viewModel.refreshForPanel()  // AX キャッシュ更新（起動時ではなくパネル表示時のみ）
             viewModel.query = ""
             viewModel.selectedIndex = 0
             viewModel.isActive = false
-            // YAML から最新のパネルサイズを読み込んで適用（centerOnTargetDisplay より前に実行）
-            let store = BookmarkStore.loadYAML()
-            let w = CGFloat(store.settings?.panelWidth ?? 500)
-            let h = CGFloat(store.settings?.panelHeight ?? 400)
-            panel.setContentSize(NSSize(width: w, height: h))
-            centerOnTargetDisplay(panel)
-            panel.makeKeyAndOrderFront(nil)
+            panel.setContentSize(NSSize(width: cachedPanelWidth, height: cachedPanelHeight))
+            centerOnTargetDisplayCached(panel)
+            panel.makeKeyAndOrderFront(nil)           // 先にパネル表示
             NSApp.activate(ignoringOtherApps: true)
             // Trigger focus on next run loop to ensure view is ready
             DispatchQueue.main.async { [weak self] in
                 self?.viewModel.isActive = true
             }
+            viewModel.refreshForPanelAsync()          // バックグラウンドでデータ更新
         }
     }
 
-    private func centerOnTargetDisplay(_ panel: NSPanel) {
-        let store = BookmarkStore.loadYAML()
+    private func centerOnTargetDisplayCached(_ panel: NSPanel) {
         let screens = NSScreen.screens
-
-        if let displayNumber = store.settings?.displayNumber,
+        if let displayNumber = cachedDisplayNumber,
            displayNumber >= 1, displayNumber <= screens.count {
-            // displayNumber は 1 始まり（ユーザー向け）
             let screen = screens[displayNumber - 1]
             let screenFrame = screen.visibleFrame
             let panelSize = panel.frame.size
@@ -300,6 +301,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func reloadBookmarks() {
         viewModel.load()
+        let store = BookmarkStore.loadYAML()
+        cachedPanelWidth = CGFloat(store.settings?.panelWidth ?? 500)
+        cachedPanelHeight = CGFloat(store.settings?.panelHeight ?? 400)
+        cachedDisplayNumber = store.settings?.displayNumber
         setupStatusItem()
     }
 }

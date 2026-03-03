@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import Darwin
 
 /// tmux外のAIエージェントプロセスを検出するプロバイダー
 public struct ProcessProvider {
@@ -53,6 +54,7 @@ public struct ProcessProvider {
     /// tmux外で実行中のAIエージェントプロセスを取得
     /// tmuxペインに属するプロセスは除外する
     public static func listNonTmuxAIProcesses() -> [AIProcess] {
+        clearTmuxCheckCache()
         var result: [AIProcess] = []
 
         for commandName in aiAgentCommands {
@@ -107,26 +109,41 @@ public struct ProcessProvider {
         return output.split(separator: "\n").compactMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
     }
 
+    /// 同一リフレッシュサイクル内のメモ化キャッシュ
+    private static var tmuxCheckCache: [pid_t: Bool] = [:]
+
+    /// メモ化キャッシュをクリア（リフレッシュサイクル開始時に呼ぶ）
+    static func clearTmuxCheckCache() {
+        tmuxCheckCache = [:]
+    }
+
     /// プロセスがtmux内で実行されているか判定（親プロセスチェーンに tmux があるか）
+    /// sysctl を使用してサブプロセス spawn を回避
     static func isProcessInTmux(_ pid: pid_t) -> Bool {
+        if let cached = tmuxCheckCache[pid] {
+            return cached
+        }
         var currentPid = pid
+        var visited: Set<pid_t> = []
         for _ in 0..<20 {
             guard let ppid = TmuxProvider.sysctlParentPID(currentPid) else { break }
-            let nameProcess = Process()
-            nameProcess.executableURL = URL(fileURLWithPath: "/bin/ps")
-            nameProcess.arguments = ["-p", "\(ppid)", "-o", "comm="]
-            let pipe = Pipe()
-            nameProcess.standardOutput = pipe
-            nameProcess.standardError = Pipe()
-            try? nameProcess.run()
-            nameProcess.waitUntilExit()
-            let comm = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if comm.hasSuffix("tmux") || comm.contains("tmux: server") {
+            if visited.contains(ppid) { break }  // ループ検出
+            visited.insert(ppid)
+
+            // メモ化チェック: 祖先が既に判定済みなら再利用
+            if let cached = tmuxCheckCache[ppid] {
+                tmuxCheckCache[pid] = cached
+                return cached
+            }
+
+            if let name = TmuxProvider.sysctlProcessName(ppid),
+               name.contains("tmux") {
+                tmuxCheckCache[pid] = true
                 return true
             }
             currentPid = ppid
         }
+        tmuxCheckCache[pid] = false
         return false
     }
 
@@ -146,8 +163,30 @@ public struct ProcessProvider {
         return tty.isEmpty || tty == "??" ? nil : tty
     }
 
-    /// lsof でプロセスの作業ディレクトリを取得
+    /// proc_pidinfo でプロセスの作業ディレクトリを取得（lsof の100-300ms → ~1ms）
+    /// 失敗時は従来の lsof にフォールバック
     static func getWorkingDirectory(_ pid: pid_t) -> String? {
+        // Fast path: proc_pidinfo (Darwin API)
+        var vnodeInfo = proc_vnodepathinfo()
+        let size = MemoryLayout<proc_vnodepathinfo>.size
+        let ret = proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, &vnodeInfo, Int32(size))
+        if ret == Int32(size) {
+            let path = withUnsafePointer(to: &vnodeInfo.pvi_cdir.vip_path) { ptr in
+                ptr.withMemoryRebound(to: CChar.self, capacity: Int(MAXPATHLEN)) { cString in
+                    String(cString: cString)
+                }
+            }
+            if !path.isEmpty {
+                return path
+            }
+        }
+
+        // Fallback: lsof (proc_pidinfo が失敗した場合)
+        return getWorkingDirectoryViaLsof(pid)
+    }
+
+    /// 従来の lsof ベース実装（フォールバック用）
+    private static func getWorkingDirectoryViaLsof(_ pid: pid_t) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
         process.arguments = ["-p", "\(pid)", "-d", "cwd", "-Fn"]
@@ -158,7 +197,6 @@ public struct ProcessProvider {
         process.waitUntilExit()
 
         let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        // lsof -Fn output format: "p<pid>\nn<path>"
         for line in output.split(separator: "\n") {
             if line.hasPrefix("n") && !line.hasPrefix("n ") {
                 return String(line.dropFirst())

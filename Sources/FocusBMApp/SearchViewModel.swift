@@ -18,8 +18,9 @@ class SearchViewModel: ObservableObject {
     private var floatingWindowCache: [String: [FloatingWindowEntry]] = [:]
     private var tmuxPaneCache: [TmuxPane] = []
     private var aiProcessCache: [ProcessProvider.AIProcess] = []
-    private var showTmuxAgents: Bool = true
-    private var appSettings: AppSettings? = nil
+    private(set) var showTmuxAgents: Bool = true
+    private(set) var appSettings: AppSettings? = nil
+    private var refreshGeneration: Int = 0
 
     /// YAML を読み込んで bookmarks を更新する。AX API は呼ばない（起動時にも安全）。
     func load() {
@@ -40,6 +41,58 @@ class SearchViewModel: ObservableObject {
         updateItems()
     }
 
+    /// パネル表示後にバックグラウンドでデータを更新する非同期版
+    func refreshForPanelAsync() {
+        refreshGeneration += 1
+        let generation = refreshGeneration
+        let currentBookmarks = bookmarks
+        let currentShowTmuxAgents = showTmuxAgents
+        let currentSettings = appSettings
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            // floatingWindows (AX API)
+            var windowCache: [String: [FloatingWindowEntry]] = [:]
+            for bookmark in currentBookmarks {
+                if case .floatingWindows = bookmark.state {
+                    windowCache[bookmark.appName] = FloatingWindowProvider.enumerate(appName: bookmark.appName)
+                }
+            }
+
+            // tmux panes
+            var tmuxPanes: [TmuxPane] = []
+            if currentShowTmuxAgents {
+                tmuxPanes = (try? TmuxProvider.listAIAgentPanes(settings: currentSettings)) ?? []
+            }
+
+            // AI processes
+            var aiProcesses: [ProcessProvider.AIProcess] = []
+            if currentShowTmuxAgents {
+                aiProcesses = ProcessProvider.listNonTmuxAIProcesses()
+            }
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                // レースコンディション対策: 古い世代の結果は破棄
+                guard generation == self.refreshGeneration else { return }
+                self.floatingWindowCache = windowCache
+                self.tmuxPaneCache = tmuxPanes
+                self.aiProcessCache = aiProcesses
+                self.updateItems()
+            }
+        }
+    }
+
+    /// バックグラウンドサービスから参照用
+    var currentAppSettings: AppSettings? { appSettings }
+    var currentShowTmuxAgents: Bool { showTmuxAgents }
+
+    /// バックグラウンドサービスからキャッシュを更新（パネル非表示時のプリウォーム用）
+    /// updateItems() は呼ばない — パネル表示時に load() → updateItems() で反映される
+    func applyBackgroundCache(tmuxPanes: [TmuxPane], aiProcesses: [ProcessProvider.AIProcess]) {
+        tmuxPaneCache = tmuxPanes
+        aiProcessCache = aiProcesses
+    }
+
     /// floatingWindows 型ブックマークの enumerate() をパネル表示時に1回だけ実行してキャッシュ
     private func cacheFloatingWindows() {
         floatingWindowCache = [:]
@@ -57,19 +110,6 @@ class SearchViewModel: ObservableObject {
             tmuxPaneCache = []
             return
         }
-        // Debug logging to file (remove after investigation)
-        TmuxProvider.enableDebugLog { message in
-            let logPath = NSHomeDirectory() + "/.config/focusbm/tmux-debug.log"
-            let timestamp = ISO8601DateFormatter().string(from: Date())
-            let line = "[\(timestamp)] \(message)\n"
-            if let handle = FileHandle(forWritingAtPath: logPath) {
-                handle.seekToEndOfFile()
-                handle.write(line.data(using: .utf8)!)
-                handle.closeFile()
-            } else {
-                FileManager.default.createFile(atPath: logPath, contents: line.data(using: .utf8))
-            }
-        }
         tmuxPaneCache = (try? TmuxProvider.listAIAgentPanes(settings: appSettings)) ?? []
     }
 
@@ -79,18 +119,6 @@ class SearchViewModel: ObservableObject {
         guard showTmuxAgents else {
             aiProcessCache = []
             return
-        }
-        ProcessProvider.enableDebugLog { message in
-            let logPath = NSHomeDirectory() + "/.config/focusbm/tmux-debug.log"
-            let timestamp = ISO8601DateFormatter().string(from: Date())
-            let line = "[\(timestamp)] \(message)\n"
-            if let handle = FileHandle(forWritingAtPath: logPath) {
-                handle.seekToEndOfFile()
-                handle.write(line.data(using: .utf8)!)
-                handle.closeFile()
-            } else {
-                FileManager.default.createFile(atPath: logPath, contents: line.data(using: .utf8))
-            }
         }
         aiProcessCache = ProcessProvider.listNonTmuxAIProcesses()
     }
