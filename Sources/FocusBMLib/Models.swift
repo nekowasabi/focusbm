@@ -274,4 +274,16 @@ public enum SearchItem: Identifiable {
             return nil
         }
     }
+
+    /// AI エージェントプロセスかどうか
+    public var isAIAgent: Bool {
+        switch self {
+        case .bookmark, .floatingWindow:
+            return false
+        case .tmuxPane(let p):
+            return p.isAIAgent
+        case .aiProcess:
+            return true
+        }
+    }
 }
