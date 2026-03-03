@@ -112,6 +112,8 @@ public struct AppSettings: Codable, Equatable {
     public var panelHeight: Double?
     /// フォント名（デフォルト nil → system monospaced）
     public var fontName: String?
+    /// 優先ターミナル（bundleIdentifier 形式、例: "com.github.wez.wezterm"）
+    public var preferredTerminal: String?
 
     public init(
         hotkey: HotkeySettings = HotkeySettings(),
@@ -120,7 +122,8 @@ public struct AppSettings: Codable, Equatable {
         showTmuxAgents: Bool? = nil,
         panelWidth: Double? = nil,
         panelHeight: Double? = nil,
-        fontName: String? = nil
+        fontName: String? = nil,
+        preferredTerminal: String? = nil
     ) {
         self.hotkey = hotkey
         self.displayNumber = displayNumber
@@ -129,6 +132,7 @@ public struct AppSettings: Codable, Equatable {
         self.panelWidth = panelWidth
         self.panelHeight = panelHeight
         self.fontName = fontName
+        self.preferredTerminal = preferredTerminal
     }
 }
 
@@ -216,12 +220,14 @@ public enum SearchItem: Identifiable {
     case bookmark(Bookmark)
     case floatingWindow(FloatingWindowEntry)
     case tmuxPane(TmuxPane)
+    case aiProcess(ProcessProvider.AIProcess)
 
     public var id: String {
         switch self {
         case .bookmark(let b): return b.id
         case .floatingWindow(let f): return f.id
         case .tmuxPane(let p): return p.paneId
+        case .aiProcess(let p): return "aiprocess-\(p.pid)"
         }
     }
 
@@ -230,6 +236,9 @@ public enum SearchItem: Identifiable {
         case .bookmark(let b): return b.id
         case .floatingWindow(let f): return f.displayName
         case .tmuxPane(let p): return p.displayName
+        case .aiProcess(let p):
+            let dir = URL(fileURLWithPath: p.workingDirectory).lastPathComponent
+            return "\(p.terminalEmoji) \(p.command) — \(dir)"
         }
     }
 
@@ -238,6 +247,7 @@ public enum SearchItem: Identifiable {
         case .bookmark(let b): return b.appName
         case .floatingWindow(let f): return f.appName
         case .tmuxPane(let p): return "session \(p.sessionName), win \(p.windowIndex)"
+        case .aiProcess(let p): return p.terminalAppName ?? p.command
         }
     }
 
@@ -246,6 +256,7 @@ public enum SearchItem: Identifiable {
         case .bookmark(let b): return b.context
         case .floatingWindow: return ""
         case .tmuxPane: return "tmux"
+        case .aiProcess: return "process"
         }
     }
 
@@ -258,6 +269,8 @@ public enum SearchItem: Identifiable {
         case .floatingWindow:
             return nil
         case .tmuxPane:
+            return nil
+        case .aiProcess:
             return nil
         }
     }
