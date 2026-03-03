@@ -17,12 +17,15 @@ class SearchViewModel: ObservableObject {
     // パネル表示時に enumerate() の結果をキャッシュ（キーストロークごとの AX IPC を回避）
     private var floatingWindowCache: [String: [FloatingWindowEntry]] = [:]
     private var tmuxPaneCache: [TmuxPane] = []
+    private var aiProcessCache: [ProcessProvider.AIProcess] = []
     private var showTmuxAgents: Bool = true
+    private var appSettings: AppSettings? = nil
 
     /// YAML を読み込んで bookmarks を更新する。AX API は呼ばない（起動時にも安全）。
     func load() {
         let store = BookmarkStore.loadYAML()
         bookmarks = store.bookmarks
+        appSettings = store.settings
         listFontSize = store.settings?.listFontSize
         fontName = store.settings?.fontName
         showTmuxAgents = store.settings?.showTmuxAgents ?? true
@@ -33,6 +36,7 @@ class SearchViewModel: ObservableObject {
     func refreshForPanel() {
         cacheFloatingWindows()
         loadTmuxPanes()
+        loadAIProcesses()
         updateItems()
     }
 
@@ -53,7 +57,42 @@ class SearchViewModel: ObservableObject {
             tmuxPaneCache = []
             return
         }
-        tmuxPaneCache = (try? TmuxProvider.listAIAgentPanes()) ?? []
+        // Debug logging to file (remove after investigation)
+        TmuxProvider.enableDebugLog { message in
+            let logPath = NSHomeDirectory() + "/.config/focusbm/tmux-debug.log"
+            let timestamp = ISO8601DateFormatter().string(from: Date())
+            let line = "[\(timestamp)] \(message)\n"
+            if let handle = FileHandle(forWritingAtPath: logPath) {
+                handle.seekToEndOfFile()
+                handle.write(line.data(using: .utf8)!)
+                handle.closeFile()
+            } else {
+                FileManager.default.createFile(atPath: logPath, contents: line.data(using: .utf8))
+            }
+        }
+        tmuxPaneCache = (try? TmuxProvider.listAIAgentPanes(settings: appSettings)) ?? []
+    }
+
+    /// tmux外で実行中のAIエージェントプロセスをパネル表示時に1回だけ取得してキャッシュ
+    /// settings.showTmuxAgents が false の場合はスキップ
+    private func loadAIProcesses() {
+        guard showTmuxAgents else {
+            aiProcessCache = []
+            return
+        }
+        ProcessProvider.enableDebugLog { message in
+            let logPath = NSHomeDirectory() + "/.config/focusbm/tmux-debug.log"
+            let timestamp = ISO8601DateFormatter().string(from: Date())
+            let line = "[\(timestamp)] \(message)\n"
+            if let handle = FileHandle(forWritingAtPath: logPath) {
+                handle.seekToEndOfFile()
+                handle.write(line.data(using: .utf8)!)
+                handle.closeFile()
+            } else {
+                FileManager.default.createFile(atPath: logPath, contents: line.data(using: .utf8))
+            }
+        }
+        aiProcessCache = ProcessProvider.listNonTmuxAIProcesses()
     }
 
     func updateItems() {
@@ -71,6 +110,8 @@ class SearchViewModel: ObservableObject {
             }
             // tmux AIエージェントペインをリストの末尾に追加
             items += tmuxPaneCache.map { .tmuxPane($0) }
+            // tmux外のAIエージェントプロセスを追加
+            items += aiProcessCache.map { .aiProcess($0) }
         } else {
             // クエリあり: fuzzy フィルタ（floatingWindows は名前マッチ、通常はスコア順）
             for bookmark in bookmarks {
@@ -90,6 +131,11 @@ class SearchViewModel: ObservableObject {
             items += tmuxPaneCache.filter {
                 BookmarkSearcher.fuzzyScore(text: $0.displayName, query: query) != nil
             }.map { .tmuxPane($0) }
+            // tmux外のAIプロセスを displayName で fuzzy フィルタ
+            items += aiProcessCache.filter {
+                let searchable = "\($0.command) \($0.workingDirectory) \($0.terminalAppName ?? "")"
+                return BookmarkSearcher.fuzzyScore(text: searchable, query: query) != nil
+            }.map { .aiProcess($0) }
         }
 
         searchItems = items
@@ -126,11 +172,21 @@ class SearchViewModel: ObservableObject {
             return true
         case .tmuxPane(let pane):
             do {
-                try TmuxProvider.focusPane(pane)
+                try TmuxProvider.focusPane(pane, settings: appSettings)
                 return true
             } catch {
                 return false
             }
+        case .aiProcess(let proc):
+            if let bundleId = proc.terminalBundleId {
+                do {
+                    try AppleScriptBridge.activateApp(bundleIdPattern: bundleId, appName: proc.terminalAppName ?? "Terminal")
+                    return true
+                } catch {
+                    return false
+                }
+            }
+            return false
         }
     }
 }
