@@ -252,6 +252,7 @@ settings:
   panelWidth: 600         # 検索パネルの幅（デフォルト: 500）
   panelHeight: 500        # 検索パネルの高さ（デフォルト: 400）
   fontName: "Fira Code"   # フォント名（省略時: system monospaced）
+  preferredTerminal: "com.github.wez.wezterm"  # 優先ターミナル（bundleId 形式）
 
 bookmarks:
   - id: ...
@@ -265,6 +266,7 @@ bookmarks:
 | `settings.panelWidth` | integer | `500` | 検索パネルの幅（px） |
 | `settings.panelHeight` | integer | `400` | 検索パネルの高さ（px） |
 | `settings.fontName` | string | `nil`（システム等幅フォント） | リスト表示のフォント名。省略時はシステムの等幅フォントを使用 |
+| `settings.preferredTerminal` | string | `nil` | tmux ペインを開く際に使用するターミナルの bundleId（例: `"com.github.wez.wezterm"`）。設定すると自動検出より優先される |
 
 ### Field Descriptions
 
