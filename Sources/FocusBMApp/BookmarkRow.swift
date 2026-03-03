@@ -38,6 +38,17 @@ struct BookmarkRow: View {
                 .foregroundColor(.accentColor)
                 .frame(width: 16)
 
+            // App icon
+            if searchItem.isAIAgent {
+                Text("🤖")
+                    .font(.system(size: 16))
+                    .frame(width: 20, height: 20)
+            } else {
+                Image(nsImage: AppIconProvider.shared.icon(forAppName: searchItem.appName))
+                    .resizable()
+                    .frame(width: 20, height: 20)
+            }
+
             // Item info
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
