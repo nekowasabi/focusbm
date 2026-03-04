@@ -38,6 +38,14 @@ class SearchPanel: NSPanel {
 
         visualEffect.addSubview(hostingView)
         self.contentView = visualEffect
+
+        // 候補が1件になったとき自動実行
+        viewModel.onAutoExecute = { [weak self] in
+            guard let self else { return }
+            if self.viewModel.restoreSelected() {
+                self.close()
+            }
+        }
     }
 
     override var canBecomeKey: Bool { true }

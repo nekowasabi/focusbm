@@ -114,6 +114,10 @@ public struct AppSettings: Codable, Equatable {
     public var fontName: String?
     /// 優先ターミナル（bundleIdentifier 形式、例: "com.github.wez.wezterm"）
     public var preferredTerminal: String?
+    /// 絞り込み結果が1件になったとき自動実行する（デフォルト: false）
+    public var autoExecuteOnSingleResult: Bool?
+    /// 自動実行までの遅延秒数（デフォルト: 0.3秒）
+    public var autoExecuteDelay: Double?
 
     public init(
         hotkey: HotkeySettings = HotkeySettings(),
@@ -123,7 +127,9 @@ public struct AppSettings: Codable, Equatable {
         panelWidth: Double? = nil,
         panelHeight: Double? = nil,
         fontName: String? = nil,
-        preferredTerminal: String? = nil
+        preferredTerminal: String? = nil,
+        autoExecuteOnSingleResult: Bool? = nil,
+        autoExecuteDelay: Double? = nil
     ) {
         self.hotkey = hotkey
         self.displayNumber = displayNumber
@@ -133,6 +139,8 @@ public struct AppSettings: Codable, Equatable {
         self.panelHeight = panelHeight
         self.fontName = fontName
         self.preferredTerminal = preferredTerminal
+        self.autoExecuteOnSingleResult = autoExecuteOnSingleResult
+        self.autoExecuteDelay = autoExecuteDelay
     }
 }
 

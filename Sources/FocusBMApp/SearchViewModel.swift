@@ -21,6 +21,12 @@ class SearchViewModel: ObservableObject {
     private(set) var showTmuxAgents: Bool = true
     private(set) var appSettings: AppSettings? = nil
     private var refreshGeneration: Int = 0
+    /// 自動実行ハイライト中かどうか（実行直前の視覚フィードバック用）
+    @Published var isAutoExecuteHighlighted: Bool = false
+    /// 候補が1件になったとき呼ばれるコールバック（SearchPanel が設定）
+    var onAutoExecute: (() -> Void)?
+    /// 自動実行の遅延タイマー（キー入力ごとにキャンセル＆再スケジュール）
+    private var autoExecuteWorkItem: DispatchWorkItem?
 
     /// YAML を読み込んで bookmarks を更新する。AX API は呼ばない（起動時にも安全）。
     func load() {
@@ -169,6 +175,26 @@ class SearchViewModel: ObservableObject {
         searchItems = items
         if selectedIndex >= searchItems.count {
             selectedIndex = max(0, searchItems.count - 1)
+        }
+
+        // 候補が1件 + クエリ非空 + 設定ON → ディレイ後にハイライト → 自動実行
+        autoExecuteWorkItem?.cancel()
+        autoExecuteWorkItem = nil
+        isAutoExecuteHighlighted = false
+        if searchItems.count == 1,
+           !query.isEmpty,
+           appSettings?.autoExecuteOnSingleResult == true {
+            let delay = appSettings?.autoExecuteDelay ?? 0.3
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self else { return }
+                self.isAutoExecuteHighlighted = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                    guard let self, self.isAutoExecuteHighlighted else { return }
+                    self.onAutoExecute?()
+                }
+            }
+            autoExecuteWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
         }
     }
 

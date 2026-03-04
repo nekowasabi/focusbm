@@ -52,9 +52,12 @@ struct SearchView: View {
                                 .background(
                                     RoundedRectangle(cornerRadius: 6)
                                         .fill(index == viewModel.selectedIndex
-                                            ? Color.accentColor.opacity(0.2)
+                                            ? Color.accentColor.opacity(
+                                                viewModel.isAutoExecuteHighlighted && viewModel.searchItems.count == 1
+                                                    ? 0.5 : 0.2)
                                             : Color.clear)
                                 )
+                                .animation(.easeIn(duration: 0.15), value: viewModel.isAutoExecuteHighlighted)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     viewModel.selectedIndex = index
