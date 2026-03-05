@@ -74,11 +74,14 @@ class SearchPanel: NSPanel {
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
 
-            // Cmd+1〜9: query が空のときのみダイレクト復元（fuzzy 検索中はインデックスが変動するため無効）
-            if event.modifierFlags.contains(.command),
-               Self.digitKeyCodes[event.keyCode] != nil {
-                if self.viewModel.query.isEmpty,
-                   let number = Self.digitKeyCodes[event.keyCode] {
+            // 数字キー 1〜9: query が空のときダイレクト復元
+            // directNumberKeys=true(デフォルト): 修飾キー不要、Cmd併用も可
+            // directNumberKeys=false: Cmd+数字のみ
+            if let number = Self.digitKeyCodes[event.keyCode] {
+                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                let direct = self.viewModel.appSettings?.directNumberKeys ?? true
+                let isBareOrCmd = direct ? (flags.isEmpty || flags == .command) : flags == .command
+                if isBareOrCmd, self.viewModel.query.isEmpty {
                     let index = number - 1
                     if index < self.viewModel.searchItems.count {
                         self.viewModel.selectedIndex = index
@@ -86,8 +89,8 @@ class SearchPanel: NSPanel {
                             self.close()
                         }
                     }
+                    return nil
                 }
-                return nil  // query あり/なし問わずイベントを消費
             }
 
             switch event.keyCode {

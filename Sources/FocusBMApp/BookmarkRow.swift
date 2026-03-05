@@ -5,6 +5,7 @@ struct BookmarkRow: View {
     let searchItem: SearchItem
     let isSelected: Bool
     let shortcutIndex: Int?  // 0-based; nil if >= 9
+    let directNumberKeys: Bool
     let fontSize: Double?
     let fontName: String?
 
@@ -66,7 +67,7 @@ struct BookmarkRow: View {
                             .cornerRadius(4)
                     }
                     if let idx = shortcutIndex {
-                        Text("⌘\(idx + 1)")
+                        Text(directNumberKeys ? "\(idx + 1)" : "⌘\(idx + 1)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 6)

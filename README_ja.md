@@ -249,6 +249,7 @@ settings:
     togglePanel: "cmd+ctrl+b"
   displayNumber: 1
   listFontSize: 15.0   # 省略時はシステム標準 .body (≈13pt)
+  directNumberKeys: true  # 数字キー単体でブックマークにフォーカス（false: Cmd+数字のみ）
 
 bookmarks:
   - id: ...
@@ -259,6 +260,7 @@ bookmarks:
 | `settings.hotkey.togglePanel` | 文字列 | `"cmd+ctrl+b"` | 検索パネルを呼び出すグローバルホットキー |
 | `settings.displayNumber` | 整数 | `1` | パネルを表示するディスプレイ番号（1始まり） |
 | `settings.listFontSize` | 小数 | `nil`（≈13pt）| 候補リストのフォントサイズ（pt）。省略時はシステム標準サイズ |
+| `settings.directNumberKeys` | 真偽値 | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |
 
 ### フィールド説明
 

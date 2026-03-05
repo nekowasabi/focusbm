@@ -42,6 +42,7 @@ struct SearchView: View {
                                     searchItem: item,
                                     isSelected: index == viewModel.selectedIndex,
                                     shortcutIndex: index < 9 ? index : nil,
+                                    directNumberKeys: viewModel.appSettings?.directNumberKeys ?? true,
                                     fontSize: viewModel.listFontSize,
                                     fontName: viewModel.fontName
                                 )

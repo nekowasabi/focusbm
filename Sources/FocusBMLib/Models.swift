@@ -118,6 +118,8 @@ public struct AppSettings: Codable, Equatable {
     public var autoExecuteOnSingleResult: Bool?
     /// 自動実行までの遅延秒数（デフォルト: 0.3秒）
     public var autoExecuteDelay: Double?
+    /// 数字キー単体でブックマークにフォーカスする（デフォルト: true）
+    public var directNumberKeys: Bool?
 
     public init(
         hotkey: HotkeySettings = HotkeySettings(),
@@ -129,7 +131,8 @@ public struct AppSettings: Codable, Equatable {
         fontName: String? = nil,
         preferredTerminal: String? = nil,
         autoExecuteOnSingleResult: Bool? = nil,
-        autoExecuteDelay: Double? = nil
+        autoExecuteDelay: Double? = nil,
+        directNumberKeys: Bool? = nil
     ) {
         self.hotkey = hotkey
         self.displayNumber = displayNumber
@@ -141,6 +144,7 @@ public struct AppSettings: Codable, Equatable {
         self.preferredTerminal = preferredTerminal
         self.autoExecuteOnSingleResult = autoExecuteOnSingleResult
         self.autoExecuteDelay = autoExecuteDelay
+        self.directNumberKeys = directNumberKeys
     }
 }
 
