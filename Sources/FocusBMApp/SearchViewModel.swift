@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import AppKit
+import SwiftUI
 import FocusBMLib
 
 class SearchViewModel: ObservableObject {
@@ -187,7 +188,9 @@ class SearchViewModel: ObservableObject {
             let delay = appSettings?.autoExecuteDelay ?? 0.3
             let workItem = DispatchWorkItem { [weak self] in
                 guard let self else { return }
-                self.isAutoExecuteHighlighted = true
+                withAnimation(.easeIn(duration: 0.15)) {
+                    self.isAutoExecuteHighlighted = true
+                }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
                     guard let self, self.isAutoExecuteHighlighted else { return }
                     self.onAutoExecute?()

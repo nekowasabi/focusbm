@@ -57,7 +57,6 @@ struct SearchView: View {
                                                     ? 0.5 : 0.2)
                                             : Color.clear)
                                 )
-                                .animation(.easeIn(duration: 0.15), value: viewModel.isAutoExecuteHighlighted)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     viewModel.selectedIndex = index
