@@ -1,4 +1,5 @@
 import AppKit
+import CInputSource
 import SwiftUI
 import FocusBMLib
 
@@ -55,6 +56,7 @@ class SearchPanel: NSPanel {
     }
 
     override func makeKeyAndOrderFront(_ sender: Any?) {
+        switchToASCIIInput()
         super.makeKeyAndOrderFront(sender)
         startLocalKeyMonitor()
     }
@@ -114,6 +116,10 @@ class SearchPanel: NSPanel {
             NSEvent.removeMonitor(monitor)
             localKeyMonitor = nil
         }
+    }
+
+    private func switchToASCIIInput() {
+        CInputSource_switchToASCII()
     }
 
     deinit {

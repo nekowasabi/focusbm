@@ -24,9 +24,14 @@ let package = Package(
             path: "Sources/focusbm",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        .target(
+            name: "CInputSource",
+            path: "Sources/CInputSource",
+            linkerSettings: [.linkedFramework("Carbon")]
+        ),
         .executableTarget(
             name: "FocusBMApp",
-            dependencies: ["FocusBMLib"],
+            dependencies: ["FocusBMLib", "CInputSource"],
             path: "Sources/FocusBMApp",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
