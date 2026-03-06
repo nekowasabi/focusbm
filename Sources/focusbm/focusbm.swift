@@ -60,7 +60,7 @@ extension FocusBM {
             let displayName = appName ?? bundleIdPattern
             let state: AppState
             if let urlPattern = url {
-                state = .browser(urlPattern: urlPattern, title: displayName, tabIndex: tabIndex)
+                state = .browser(urlPattern: urlPattern, title: displayName, tabIndex: tabIndex, urlPrefix: nil)
             } else {
                 state = .app(windowTitle: "")
             }

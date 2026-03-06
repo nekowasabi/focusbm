@@ -3,22 +3,23 @@ import Yams
 
 // アプリ固有の状態（Tagged Union で型安全に表現）
 public enum AppState: Codable {
-    case browser(urlPattern: String, title: String, tabIndex: Int?)
+    case browser(urlPattern: String, title: String, tabIndex: Int?, urlPrefix: String?)
     case app(windowTitle: String)
     case floatingWindows  // 実行時に CGWindowList + AXUIElement で動的列挙
 
     private enum CodingKeys: String, CodingKey {
-        case type, urlPattern, title, tabIndex, windowTitle
+        case type, urlPattern, title, tabIndex, windowTitle, urlPrefix
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         switch self {
-        case .browser(let urlPattern, let title, let tabIndex):
+        case .browser(let urlPattern, let title, let tabIndex, let urlPrefix):
             try container.encode("browser", forKey: .type)
             try container.encode(urlPattern, forKey: .urlPattern)
             try container.encode(title, forKey: .title)
             try container.encodeIfPresent(tabIndex, forKey: .tabIndex)
+            try container.encodeIfPresent(urlPrefix, forKey: .urlPrefix)
         case .app(let windowTitle):
             try container.encode("app", forKey: .type)
             try container.encode(windowTitle, forKey: .windowTitle)
@@ -35,7 +36,8 @@ public enum AppState: Codable {
             let urlPattern = try container.decode(String.self, forKey: .urlPattern)
             let title = try container.decode(String.self, forKey: .title)
             let tabIndex = try container.decodeIfPresent(Int.self, forKey: .tabIndex)
-            self = .browser(urlPattern: urlPattern, title: title, tabIndex: tabIndex)
+            let urlPrefix = try container.decodeIfPresent(String.self, forKey: .urlPrefix)
+            self = .browser(urlPattern: urlPattern, title: title, tabIndex: tabIndex, urlPrefix: urlPrefix)
         case "floatingWindows":
             self = .floatingWindows
         default:
@@ -64,7 +66,7 @@ public struct Bookmark: Codable, Identifiable {
 
     public var description: String {
         switch state {
-        case .browser(let urlPattern, let title, let tabIndex):
+        case .browser(let urlPattern, let title, let tabIndex, _):
             let tab = tabIndex.map { " [tab:\($0)]" } ?? ""
             return "\(appName): \(title) (\(urlPattern))\(tab)"
         case .app(let windowTitle):
@@ -276,7 +278,7 @@ public enum SearchItem: Identifiable {
     public var urlPattern: String? {
         switch self {
         case .bookmark(let b):
-            if case .browser(let url, _, _) = b.state { return url }
+            if case .browser(let url, _, _, _) = b.state { return url }
             return nil
         case .floatingWindow:
             return nil

@@ -102,7 +102,7 @@ public struct AppleScriptBridge {
         let url = parts[0]
         let title = parts.count > 1 ? parts[1] : ""
         let tabIndex = parts.count > 2 ? Int(parts[2]) : nil
-        return .browser(urlPattern: url, title: title, tabIndex: tabIndex)
+        return .browser(urlPattern: url, title: title, tabIndex: tabIndex, urlPrefix: nil)
     }
 
     /// アプリをアクティブにする（bundleIdPattern が nil の場合は appName でフォールバック）
@@ -169,8 +169,30 @@ public struct AppleScriptBridge {
     }
 
     // ブラウザ: URL でタブを検索してフォーカス（tabIndex があれば優先）
-    public static func restoreBrowserTab(bundleId: String, url: String, tabIndex: Int?) throws {
+    public static func restoreBrowserTab(bundleId: String, url: String, tabIndex: Int?, urlPrefix: String? = nil) throws {
         let escapedBundleId = escapeForAppleScript(bundleId)
+
+        // urlPrefix が指定されていれば begins with で先にスキャン
+        if let prefix = urlPrefix, !prefix.isEmpty {
+            let escapedPrefix = escapeForAppleScript(prefix)
+            let script = """
+            tell application id "\(escapedBundleId)"
+                repeat with w in windows
+                    set tabList to tabs of w
+                    repeat with i from 1 to count of tabList
+                        if URL of item i of tabList begins with "\(escapedPrefix)" then
+                            set active tab index of w to i
+                            activate
+                            return "true"
+                        end if
+                    end repeat
+                end repeat
+                return "false"
+            end tell
+            """
+            let result = (try? run(script)) ?? "false"
+            if result == "true" { return }
+        }
 
         // tabIndex のみ指定（URL 空）: 直接タブ切り替え
         if let idx = tabIndex, url.isEmpty {

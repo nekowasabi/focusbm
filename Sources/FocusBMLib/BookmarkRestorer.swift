@@ -3,7 +3,7 @@ import Foundation
 public struct BookmarkRestorer {
     public static func restore(_ bookmark: Bookmark) throws {
         switch bookmark.state {
-        case .browser(let urlPattern, _, let tabIndex):
+        case .browser(let urlPattern, _, let tabIndex, let urlPrefix):
             // bundleIdPattern が nil の場合は実行中アプリの実際の bundleId を取得
             let resolvedBundleId: String
             if let pattern = bookmark.bundleIdPattern {
@@ -18,7 +18,8 @@ public struct BookmarkRestorer {
             try AppleScriptBridge.restoreBrowserTab(
                 bundleId: resolvedBundleId,
                 url: urlPattern,
-                tabIndex: tabIndex
+                tabIndex: tabIndex,
+                urlPrefix: urlPrefix
             )
         case .app:
             try AppleScriptBridge.activateApp(
