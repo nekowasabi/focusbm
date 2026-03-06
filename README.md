@@ -237,6 +237,17 @@ bookmarks:
       title: "PR Review"
       tabIndex: 2
     createdAt: "2025-02-18T09:00:00Z"
+
+  - id: slack-inbox
+    bundleIdPattern: com.google.Chrome
+    appName: Google Chrome
+    context: work
+    state:
+      type: browser
+      urlPattern: "https://app.slack.com/client/T0APA1XEE/activity-inbox"
+      title: "Slack"
+      urlPrefix: "https://app.slack.com/client/T0APA1XEE"  # optional
+    createdAt: "2025-02-18T09:00:00Z"
 ```
 
 ### settings Section
@@ -275,6 +286,7 @@ bookmarks:
 - **bundleIdPattern** — Specifies the app's bundle ID as a regex pattern. Supports prefix or exact match, e.g., `^com\.electron\.taskchute`
 - **urlPattern** — Partial match pattern for the active browser tab's URL
 - **tabIndex** — Browser tab index (1-based). If specified, restoration jumps directly to that tab. When used together with `urlPattern`, `tabIndex` takes priority but falls back to URL search if the URL does not match. If omitted and `urlPattern` is set, the URL is opened directly via `open location` (the `https://` prefix is added automatically). If neither is set, the app is simply activated
+- **urlPrefix** — (Optional) If a tab whose URL starts with this prefix is already open, switches to that tab instead of opening a new one. Useful for apps like Slack where the URL changes per page/channel. If omitted, `urlPattern` is used for exact matching as usual
 
 ### Notes on Using Firefox
 

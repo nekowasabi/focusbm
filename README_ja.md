@@ -237,6 +237,17 @@ bookmarks:
       title: "PR Review"
       tabIndex: 2
     createdAt: "2025-02-18T09:00:00Z"
+
+  - id: slack-inbox
+    bundleIdPattern: com.google.Chrome
+    appName: Google Chrome
+    context: work
+    state:
+      type: browser
+      urlPattern: "https://app.slack.com/client/T0APA1XEE/activity-inbox"
+      title: "Slack"
+      urlPrefix: "https://app.slack.com/client/T0APA1XEE"  # 省略可能
+    createdAt: "2025-02-18T09:00:00Z"
 ```
 
 ### settings セクション
@@ -267,6 +278,7 @@ bookmarks:
 - **bundleIdPattern** — アプリのバンドル ID を正規表現パターンで指定。`^com\.electron\.taskchute` のように前方一致や完全一致を指定可能
 - **urlPattern** — ブラウザのアクティブタブ URL の部分一致パターン
 - **tabIndex** — ブラウザのタブインデックス（1始まり）。復元時に `tabIndex` が指定されていれば該当タブへ直接切り替える。`urlPattern` と併用した場合は `tabIndex` を優先しつつ URL で検証し、一致しなければ URL でフォールバック検索する。省略時かつ `urlPattern` が設定されている場合は `open location` で URL を直接開く（`https://` プレフィックスが自動補完される）。`urlPattern` も未設定の場合はアプリをアクティブ化するだけ
+- **urlPrefix** — （省略可能）このプレフィックスで始まる URL のタブが既に開いていれば、新規タブを開かずそのタブにスイッチする。Slack のようにページ・チャンネルごとに URL が変わるアプリに有効。省略時は従来通り `urlPattern` で検索する
 
 ### Firefox を使う場合の注意事項
 
