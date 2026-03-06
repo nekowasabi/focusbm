@@ -19,7 +19,7 @@ import Testing
         Bookmark(id: "work", appName: "iTerm2", bundleIdPattern: "com.googlecode.iterm2",
                  context: "dev", state: .app(windowTitle: ""), createdAt: "2024-01-01T00:00:00Z"),
         Bookmark(id: "docs", appName: "Safari", bundleIdPattern: "com.apple.Safari",
-                 context: "work", state: .browser(urlPattern: "swift.org", title: "Swift", tabIndex: nil),
+                 context: "work", state: .browser(urlPattern: "swift.org", title: "Swift", tabIndex: nil, urlPrefix: nil),
                  createdAt: "2024-01-01T00:00:00Z"),
     ]
     let result = BookmarkSearcher.filter(bookmarks: bookmarks, query: "")
@@ -31,7 +31,7 @@ import Testing
         Bookmark(id: "work-term", appName: "iTerm2", bundleIdPattern: "com.googlecode.iterm2",
                  context: "dev", state: .app(windowTitle: ""), createdAt: "2024-01-01T00:00:00Z"),
         Bookmark(id: "docs", appName: "Safari", bundleIdPattern: "com.apple.Safari",
-                 context: "work", state: .browser(urlPattern: "swift.org", title: "Swift", tabIndex: nil),
+                 context: "work", state: .browser(urlPattern: "swift.org", title: "Swift", tabIndex: nil, urlPrefix: nil),
                  createdAt: "2024-01-01T00:00:00Z"),
     ]
     let result = BookmarkSearcher.filter(bookmarks: bookmarks, query: "doc")
@@ -44,7 +44,7 @@ import Testing
         Bookmark(id: "work", appName: "iTerm2", bundleIdPattern: "com.googlecode.iterm2",
                  context: "dev", state: .app(windowTitle: ""), createdAt: "2024-01-01T00:00:00Z"),
         Bookmark(id: "docs", appName: "Safari", bundleIdPattern: "com.apple.Safari",
-                 context: "work", state: .browser(urlPattern: "swift.org", title: "Swift", tabIndex: nil),
+                 context: "work", state: .browser(urlPattern: "swift.org", title: "Swift", tabIndex: nil, urlPrefix: nil),
                  createdAt: "2024-01-01T00:00:00Z"),
     ]
     let result = BookmarkSearcher.filter(bookmarks: bookmarks, query: "safari")
@@ -57,7 +57,7 @@ import Testing
         Bookmark(id: "work", appName: "iTerm2", bundleIdPattern: "com.googlecode.iterm2",
                  context: "dev", state: .app(windowTitle: ""), createdAt: "2024-01-01T00:00:00Z"),
         Bookmark(id: "docs", appName: "Safari", bundleIdPattern: "com.apple.Safari",
-                 context: "work", state: .browser(urlPattern: "swift.org", title: "Swift", tabIndex: nil),
+                 context: "work", state: .browser(urlPattern: "swift.org", title: "Swift", tabIndex: nil, urlPrefix: nil),
                  createdAt: "2024-01-01T00:00:00Z"),
     ]
     let result = BookmarkSearcher.filter(bookmarks: bookmarks, query: "dev")
@@ -68,7 +68,7 @@ import Testing
 @Test func test_searchFilter_caseInsensitive() {
     let bookmarks = [
         Bookmark(id: "docs", appName: "Safari", bundleIdPattern: "com.apple.Safari",
-                 context: "work", state: .browser(urlPattern: "swift.org", title: "Swift", tabIndex: nil),
+                 context: "work", state: .browser(urlPattern: "swift.org", title: "Swift", tabIndex: nil, urlPrefix: nil),
                  createdAt: "2024-01-01T00:00:00Z"),
     ]
     let result = BookmarkSearcher.filter(bookmarks: bookmarks, query: "SAFARI")

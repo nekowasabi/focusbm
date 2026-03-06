@@ -8,7 +8,7 @@ private func makeStore() -> BookmarkStore {
         Bookmark(id: "work-terminal", appName: "iTerm2", bundleIdPattern: "com.googlecode.iterm2",
                  context: "work", state: .app(windowTitle: "dev"), createdAt: "2024-01-01T00:00:00Z"),
         Bookmark(id: "docs", appName: "Safari", bundleIdPattern: "com.apple.Safari",
-                 context: "work", state: .browser(urlPattern: "https://swift.org", title: "Swift", tabIndex: nil),
+                 context: "work", state: .browser(urlPattern: "https://swift.org", title: "Swift", tabIndex: nil, urlPrefix: nil),
                  createdAt: "2024-01-02T00:00:00Z"),
     ]
     return store
@@ -30,7 +30,7 @@ private func makeStore() -> BookmarkStore {
         Issue.record("Expected .app state")
     }
 
-    if case .browser(let urlPattern, let title, let tabIndex) = decoded.bookmarks[1].state {
+    if case .browser(let urlPattern, let title, let tabIndex, _) = decoded.bookmarks[1].state {
         #expect(urlPattern == "https://swift.org")
         #expect(title == "Swift")
         #expect(tabIndex == nil)
@@ -108,7 +108,7 @@ private func makeStore() -> BookmarkStore {
     let migrated = try BookmarkStore.migrateV1YAML(v1yaml)
     let store = try YAMLDecoder().decode(BookmarkStore.self, from: migrated)
     #expect(store.bookmarks[0].bundleIdPattern == "com.apple.Safari")
-    if case .browser(let urlPattern, let title, _) = store.bookmarks[0].state {
+    if case .browser(let urlPattern, let title, _, _) = store.bookmarks[0].state {
         #expect(urlPattern == "https://swift.org")
         #expect(title == "Swift")
     } else {

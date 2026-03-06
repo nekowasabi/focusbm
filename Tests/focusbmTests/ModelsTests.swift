@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 @testable import FocusBMLib
+import Yams
 
 // MARK: - AppState Tests
 
@@ -14,8 +15,8 @@ import Foundation
 }
 
 @Test func test_browser_withTabIndex() {
-    let state = AppState.browser(urlPattern: "https://example.com", title: "Example", tabIndex: 3)
-    if case .browser(let urlPattern, let title, let tabIndex) = state {
+    let state = AppState.browser(urlPattern: "https://example.com", title: "Example", tabIndex: 3, urlPrefix: nil)
+    if case .browser(let urlPattern, let title, let tabIndex, _) = state {
         #expect(urlPattern == "https://example.com")
         #expect(title == "Example")
         #expect(tabIndex == 3)
@@ -25,8 +26,8 @@ import Foundation
 }
 
 @Test func test_browser_tabIndexNil() {
-    let state = AppState.browser(urlPattern: "https://example.com", title: "Example", tabIndex: nil)
-    if case .browser(_, _, let tabIndex) = state {
+    let state = AppState.browser(urlPattern: "https://example.com", title: "Example", tabIndex: nil, urlPrefix: nil)
+    if case .browser(_, _, let tabIndex, _) = state {
         #expect(tabIndex == nil)
     } else {
         Issue.record("Expected .browser case")
@@ -37,14 +38,14 @@ import Foundation
 
 @Test func test_description_browser_withoutTabIndex() {
     let bm = Bookmark(id: "t", appName: "Safari", bundleIdPattern: "com.apple.Safari",
-                      context: "work", state: .browser(urlPattern: "https://swift.org", title: "Swift", tabIndex: nil),
+                      context: "work", state: .browser(urlPattern: "https://swift.org", title: "Swift", tabIndex: nil, urlPrefix: nil),
                       createdAt: "2024-01-01T00:00:00Z")
     #expect(bm.description == "Safari: Swift (https://swift.org)")
 }
 
 @Test func test_description_browser_withTabIndex() {
     let bm = Bookmark(id: "t", appName: "Safari", bundleIdPattern: "com.apple.Safari",
-                      context: "work", state: .browser(urlPattern: "https://swift.org", title: "Swift", tabIndex: 3),
+                      context: "work", state: .browser(urlPattern: "https://swift.org", title: "Swift", tabIndex: 3, urlPrefix: nil),
                       createdAt: "2024-01-01T00:00:00Z")
     #expect(bm.description == "Safari: Swift (https://swift.org) [tab:3]")
 }
@@ -102,7 +103,7 @@ import Foundation
     let bundleIdPattern = "com.microsoft.edgemac"
     let urlPattern = "github.com/pulls"
     let displayName = "Microsoft Edge"
-    let state: AppState = .browser(urlPattern: urlPattern, title: displayName, tabIndex: nil)
+    let state: AppState = .browser(urlPattern: urlPattern, title: displayName, tabIndex: nil, urlPrefix: nil)
 
     let bookmark = Bookmark(
         id: "pr",
@@ -114,11 +115,68 @@ import Foundation
     )
 
     #expect(bookmark.id == "pr")
-    if case .browser(let url, let title, let tabIndex) = bookmark.state {
+    if case .browser(let url, let title, let tabIndex, _) = bookmark.state {
         #expect(url == "github.com/pulls")
         #expect(title == "Microsoft Edge")
         #expect(tabIndex == nil)
     } else {
         Issue.record("Expected .browser case")
+    }
+}
+
+// MARK: - AppState urlPrefix Tests
+
+@Test func test_appState_browser_urlPrefix_encodeDecode() throws {
+    // urlPrefix あり: encode → decode で値が保持される
+    let state = AppState.browser(urlPattern: "https://app.slack.com/client/aaa/inbox", title: "Slack", tabIndex: nil, urlPrefix: "https://app.slack.com/client/aaa")
+    let encoder = YAMLEncoder()
+    let yaml = try encoder.encode(["state": state])
+    let decoder = YAMLDecoder()
+    let decoded = try decoder.decode([String: AppState].self, from: yaml)
+    if case .browser(_, _, _, let prefix) = decoded["state"] {
+        #expect(prefix == "https://app.slack.com/client/aaa")
+    } else {
+        Issue.record("Expected .browser case")
+    }
+}
+
+@Test func test_appState_browser_urlPrefix_nilDefault() throws {
+    // urlPrefix なし: decode 時に nil になる（後方互換）
+    let yaml = """
+    type: browser
+    urlPattern: github.com/pulls
+    title: Pull Requests
+    """
+    let decoder = YAMLDecoder()
+    let state = try decoder.decode(AppState.self, from: yaml)
+    if case .browser(_, _, _, let prefix) = state {
+        #expect(prefix == nil)
+    } else {
+        Issue.record("Expected .browser case")
+    }
+}
+
+@Test func test_appState_browser_urlPrefix_inBookmarkStore() throws {
+    // BookmarkStore の YAML に urlPrefix が含まれる場合の decode
+    let yaml = """
+    bookmarks:
+      - id: slack
+        appName: Google Chrome
+        context: work
+        createdAt: "2024-01-01T00:00:00Z"
+        state:
+          type: browser
+          urlPattern: "https://app.slack.com/client/aaa/inbox"
+          title: Slack
+          urlPrefix: "https://app.slack.com/client/aaa"
+    """
+    let decoder = YAMLDecoder()
+    let store = try decoder.decode(BookmarkStore.self, from: yaml)
+    #expect(store.bookmarks.count == 1)
+    if case .browser(let pattern, _, _, let prefix) = store.bookmarks[0].state {
+        #expect(pattern == "https://app.slack.com/client/aaa/inbox")
+        #expect(prefix == "https://app.slack.com/client/aaa")
+    } else {
+        Issue.record("Expected .browser case with urlPrefix")
     }
 }
