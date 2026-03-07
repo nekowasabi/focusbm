@@ -118,6 +118,7 @@ public struct TmuxPane {
         case "copilot": return "Copilot"
         case "agent":   return "Agent"
         default:
+            if t.contains("claude code") { return "Claude Code" }
             if t.contains("codex")   { return "Codex" }
             if t.contains("copilot") { return "Copilot" }
             return command
@@ -349,6 +350,20 @@ public struct TmuxProvider {
                 log("focusPane(attached): activating terminal '\(appName)' (\(bid))")
                 try AppleScriptBridge.activateApp(bundleIdPattern: bid, appName: appName)
                 Thread.sleep(forTimeInterval: 0.1)
+            } else {
+                // bundleId 未解決時: 実行中の既知ターミナルアプリを探す
+                let knownIds = ["com.googlecode.iterm2", "com.mitchellh.ghostty",
+                                "com.apple.Terminal", "com.github.wez.wezterm"]
+                for kid in knownIds {
+                    let apps = NSRunningApplication.runningApplications(withBundleIdentifier: kid)
+                    if let app = apps.first {
+                        log("focusPane(attached): bundleId nil fallback, activating '\(app.localizedName ?? kid)' (\(kid))")
+                        try AppleScriptBridge.activateApp(bundleIdPattern: kid,
+                                                          appName: app.localizedName ?? "Terminal")
+                        Thread.sleep(forTimeInterval: 0.1)
+                        break
+                    }
+                }
             }
 
             // 2. select-window
@@ -649,6 +664,11 @@ public struct TmuxProvider {
                let bundleId = app.bundleIdentifier,
                knownTerminalBundleIds.contains(bundleId) {
                 return (bundleId, app.localizedName ?? bundleId)
+            }
+            // GUIアプリ検索が失敗した場合、プロセス名で iTermServer を検出
+            if let procName = sysctlProcessName(currentPid),
+               procName.hasPrefix("iTermServer") {
+                return ("com.googlecode.iterm2", "iTerm2")
             }
             guard let ppid = getParentPID(currentPid), ppid > 1 else { break }
             currentPid = ppid

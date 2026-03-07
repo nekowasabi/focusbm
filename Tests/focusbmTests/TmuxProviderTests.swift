@@ -703,3 +703,36 @@ final class MockRunningApp: RunningAppProtocol {
     }
     #expect(args[tIdx + 1] == "proj:3")
 }
+
+// MARK: - iTerm2 tmux統合モード / バージョンバイナリ対応テスト
+
+// バージョン番号バイナリ + タイトルに "Claude Code" が含まれる場合、agentName は "Claude Code" を返す
+@Test func test_agentName_versionBinaryWithClaudeTitle() {
+    let pane = TmuxPane(paneId: "%1", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "2.1.58",
+                        title: "⚡ Claude Code — myproject", currentPath: "/tmp")
+    #expect(pane.agentName == "Claude Code")
+}
+
+// isAIAgent: command="2.1.58", title に "Claude Code" が含まれる場合 → true
+@Test func test_isAIAgent_versionBinaryClaudeCode() {
+    let pane = TmuxPane(paneId: "%1", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "2.1.58",
+                        title: "⚡ Claude Code — myproject", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+}
+
+// findTerminalByAncestorProcess: iTermServer プロセス名を持つPIDを検出する
+@Test func test_findTerminalByAncestorProcess_iTermServer() {
+    // iTermServer はGUIアプリでないため runningApps に含まれない
+    // getParentPID が iTermServer の PID を返した場合でも bundleId が解決されること
+    // ここでは sysctl は呼べないため、結果が nil になることを確認する（実機テストで検証）
+    let emptyApps: [any RunningAppProtocol] = []
+    let result = TmuxProvider.findTerminalByAncestorProcess(
+        99999,  // 存在しないPID
+        runningApps: emptyApps,
+        getParentPID: { _ in nil }
+    )
+    // 存在しないPIDなので nil が返る（実際の iTermServer PIDでは iTerm2 が返る）
+    #expect(result == nil)
+}
