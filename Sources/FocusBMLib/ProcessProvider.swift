@@ -98,7 +98,7 @@ public struct ProcessProvider {
     static func findProcessesByName(_ name: String) -> [pid_t] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        process.arguments = ["-f", "bin/" + name]
+        process.arguments = ["-f", "bin/" + name + "([[:space:]]|$)"]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = Pipe()
