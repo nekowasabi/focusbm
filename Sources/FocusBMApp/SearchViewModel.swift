@@ -213,37 +213,34 @@ class SearchViewModel: ObservableObject {
         }
     }
 
-    func restoreSelected() -> Bool {
-        guard selectedIndex >= 0, selectedIndex < searchItems.count else { return false }
+    func restoreSelected() -> ActivationTarget? {
+        guard selectedIndex >= 0, selectedIndex < searchItems.count else { return nil }
         let item = searchItems[selectedIndex]
         switch item {
         case .bookmark(let bookmark):
             do {
-                try BookmarkRestorer.restore(bookmark)
-                return true
+                let target = try BookmarkRestorer.restoreAndGetTarget(bookmark)
+                return target
             } catch {
-                return false
+                print("Restore failed: \(error)")
+                return nil
             }
         case .floatingWindow(let entry):
             FloatingWindowProvider.focus(entry: entry)
-            return true
+            // AXRaise + activate は focus() 内で完了済み。
+            // ただし close 後の再 activate のため PID を返す
+            return .pid(entry.pid)
         case .tmuxPane(let pane):
             do {
-                try TmuxProvider.focusPane(pane, settings: appSettings)
-                return true
+                let target = try TmuxProvider.focusPane(pane, settings: appSettings)
+                return target
             } catch {
-                return false
+                print("TmuxProvider.focusPane failed: \(error)")
+                return nil
             }
         case .aiProcess(let proc):
-            if let bundleId = proc.terminalBundleId {
-                do {
-                    try AppleScriptBridge.activateApp(bundleIdPattern: bundleId, appName: proc.terminalAppName ?? "Terminal")
-                    return true
-                } catch {
-                    return false
-                }
-            }
-            return false
+            guard let bundleId = proc.terminalBundleId else { return nil }
+            return .bundleId(bundleId, appName: proc.terminalAppName ?? "Terminal")
         }
     }
 }

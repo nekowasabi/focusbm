@@ -43,8 +43,11 @@ class SearchPanel: NSPanel {
         // 候補が1件になったとき自動実行
         viewModel.onAutoExecute = { [weak self] in
             guard let self else { return }
-            if self.viewModel.restoreSelected() {
+            if let target = self.viewModel.restoreSelected() {
                 self.close()
+                DispatchQueue.main.async {
+                    target.activate()
+                }
             }
         }
     }
@@ -87,8 +90,11 @@ class SearchPanel: NSPanel {
                     let index = number - 1
                     if index < self.viewModel.searchItems.count {
                         self.viewModel.selectedIndex = index
-                        if self.viewModel.restoreSelected() {
+                        if let target = self.viewModel.restoreSelected() {
                             self.close()
+                            DispatchQueue.main.async {
+                                target.activate()
+                            }
                         }
                     }
                     return nil

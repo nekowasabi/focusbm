@@ -18,8 +18,11 @@ struct SearchView: View {
                     .font(.title3)
                     .focused($isSearchFieldFocused)
                     .onSubmit {
-                        if viewModel.restoreSelected() {
+                        if let target = viewModel.restoreSelected() {
                             panel?.close()
+                            DispatchQueue.main.async {
+                                target.activate()
+                            }
                         }
                     }
             }
@@ -61,8 +64,11 @@ struct SearchView: View {
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     viewModel.selectedIndex = index
-                                    if viewModel.restoreSelected() {
+                                    if let target = viewModel.restoreSelected() {
                                         panel?.close()
+                                        DispatchQueue.main.async {
+                                            target.activate()
+                                        }
                                     }
                                 }
                             }
