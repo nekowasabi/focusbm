@@ -347,21 +347,24 @@ public struct TmuxProvider {
             let bundleId = pane.terminalBundleId ?? settings?.preferredTerminal
             let appName = pane.terminalAppName ?? "Terminal"
             if let bid = bundleId {
-                log("focusPane(attached): activating terminal '\(appName)' (\(bid))")
-                try AppleScriptBridge.activateApp(bundleIdPattern: bid, appName: appName)
-                Thread.sleep(forTimeInterval: 0.1)
+                log("focusPane(attached): scheduling terminal activation '\(appName)' (\(bid))")
+                let capturedBid = bid
+                let capturedAppName = appName
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    try? AppleScriptBridge.activateApp(bundleIdPattern: capturedBid, appName: capturedAppName)
+                }
             } else {
-                // bundleId 未解決時: 実行中の既知ターミナルアプリを探す
-                let knownIds = ["com.googlecode.iterm2", "com.mitchellh.ghostty",
-                                "com.apple.Terminal", "com.github.wez.wezterm"]
-                for kid in knownIds {
-                    let apps = NSRunningApplication.runningApplications(withBundleIdentifier: kid)
-                    if let app = apps.first {
-                        log("focusPane(attached): bundleId nil fallback, activating '\(app.localizedName ?? kid)' (\(kid))")
-                        try AppleScriptBridge.activateApp(bundleIdPattern: kid,
-                                                          appName: app.localizedName ?? "Terminal")
-                        Thread.sleep(forTimeInterval: 0.1)
-                        break
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    let knownIds = ["com.googlecode.iterm2", "com.mitchellh.ghostty",
+                                    "com.apple.Terminal", "com.github.wez.wezterm"]
+                    for kid in knownIds {
+                        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: kid)
+                        if let app = apps.first {
+                            log("focusPane(attached): bundleId nil fallback, activating '\(app.localizedName ?? kid)' (\(kid))")
+                            try? AppleScriptBridge.activateApp(bundleIdPattern: kid,
+                                                               appName: app.localizedName ?? "Terminal")
+                            break
+                        }
                     }
                 }
             }
