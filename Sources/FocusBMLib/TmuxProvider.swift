@@ -338,33 +338,27 @@ public struct TmuxProvider {
     //
     // detached セッション（clientTTY == nil）:
     //   switch-client → select-window → select-pane
-    public static func focusPane(_ pane: TmuxPane, settings: AppSettings? = nil) throws {
+    @discardableResult
+    public static func focusPane(_ pane: TmuxPane, settings: AppSettings? = nil) throws -> ActivationTarget {
         let isAttached = pane.clientTTY != nil
+        var activationTarget: ActivationTarget = .none
 
         if isAttached {
             // --- attached セッション ---
-            // 1. ターミナルGUIを前面にアクティベート
+            // 1. ActivationTarget を構築（asyncAfter は使わず呼び出し元に委譲）
             let bundleId = pane.terminalBundleId ?? settings?.preferredTerminal
             let appName = pane.terminalAppName ?? "Terminal"
             if let bid = bundleId {
-                log("focusPane(attached): scheduling terminal activation '\(appName)' (\(bid))")
-                let capturedBid = bid
-                let capturedAppName = appName
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    try? AppleScriptBridge.activateApp(bundleIdPattern: capturedBid, appName: capturedAppName)
-                }
+                log("focusPane(attached): will return activation target for '\(appName)' (\(bid))")
+                activationTarget = .bundleId(bid, appName: appName)
             } else {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    let knownIds = ["com.googlecode.iterm2", "com.mitchellh.ghostty",
-                                    "com.apple.Terminal", "com.github.wez.wezterm"]
-                    for kid in knownIds {
-                        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: kid)
-                        if let app = apps.first {
-                            log("focusPane(attached): bundleId nil fallback, activating '\(app.localizedName ?? kid)' (\(kid))")
-                            try? AppleScriptBridge.activateApp(bundleIdPattern: kid,
-                                                               appName: app.localizedName ?? "Terminal")
-                            break
-                        }
+                let knownIds = ["com.googlecode.iterm2", "com.mitchellh.ghostty",
+                                "com.apple.Terminal", "com.github.wez.wezterm"]
+                for kid in knownIds {
+                    let apps = NSRunningApplication.runningApplications(withBundleIdentifier: kid)
+                    if let app = apps.first {
+                        activationTarget = .runningApp(app)
+                        break
                     }
                 }
             }
@@ -398,6 +392,8 @@ public struct TmuxProvider {
                                description: "select-pane -t \(pane.paneId)",
                                fatalOnFailure: false)
         }
+
+        return activationTarget
     }
 
     /// tmux コマンドを実行する内部ヘルパー
