@@ -704,6 +704,77 @@ final class MockRunningApp: RunningAppProtocol {
     #expect(args[tIdx + 1] == "proj:3")
 }
 
+// MARK: - TmuxProvider.selectWindowArgs 追加テスト
+
+@Test func test_selectWindowArgs_windowIndexZero() {
+    // windowIndex=0 の境界値
+    let pane = TmuxPane(
+        paneId: "%1", sessionName: "main", windowIndex: 0,
+        windowName: "shell", command: "zsh", title: "", currentPath: "/tmp"
+    )
+    let args = TmuxProvider.selectWindowArgs(pane)
+    #expect(args == ["tmux", "select-window", "-t", "main:0"])
+}
+
+@Test func test_selectWindowArgs_startsWithTmux() {
+    // コマンドの先頭が "tmux" であることを確認
+    let pane = TmuxPane(
+        paneId: "%1", sessionName: "s", windowIndex: 1,
+        windowName: "w", command: "claude", title: "", currentPath: ""
+    )
+    let args = TmuxProvider.selectWindowArgs(pane)
+    #expect(args.first == "tmux")
+    #expect(args.contains("select-window"))
+}
+
+@Test func test_selectWindowArgs_largeWindowIndex() {
+    // 大きな windowIndex でも正しくフォーマットされる
+    let pane = TmuxPane(
+        paneId: "%99", sessionName: "longSessionName", windowIndex: 99,
+        windowName: "w", command: "aider", title: "", currentPath: ""
+    )
+    let args = TmuxProvider.selectWindowArgs(pane)
+    #expect(args == ["tmux", "select-window", "-t", "longSessionName:99"])
+}
+
+// MARK: - TmuxProvider.selectPaneArgs 追加テスト
+
+@Test func test_selectPaneArgs_startsWithTmux() {
+    // コマンドの先頭が "tmux" であることを確認
+    let pane = TmuxPane(
+        paneId: "%1", sessionName: "s", windowIndex: 0,
+        windowName: "w", command: "claude", title: "", currentPath: ""
+    )
+    let args = TmuxProvider.selectPaneArgs(pane)
+    #expect(args.first == "tmux")
+    #expect(args.contains("select-pane"))
+}
+
+@Test func test_selectPaneArgs_paneIdStartsWithPercent() {
+    // paneId は "%" で始まる tmux 形式
+    let pane = TmuxPane(
+        paneId: "%7", sessionName: "main", windowIndex: 0,
+        windowName: "editor", command: "claude", title: "", currentPath: "/tmp"
+    )
+    let args = TmuxProvider.selectPaneArgs(pane)
+    guard let tIdx = args.firstIndex(of: "-t"), tIdx + 1 < args.count else {
+        Issue.record("-t flag not found in selectPaneArgs")
+        return
+    }
+    #expect(args[tIdx + 1].hasPrefix("%"))
+}
+
+@Test func test_selectPaneArgs_doesNotContainSessionName() {
+    // select-pane は sessionName を含まない（paneId のみ使用）
+    let pane = TmuxPane(
+        paneId: "%10", sessionName: "uniqueSessionXYZ", windowIndex: 4,
+        windowName: "main", command: "gemini", title: "", currentPath: ""
+    )
+    let args = TmuxProvider.selectPaneArgs(pane)
+    #expect(!args.contains("uniqueSessionXYZ"))
+    #expect(!args.contains("4"))
+}
+
 // MARK: - iTerm2 tmux統合モード / バージョンバイナリ対応テスト
 
 // バージョン番号バイナリ + タイトルに "Claude Code" が含まれる場合、agentName は "Claude Code" を返す
