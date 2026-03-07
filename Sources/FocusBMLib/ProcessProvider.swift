@@ -35,7 +35,7 @@ public struct ProcessProvider {
     }
 
     /// 検出対象のAIエージェントコマンド名
-    static let aiAgentCommands = ["claude", "aider", "gemini", "copilot"]
+    static let aiAgentCommands = ["claude", "aider", "gemini", "copilot", "codex"]
 
     // MARK: - Debug Logging
 
@@ -98,7 +98,7 @@ public struct ProcessProvider {
     static func findProcessesByName(_ name: String) -> [pid_t] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        process.arguments = ["-x", name]
+        process.arguments = ["-f", "bin/" + name]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = Pipe()
