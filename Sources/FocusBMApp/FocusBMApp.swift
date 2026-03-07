@@ -281,7 +281,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let store = BookmarkStore.loadYAML()
         guard let bookmark = store.bookmarks.first(where: { $0.id == bookmarkId }) else { return }
         do {
-            try BookmarkRestorer.restore(bookmark)
+            let target = try BookmarkRestorer.restoreAndGetTarget(bookmark)
+            target.activate()
         } catch {
             let alert = NSAlert()
             alert.messageText = "復元エラー"

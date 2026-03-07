@@ -170,7 +170,8 @@ extension FocusBM {
                 throw ValidationError("Bookmark '\(name)' not found. Run `focusbm list` to see available bookmarks.")
             }
 
-            try BookmarkRestorer.restore(bookmark)
+            let target = try BookmarkRestorer.restoreAndGetTarget(bookmark)
+            target.activate()
             print("✓ Restored: [\(name)] \(bookmark.description)")
         }
     }
@@ -204,7 +205,8 @@ extension FocusBM {
 
             for bm in targets {
                 do {
-                    try BookmarkRestorer.restore(bm)
+                    let target = try BookmarkRestorer.restoreAndGetTarget(bm)
+                    target.activate()
                     print("  ✓ \(bm.id): \(bm.description)")
                     if wait {
                         Thread.sleep(forTimeInterval: 0.5)
@@ -304,7 +306,8 @@ extension FocusBM {
             let selected = try pipeThroughFzf(input)
             guard let id = selected.split(separator: "\t").first.map(String.init) else { return }
             guard let bm = bookmarks.first(where: { $0.id == id }) else { return }
-            try BookmarkRestorer.restore(bm)
+            let target = try BookmarkRestorer.restoreAndGetTarget(bm)
+            target.activate()
             print("✓ Switched to: [\(bm.id)] \(bm.description)")
         }
     }
