@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import ApplicationServices
 import CoreGraphics
+import ServiceManagement
 import FocusBMLib
 
 class AppDelegate: NSObject, NSApplicationDelegate {
@@ -220,6 +221,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
+        // ログイン時起動トグル
+        let loginItem = NSMenuItem(
+            title: "ログイン時に起動",
+            action: #selector(toggleLaunchAtLogin),
+            keyEquivalent: ""
+        )
+        loginItem.target = self
+        loginItem.state = isLaunchAtLoginEnabled ? .on : .off
+        menu.addItem(loginItem)
+
+        menu.addItem(NSMenuItem.separator())
+
         let quitItem = NSMenuItem(title: "終了", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quitItem)
 
@@ -307,5 +320,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         cachedPanelHeight = CGFloat(store.settings?.panelHeight ?? 400)
         cachedDisplayNumber = store.settings?.displayNumber
         setupStatusItem()
+    }
+
+    // MARK: - Launch at Login
+
+    private var isLaunchAtLoginEnabled: Bool {
+        SMAppService.mainApp.status == .enabled
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        do {
+            if isLaunchAtLoginEnabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+            setupStatusItem()
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "自動起動の設定に失敗しました"
+            alert.informativeText = error.localizedDescription
+            alert.runModal()
+        }
     }
 }
