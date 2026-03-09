@@ -59,7 +59,7 @@ struct BookmarkRow: View {
                     Spacer()
                     if !searchItem.context.isEmpty && searchItem.context != "default" {
                         Text("[\(searchItem.context)]")
-                            .font(.caption)
+                            .font(resolvedCaptionFont)
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -68,7 +68,7 @@ struct BookmarkRow: View {
                     }
                     if let idx = shortcutIndex {
                         Text(directNumberKeys ? "\(idx + 1)" : "⌘\(idx + 1)")
-                            .font(.caption)
+                            .font(resolvedCaptionFont)
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
