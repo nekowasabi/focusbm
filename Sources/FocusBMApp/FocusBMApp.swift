@@ -159,8 +159,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return Unmanaged.passUnretained(event)
     }
 
-    // キー文字 → CGKeyCode 変換テーブル
-    private static func keyCodeForCharacter(_ char: String) -> CGKeyCode {
+    // キー文字 → CGKeyCode 変換テーブル（internal: SearchPanel の alphabetKeyCodes 生成にも使用）
+    static func keyCodeForCharacter(_ char: String) -> CGKeyCode {
         let map: [String: CGKeyCode] = [
             "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7,
             "c": 8, "v": 9, "b": 11, "q": 12, "w": 13, "e": 14, "r": 15,

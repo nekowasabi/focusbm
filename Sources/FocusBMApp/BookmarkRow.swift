@@ -4,7 +4,7 @@ import FocusBMLib
 struct BookmarkRow: View {
     let searchItem: SearchItem
     let isSelected: Bool
-    let shortcutIndex: Int?  // 0-based; nil if >= 9
+    let shortcutLabel: String?
     let directNumberKeys: Bool
     let fontSize: Double?
     let fontName: String?
@@ -52,8 +52,8 @@ struct BookmarkRow: View {
 
             // Shortcut badge (fixed width to keep displayName aligned)
             ZStack {
-                if let idx = shortcutIndex {
-                    Text(directNumberKeys ? "\(idx + 1)" : "⌘\(idx + 1)")
+                if let label = shortcutLabel {
+                    Text(directNumberKeys ? label : "⌘\(label)")
                         .font(resolvedCaptionFont)
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 6)

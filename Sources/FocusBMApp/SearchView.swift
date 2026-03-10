@@ -44,7 +44,7 @@ struct SearchView: View {
                                 BookmarkRow(
                                     searchItem: pair.item,
                                     isSelected: index == viewModel.selectedIndex,
-                                    shortcutIndex: pair.digit.map { $0 - 1 },
+                                    shortcutLabel: pair.label,
                                     directNumberKeys: viewModel.appSettings?.directNumberKeys ?? true,
                                     fontSize: viewModel.listFontSize,
                                     fontName: viewModel.fontName

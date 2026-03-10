@@ -74,6 +74,19 @@ class SearchPanel: NSPanel {
         18: 1, 19: 2, 20: 3, 21: 4, 23: 5, 22: 6, 26: 7, 28: 8, 25: 9
     ]
 
+    // アルファベットキー a-z の keyCode → 文字 逆引きマップ
+    // ANSI layout only - AppDelegate.keyCodeForCharacter() から逆引き生成（DRY: ハードコード禁止）
+    // Note: JIS キーボードでは keyCode が異なるため将来的な対応が必要
+    private static let alphabetKeyCodes: [UInt16: String] = {
+        let letters = "abcdefghijklmnopqrstuvwxyz".map { String($0) }
+        var result: [UInt16: String] = [:]
+        for letter in letters {
+            let code = UInt16(AppDelegate.keyCodeForCharacter(letter))
+            result[code] = letter
+        }
+        return result
+    }()
+
     private func startLocalKeyMonitor() {
         guard localKeyMonitor == nil else { return }
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -94,6 +107,24 @@ class SearchPanel: NSPanel {
                             DispatchQueue.main.async {
                                 target.activate()
                             }
+                        }
+                    }
+                    return nil
+                }
+            }
+
+            // アルファベットショートカット: query が空かつ labelToIndex に登録済みキーで発動
+            // ANSI layout only - see alphabetKeyCodes
+            if let label = Self.alphabetKeyCodes[event.keyCode] {
+                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                let isBareOrCmd = flags.isEmpty || flags == .command
+                if isBareOrCmd, self.viewModel.query.isEmpty,
+                   let index = self.viewModel.labelToIndex[label] {
+                    self.viewModel.selectedIndex = index
+                    if let target = self.viewModel.restoreSelected() {
+                        self.close()
+                        DispatchQueue.main.async {
+                            target.activate()
                         }
                     }
                     return nil

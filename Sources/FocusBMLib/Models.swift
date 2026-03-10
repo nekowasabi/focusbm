@@ -55,6 +55,7 @@ public struct Bookmark: Codable, Identifiable {
     public var state: AppState
     public var createdAt: String  // ISO8601形式
     public var noShortcut: Bool? = nil   // true: ショートカット数字バッジを表示しない
+    public var shortcut: String? = nil   // YAML shortcut key (e.g., "g" for Cmd+G)
     public var lowPriority: Bool? = nil  // true: デフォルト表示でリスト下部に移動
 
     public init(id: String, appName: String, bundleIdPattern: String?, context: String, state: AppState, createdAt: String) {

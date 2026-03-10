@@ -214,20 +214,63 @@ class SearchViewModel: ObservableObject {
     }
 
     /// ショートカット数字の割り当て: noShortcut=true のアイテムを除いて 1-9 を順に割り当て
-    var shortcutAssignments: [(item: SearchItem, digit: Int?)] {
-        var digit = 1
+    /// ショートカットラベルの割り当て:
+    /// - noShortcut=true → nil
+    /// - YAML shortcut 指定あり → そのラベル（重複は先着優先で nil）
+    /// - shortcut 未指定 → "1"〜"9" を自動割り当て（YAML 予約済みラベルはスキップ）
+    var shortcutAssignments: [(item: SearchItem, label: String?)] {
+        // YAML 指定ラベルのセット（自動割り当て時にスキップするため事前収集）
+        var reservedLabels: Set<String> = []
+        for item in searchItems {
+            if case .bookmark(let bm) = item,
+               !(bm.noShortcut ?? false),
+               let s = bm.shortcut {
+                reservedLabels.insert(s)
+            }
+        }
+
+        var usedYAMLLabels: Set<String> = []  // 重複 YAML shortcut の先着優先制御
+        var autoNumber = 1
+
         return searchItems.map { item in
-            guard !item.noShortcut, digit <= 9 else { return (item, nil) }
-            defer { digit += 1 }
-            return (item, digit)
+            // noShortcut が true → ラベルなし
+            if item.noShortcut { return (item, nil) }
+
+            // YAML 指定ショートカット
+            if case .bookmark(let bm) = item, let s = bm.shortcut {
+                if usedYAMLLabels.contains(s) {
+                    return (item, nil)  // 重複: 後続は nil
+                }
+                usedYAMLLabels.insert(s)
+                return (item, s)
+            }
+
+            // 自動割り当て "1"〜"9"（YAML 予約済みラベルをスキップ）
+            while autoNumber <= 9 && reservedLabels.contains(String(autoNumber)) {
+                autoNumber += 1
+            }
+            guard autoNumber <= 9 else { return (item, nil) }
+            let label = String(autoNumber)
+            autoNumber += 1
+            return (item, label)
         }
     }
 
     /// 数字キー → searchItems 配列インデックスの逆引きマップ
+    /// 数字キー → searchItems 配列インデックスの逆引きマップ（SearchPanel 後方互換; labelToIndex から派生）
     var digitToIndex: [Int: Int] {
         var result: [Int: Int] = [:]
+        for (label, index) in labelToIndex {
+            if let d = Int(label) { result[d] = index }
+        }
+        return result
+    }
+
+    /// ラベル文字列 → searchItems 配列インデックスの逆引きマップ
+    var labelToIndex: [String: Int] {
+        var result: [String: Int] = [:]
         for (arrayIndex, pair) in shortcutAssignments.enumerated() {
-            if let d = pair.digit { result[d] = arrayIndex }
+            if let l = pair.label { result[l] = arrayIndex }
         }
         return result
     }
