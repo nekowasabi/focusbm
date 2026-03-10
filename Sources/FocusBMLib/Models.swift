@@ -314,4 +314,14 @@ public enum SearchItem: Identifiable {
         if case .bookmark(let bm) = self { return bm.lowPriority ?? false }
         return false
     }
+
+    /// デバッグ用ラベル
+    public var debugLabel: String {
+        switch self {
+        case .bookmark(let b): return "bookmark:\(b.appName) lp=\(b.lowPriority ?? false)"
+        case .floatingWindow(let w): return "window:\(w.displayName)"
+        case .tmuxPane(let p): return "tmux:\(p.displayName)"
+        case .aiProcess(let p): return "ai:\(p.command)"
+        }
+    }
 }

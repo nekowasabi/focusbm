@@ -148,6 +148,8 @@ class SearchViewModel: ObservableObject {
             items += tmuxPaneCache.map { .tmuxPane($0) }
             // tmux外のAIエージェントプロセスを追加
             items += aiProcessCache.map { .aiProcess($0) }
+            // query.isEmpty: lowPriority ブックマークを AI エージェントの後ろへ移動
+            items = items.filter { !$0.lowPriority } + items.filter { $0.lowPriority }
         } else {
             // クエリあり: fuzzy フィルタ（floatingWindows は名前マッチ、通常はスコア順）
             for bookmark in bookmarks {
@@ -172,7 +174,16 @@ class SearchViewModel: ObservableObject {
                 let searchable = "\($0.command) \($0.workingDirectory) \($0.terminalAppName ?? "")"
                 return BookmarkSearcher.fuzzyScore(text: searchable, query: query) != nil
             }.map { .aiProcess($0) }
+            // クエリあり: lowPriority を末尾に移動（ショートカット番号の連続性維持）
+            items = items.filter { !$0.lowPriority } + items.filter { $0.lowPriority }
         }
+
+        #if DEBUG
+        let itemDebugLog = items.enumerated().map { (i, item) in
+            "[\(i)] \(item.debugLabel) lowPriority=\(item.lowPriority)"
+        }.joined(separator: "\n")
+        NSLog("[FocusBM][updateItems] query='\(query)' count=\(items.count)\n\(itemDebugLog)")
+        #endif
 
         searchItems = items
         if selectedIndex >= searchItems.count {
