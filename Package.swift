@@ -44,5 +44,11 @@ let package = Package(
             path: "Tests/focusbmTests",
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
+        .testTarget(
+            name: "FocusBMAppTests",
+            dependencies: ["FocusBMApp"],
+            path: "Tests/FocusBMAppTests",
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
     ]
 )
