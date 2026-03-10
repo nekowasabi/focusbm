@@ -54,6 +54,8 @@ public struct Bookmark: Codable, Identifiable {
     public var context: String     // contexts フィルタリング用タグ
     public var state: AppState
     public var createdAt: String  // ISO8601形式
+    public var noShortcut: Bool? = nil   // true: ショートカット数字バッジを表示しない
+    public var lowPriority: Bool? = nil  // true: デフォルト表示でリスト下部に移動
 
     public init(id: String, appName: String, bundleIdPattern: String?, context: String, state: AppState, createdAt: String) {
         self.id = id
@@ -299,5 +301,17 @@ public enum SearchItem: Identifiable {
         case .aiProcess:
             return true
         }
+    }
+
+    /// ショートカット数字バッジを表示しない
+    public var noShortcut: Bool {
+        if case .bookmark(let bm) = self { return bm.noShortcut ?? false }
+        return false
+    }
+
+    /// デフォルト表示でリスト下部に移動
+    public var lowPriority: Bool {
+        if case .bookmark(let bm) = self { return bm.lowPriority ?? false }
+        return false
     }
 }

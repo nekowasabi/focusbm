@@ -40,16 +40,16 @@ struct SearchView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 2) {
-                            ForEach(Array(viewModel.searchItems.enumerated()), id: \.element.id) { index, item in
+                            ForEach(Array(viewModel.shortcutAssignments.enumerated()), id: \.element.item.id) { index, pair in
                                 BookmarkRow(
-                                    searchItem: item,
+                                    searchItem: pair.item,
                                     isSelected: index == viewModel.selectedIndex,
-                                    shortcutIndex: index < 9 ? index : nil,
+                                    shortcutIndex: pair.digit.map { $0 - 1 },
                                     directNumberKeys: viewModel.appSettings?.directNumberKeys ?? true,
                                     fontSize: viewModel.listFontSize,
                                     fontName: viewModel.fontName
                                 )
-                                .id(item.id)
+                                .id(pair.item.id)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)

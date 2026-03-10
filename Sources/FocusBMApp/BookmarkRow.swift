@@ -50,6 +50,20 @@ struct BookmarkRow: View {
                     .frame(width: 20, height: 20)
             }
 
+            // Shortcut badge (fixed width to keep displayName aligned)
+            ZStack {
+                if let idx = shortcutIndex {
+                    Text(directNumberKeys ? "\(idx + 1)" : "⌘\(idx + 1)")
+                        .font(resolvedCaptionFont)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.accentColor.opacity(0.1))
+                        .cornerRadius(4)
+                }
+            }
+            .frame(width: 32)
+
             // Item info
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
@@ -57,24 +71,6 @@ struct BookmarkRow: View {
                         .font(resolvedBodyFont)
                         .fontWeight(isSelected ? .bold : .regular)
                     Spacer()
-                    if !searchItem.context.isEmpty && searchItem.context != "default" {
-                        Text("[\(searchItem.context)]")
-                            .font(resolvedCaptionFont)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.secondary.opacity(0.15))
-                            .cornerRadius(4)
-                    }
-                    if let idx = shortcutIndex {
-                        Text(directNumberKeys ? "\(idx + 1)" : "⌘\(idx + 1)")
-                            .font(resolvedCaptionFont)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.accentColor.opacity(0.1))
-                            .cornerRadius(4)
-                    }
                 }
 
                 HStack {

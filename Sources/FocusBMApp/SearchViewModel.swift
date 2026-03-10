@@ -134,8 +134,9 @@ class SearchViewModel: ObservableObject {
         var items: [SearchItem] = []
 
         if query.isEmpty {
-            // クエリなし: YAML 順序を維持（floatingWindows と通常ブックマークを混在）
-            for bookmark in bookmarks {
+            // クエリなし: lowPriority を末尾に送りつつ YAML 順序を維持
+            let orderedBookmarks = bookmarks.sorted { !($0.lowPriority ?? false) && ($1.lowPriority ?? false) }
+            for bookmark in orderedBookmarks {
                 if case .floatingWindows = bookmark.state {
                     let entries = floatingWindowCache[bookmark.appName] ?? []
                     items += entries.map { .floatingWindow($0) }
@@ -199,6 +200,25 @@ class SearchViewModel: ObservableObject {
             autoExecuteWorkItem = workItem
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
         }
+    }
+
+    /// ショートカット数字の割り当て: noShortcut=true のアイテムを除いて 1-9 を順に割り当て
+    var shortcutAssignments: [(item: SearchItem, digit: Int?)] {
+        var digit = 1
+        return searchItems.map { item in
+            guard !item.noShortcut, digit <= 9 else { return (item, nil) }
+            defer { digit += 1 }
+            return (item, digit)
+        }
+    }
+
+    /// 数字キー → searchItems 配列インデックスの逆引きマップ
+    var digitToIndex: [Int: Int] {
+        var result: [Int: Int] = [:]
+        for (arrayIndex, pair) in shortcutAssignments.enumerated() {
+            if let d = pair.digit { result[d] = arrayIndex }
+        }
+        return result
     }
 
     func moveUp() {
