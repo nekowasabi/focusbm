@@ -248,6 +248,17 @@ bookmarks:
       title: "Slack"
       urlPrefix: "https://app.slack.com/client/T0APA1XEE"  # optional
     createdAt: "2025-02-18T09:00:00Z"
+
+  - id: rarely-used
+    appName: SomeApp
+    bundleIdPattern: com.example.someapp
+    context: work
+    noShortcut: true   # No ⌘1-9 badge; subsequent items are numbered consecutively
+    lowPriority: true  # Moved to the bottom of the list when there is no query
+    state:
+      type: app
+      windowTitle: ""
+    createdAt: "2025-01-01T00:00:00Z"
 ```
 
 ### settings Section
@@ -287,6 +298,8 @@ bookmarks:
 - **urlPattern** — Partial match pattern for the active browser tab's URL
 - **tabIndex** — Browser tab index (1-based). If specified, restoration jumps directly to that tab. When used together with `urlPattern`, `tabIndex` takes priority but falls back to URL search if the URL does not match. If omitted and `urlPattern` is set, the URL is opened directly via `open location` (the `https://` prefix is added automatically). If neither is set, the app is simply activated
 - **urlPrefix** — (Optional) If a tab whose URL starts with this prefix is already open, switches to that tab instead of opening a new one. Useful for apps like Slack where the URL changes per page/channel. If omitted, `urlPattern` is used for exact matching as usual
+- **noShortcut** — (Optional) If `true`, the item is not assigned a ⌘1–⌘9 shortcut badge. Subsequent items are numbered consecutively without skipping. Defaults to `false` (or omit the field)
+- **lowPriority** — (Optional) If `true`, the item is moved to the bottom of the list when there is no search query. In search mode it appears in score order like any other item. Defaults to `false` (or omit the field)
 
 ### Notes on Using Firefox
 

@@ -248,6 +248,17 @@ bookmarks:
       title: "Slack"
       urlPrefix: "https://app.slack.com/client/T0APA1XEE"  # 省略可能
     createdAt: "2025-02-18T09:00:00Z"
+
+  - id: rarely-used
+    appName: SomeApp
+    bundleIdPattern: com.example.someapp
+    context: work
+    noShortcut: true   # ⌘1-9 のバッジを付けない（後続アイテムの番号は詰める）
+    lowPriority: true  # クエリなし時にリスト下部に表示
+    state:
+      type: app
+      windowTitle: ""
+    createdAt: "2025-01-01T00:00:00Z"
 ```
 
 ### settings セクション
@@ -279,6 +290,8 @@ bookmarks:
 - **urlPattern** — ブラウザのアクティブタブ URL の部分一致パターン
 - **tabIndex** — ブラウザのタブインデックス（1始まり）。復元時に `tabIndex` が指定されていれば該当タブへ直接切り替える。`urlPattern` と併用した場合は `tabIndex` を優先しつつ URL で検証し、一致しなければ URL でフォールバック検索する。省略時かつ `urlPattern` が設定されている場合は `open location` で URL を直接開く（`https://` プレフィックスが自動補完される）。`urlPattern` も未設定の場合はアプリをアクティブ化するだけ
 - **urlPrefix** — （省略可能）このプレフィックスで始まる URL のタブが既に開いていれば、新規タブを開かずそのタブにスイッチする。Slack のようにページ・チャンネルごとに URL が変わるアプリに有効。省略時は従来通り `urlPattern` で検索する
+- **noShortcut** — （省略可能）`true` にすると、そのアイテムに ⌘1–⌘9 のショートカットバッジを表示しない。後続アイテムの番号は詰めて割り当てられる。省略または `false` で通常通り
+- **lowPriority** — （省略可能）`true` にすると、クエリなし時にリストの下部に移動する。クエリあり時はスコア順に表示される（他のアイテムと同様）。省略または `false` で通常通り
 
 ### Firefox を使う場合の注意事項
 
