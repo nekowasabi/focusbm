@@ -227,7 +227,9 @@ private func makeAIProcess(pid: Int32) -> ProcessProvider.AIProcess {
             "noShortcut:true should override shortcut field, but got label \(String(describing: pair.label))")
 }
 
-/// labelToIndex["g"] が ghostty アイテムの配列インデックスを返すこと
+/// labelToIndex["g"] は mainListAssignments ベースのインデックスを返す。
+/// shortcut:"g" を持つアイテムは shortcutBarItems に入るため mainListAssignments には含まれず、
+/// labelToIndex["g"] は nil になる。アルファベット shortcut は shortcutBarItems 経由でアクセスする。
 @Test func test_labelToIndex_containsOverriddenLabel() {
     let vm = SearchViewModel()
     vm.bookmarks = [
@@ -236,14 +238,18 @@ private func makeAIProcess(pid: Int32) -> ProcessProvider.AIProcess {
     ]
     vm.updateItems()
 
-    // RED PHASE: vm.labelToIndex は SearchViewModel に未実装 → compile error expected
-    guard let index = vm.labelToIndex["g"] else {
-        Issue.record("labelToIndex does not contain key 'g'")
+    // shortcut:"g" は shortcutBarItems に入るため labelToIndex["g"] は nil
+    // アルファベットショートカットは shortcutBarItems 経由でアクティベートする
+    #expect(vm.labelToIndex["g"] == nil,
+            "labelToIndex should not contain alphabet shortcut 'g' (it belongs to shortcutBarItems)")
+    // chrome は mainListAssignments の 0-based index 0 になる
+    guard let index = vm.labelToIndex["1"] else {
+        Issue.record("labelToIndex does not contain key '1'")
         return
     }
-    let item = vm.searchItems[index]
-    #expect(item.id == "ghostty",
-            "Expected ghostty at labelToIndex['g'] but got \(item.id)")
+    let item = vm.mainListAssignments[index].item
+    #expect(item.id == "chrome",
+            "Expected chrome at labelToIndex['1'] (mainListAssignments[0]) but got \(item.id)")
 }
 
 /// shortcut 未指定のアイテムは "1","2","3",... の自動ラベルを得ること
@@ -266,7 +272,7 @@ private func makeAIProcess(pid: Int32) -> ProcessProvider.AIProcess {
     if let idx3 = map["3"] { #expect(vm.searchItems[idx3].id == "slack") }
 }
 
-/// 同じ shortcut:"g" を持つ2アイテムでは最初のアイテムが優先されること
+/// 同じ shortcut:"g" を持つ2アイテムでは最初のアイテムが shortcutBarItems で優先されること
 @Test func test_duplicateShortcut_firstWins() {
     let vm = SearchViewModel()
     vm.bookmarks = [
@@ -275,14 +281,112 @@ private func makeAIProcess(pid: Int32) -> ProcessProvider.AIProcess {
     ]
     vm.updateItems()
 
-    // RED PHASE: vm.labelToIndex は SearchViewModel に未実装 → compile error expected
-    guard let index = vm.labelToIndex["g"] else {
-        Issue.record("labelToIndex does not contain key 'g'")
+    // shortcut:"g" は shortcutBarItems 経由でアクティベート。重複時は最初のアイテムが優先。
+    guard let pair = vm.shortcutBarItems.first(where: { $0.label == "g" }) else {
+        Issue.record("shortcutBarItems does not contain label 'g'")
         return
     }
-    let item = vm.searchItems[index]
-    #expect(item.id == "ghostty",
-            "First item should win on duplicate shortcut, but got \(item.id)")
+    #expect(pair.item.id == "ghostty",
+            "First item should win on duplicate shortcut, but got \(pair.item.id)")
+}
+
+// MARK: - P1: ViewModel データ分離テスト
+
+@Test func shortcutBarItems_returnsOnlyYAMLShortcutItems() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "VSCode", appName: "Visual Studio Code", shortcut: "v"),
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari"),
+        makeBookmark(name: "Notes", appName: "Notes")
+    ]
+    vm.query = ""
+    vm.updateItems()
+
+    #expect(vm.shortcutBarItems.count == 2)
+    #expect(vm.shortcutBarItems.allSatisfy { $0.label == "g" || $0.label == "v" })
+}
+
+@Test func mainListAssignments_excludesShortcutBarItems() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "VSCode", appName: "Visual Studio Code", shortcut: "v"),
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari"),
+        makeBookmark(name: "Notes", appName: "Notes")
+    ]
+    vm.query = ""
+    vm.updateItems()
+
+    let mainIds = Set(vm.mainListAssignments.map { $0.item.id })
+    let barIds = Set(vm.shortcutBarItems.map { $0.item.id })
+    #expect(mainIds.isDisjoint(with: barIds))
+}
+
+@Test func shortcutBarItems_plus_mainListAssignments_equals_shortcutAssignments() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari")
+    ]
+    vm.query = ""
+    vm.updateItems()
+
+    #expect(vm.shortcutBarItems.count + vm.mainListAssignments.count == vm.shortcutAssignments.count)
+}
+
+@Test func shortcutBarItems_emptyWhenNoShortcuts() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari")
+    ]
+    vm.query = ""
+    vm.updateItems()
+
+    #expect(vm.shortcutBarItems.isEmpty)
+    #expect(vm.mainListAssignments.count == vm.shortcutAssignments.count)
+}
+
+// MARK: - P3: selectedIndex 参照先統一テスト
+
+@Test func selectedIndex_boundsClampedToMainListAssignments() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "VSCode", appName: "Visual Studio Code", shortcut: "v"),
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari"),
+        makeBookmark(name: "Notes", appName: "Notes")
+    ]
+    vm.query = ""
+    vm.updateItems()
+
+    // mainListAssignments は3件（shortcutBarItems除外）
+    let mainCount = vm.mainListAssignments.count
+    #expect(mainCount == 3)
+
+    // moveDown を mainCount 回実行 → selectedIndex は mainCount-1 で停止
+    for _ in 0..<mainCount + 2 {
+        vm.moveDown()
+    }
+    #expect(vm.selectedIndex == mainCount - 1)
+}
+
+@Test func moveUp_from_zero_stays_at_zero() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "Finder", appName: "Finder")
+    ]
+    vm.query = ""
+    vm.updateItems()
+    vm.selectedIndex = 0
+    vm.moveUp()
+    #expect(vm.selectedIndex == 0)
 }
 
 /// shortcutAssignments の各エントリの label プロパティが String? 型であること
@@ -302,4 +406,192 @@ private func makeAIProcess(pid: Int32) -> ProcessProvider.AIProcess {
     let _: String? = pair.label
     #expect(pair.label == "1",
             "First auto-assigned item should get label '1' but got \(String(describing: pair.label))")
+}
+
+// MARK: - P10: 統合テスト
+
+/// シナリオ A: 基本分離
+/// YAML shortcut "g","v" + 通常3件 → shortcutBarItems==2, mainListAssignments==3
+/// mainListAssignments に "g","v" が含まれない
+@Test func integration_scenarioA_basicSeparation() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "VSCode", appName: "Visual Studio Code", shortcut: "v"),
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari"),
+        makeBookmark(name: "Notes", appName: "Notes")
+    ]
+    vm.query = ""
+    vm.updateItems()
+
+    #expect(vm.shortcutBarItems.count == 2, "shortcutBarItems は shortcut 付き2件")
+    #expect(vm.mainListAssignments.count == 3, "mainListAssignments は通常3件")
+
+    let mainIds = Set(vm.mainListAssignments.map { $0.item.id })
+    let barIds = Set(vm.shortcutBarItems.map { $0.item.id })
+    #expect(mainIds.isDisjoint(with: barIds), "mainListAssignments に shortcutBarItems が含まれない")
+    #expect(barIds.contains("Chrome"), "shortcutBarItems に Chrome が含まれる")
+    #expect(barIds.contains("VSCode"), "shortcutBarItems に VSCode が含まれる")
+}
+
+/// シナリオ B: キーボードナビゲーション
+/// mainListAssignments 3件、moveDown 3回 → selectedIndex == 2
+/// moveUp 1回 → selectedIndex == 1
+@Test func integration_scenarioB_keyboardNavigation() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari"),
+        makeBookmark(name: "Notes", appName: "Notes")
+    ]
+    vm.query = ""
+    vm.updateItems()
+
+    let mainCount = vm.mainListAssignments.count
+    #expect(mainCount == 3, "mainListAssignments は shortcut 除外後3件")
+
+    // moveDown を mainCount 回実行 → selectedIndex は mainCount-1 で停止
+    for _ in 0..<mainCount {
+        vm.moveDown()
+    }
+    #expect(vm.selectedIndex == mainCount - 1, "moveDown 後 selectedIndex == \(mainCount - 1)")
+
+    vm.moveUp()
+    #expect(vm.selectedIndex == mainCount - 2, "moveUp 後 selectedIndex == \(mainCount - 2)")
+}
+
+/// シナリオ C: 検索モード遷移
+/// query 空→非空: shortcutBarItems はデータとして存在するが UI 非表示条件
+/// 検索結果に shortcut 付きアイテムが含まれる
+@Test func integration_scenarioC_searchModeTransition() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari")
+    ]
+
+    // query 空: shortcutBarItems 存在
+    vm.query = ""
+    vm.updateItems()
+    #expect(!vm.shortcutBarItems.isEmpty, "query 空の時 shortcutBarItems はデータとして存在")
+    let shouldShowEmpty = vm.query.isEmpty && !vm.shortcutBarItems.isEmpty
+    #expect(shouldShowEmpty, "query 空の時バー表示条件が成立")
+
+    // query 非空: バー非表示条件
+    vm.query = "chrome"
+    vm.updateItems()
+    let shouldShowNonEmpty = vm.query.isEmpty && !vm.shortcutBarItems.isEmpty
+    #expect(!shouldShowNonEmpty, "query 非空の時バー非表示条件")
+
+    // 検索結果に shortcut 付きアイテムが含まれる
+    let chromeInSearch = vm.searchItems.contains(where: { $0.id == "Chrome" })
+    #expect(chromeInSearch, "検索結果に Chrome が含まれる")
+}
+
+/// シナリオ D: アルファベットキーアクティベーション
+/// shortcutBarItems に "g" → Chrome
+/// selectedIndex が変更されない
+@Test func integration_scenarioD_alphabetKeyActivation() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari")
+    ]
+    vm.query = ""
+    vm.updateItems()
+    let initialIndex = vm.selectedIndex
+
+    // shortcutBarItems に "g" が存在
+    let pair = vm.shortcutBarItems.first(where: { $0.label == "g" })
+    #expect(pair != nil, "shortcutBarItems に label='g' のアイテムが存在")
+    #expect(pair?.item.id == "Chrome", "label='g' は Chrome に対応")
+
+    // activationTarget 呼び出し（AX 操作は失敗するがメソッドは呼べる）
+    if let pair = pair {
+        let _ = vm.activationTarget(for: pair.item)
+    }
+
+    // selectedIndex が変更されない
+    #expect(vm.selectedIndex == initialIndex, "shortcutBarItems 経由では selectedIndex を変更しない")
+}
+
+/// シナリオ E: エッジケース
+/// ショートカット0件 → shortcutBarItems 空
+/// 全アイテムがショートカット → mainListAssignments は数字ラベルのみ
+@Test func integration_scenarioE_edgeCases() {
+    // ケース1: ショートカット0件
+    let vm1 = SearchViewModel()
+    vm1.bookmarks = [
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari")
+    ]
+    vm1.query = ""
+    vm1.updateItems()
+    #expect(vm1.shortcutBarItems.isEmpty, "ショートカット0件の時 shortcutBarItems は空")
+    #expect(vm1.mainListAssignments.count == vm1.shortcutAssignments.count,
+            "ショートカット0件の時 mainListAssignments == shortcutAssignments")
+
+    // ケース2: 全アイテムがアルファベットショートカット → mainListAssignments は数字ラベルのみ
+    let vm2 = SearchViewModel()
+    vm2.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "VSCode", appName: "Visual Studio Code", shortcut: "v")
+    ]
+    vm2.query = ""
+    vm2.updateItems()
+    #expect(vm2.shortcutBarItems.count == 2, "全アイテムがショートカットの時 shortcutBarItems == 2")
+    // mainListAssignments はショートカットバーに入らないアイテム（数字ラベルのみ）
+    // この場合は全アイテムが shortcutBarItems に入るため mainListAssignments は空
+    let mainLabels = vm2.mainListAssignments.compactMap { $0.label }
+    for label in mainLabels {
+        let isNumeric = Int(label) != nil
+        #expect(isNumeric, "mainListAssignments のラベルは数字のみ: \(label)")
+    }
+}
+
+// MARK: - P11: digitToIndex バグ修正テスト
+
+@Test func digitToIndex_basedOnMainListAssignments() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "VSCode", appName: "Visual Studio Code", shortcut: "v"),
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari"),
+        makeBookmark(name: "Notes", appName: "Notes"),
+        makeBookmark(name: "Mail", appName: "Mail"),
+        makeBookmark(name: "Maps", appName: "Maps")
+    ]
+    vm.query = ""
+    vm.updateItems()
+
+    // mainListAssignments: 5件（Finder=1, Safari=2, Notes=3, Mail=4, Maps=5）
+    // digitToIndex[4] should == 3 (mainListAssignments の 0-based index)
+    // NOT 5 (shortcutAssignments の index)
+    let index4 = vm.digitToIndex[4]
+    #expect(index4 != nil)
+    #expect(index4! < vm.mainListAssignments.count, "digitToIndex[4] must be within mainListAssignments bounds")
+    #expect(index4 == 3, "digitToIndex[4] should be 3 (0-based in mainListAssignments)")
+}
+
+@Test func digitKey_selectedIndex_withinMainListBounds() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "Chrome", appName: "Google Chrome", shortcut: "g"),
+        makeBookmark(name: "Finder", appName: "Finder"),
+        makeBookmark(name: "Safari", appName: "Safari"),
+        makeBookmark(name: "Notes", appName: "Notes")
+    ]
+    vm.query = ""
+    vm.updateItems()
+
+    // shortcutBarItems: 1件(g), mainListAssignments: 3件(1,2,3)
+    for (_, index) in vm.digitToIndex {
+        #expect(index >= 0 && index < vm.mainListAssignments.count,
+                "All digitToIndex values must be within mainListAssignments bounds")
+    }
 }
