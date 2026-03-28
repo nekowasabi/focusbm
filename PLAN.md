@@ -29,17 +29,17 @@ created: "2026-03-28"
 
 | Process | Title | Status | File |
 |---------|-------|--------|------|
-| 1 | ViewModel データ分離 | ☐ planning | [→ plan/process-01.md](plan/process-01.md) |
-| 2 | activate(item:) ヘルパー抽出 | ☐ planning | [→ plan/process-02.md](plan/process-02.md) |
-| 3 | selectedIndex 参照先統一 | ☐ planning | [→ plan/process-03.md](plan/process-03.md) |
-| 4 | ShortcutBarView 新規作成 | ☐ planning | [→ plan/process-04.md](plan/process-04.md) |
-| 5 | SearchView 統合 | ☐ planning | [→ plan/process-05.md](plan/process-05.md) |
-| 6 | SearchPanel キーハンドラ更新 | ☐ planning | [→ plan/process-06.md](plan/process-06.md) |
-| 10 | 統合テスト | ☐ planning | [→ plan/process-10.md](plan/process-10.md) |
+| 1 | ViewModel データ分離 | ✅ done | [→ plan/process-01.md](plan/process-01.md) |
+| 2 | activate(item:) ヘルパー抽出 | ✅ done | [→ plan/process-02.md](plan/process-02.md) |
+| 3 | selectedIndex 参照先統一 | ✅ done | [→ plan/process-03.md](plan/process-03.md) |
+| 4 | ShortcutBarView 新規作成 | ✅ done | [→ plan/process-04.md](plan/process-04.md) |
+| 5 | SearchView 統合 | ✅ done | [→ plan/process-05.md](plan/process-05.md) |
+| 6 | SearchPanel キーハンドラ更新 | ✅ done | [→ plan/process-06.md](plan/process-06.md) |
+| 10 | 統合テスト | ✅ done | [→ plan/process-10.md](plan/process-10.md) |
 | 200 | README 更新 | ☐ planning | [→ plan/process-200.md](plan/process-200.md) |
 | 300 | OODA レビュー | ☐ planning | [→ plan/process-300.md](plan/process-300.md) |
 
-**Overall**: ☐ 0/9 completed
+**Overall**: ✅ 7/9 completed
 
 ---
 
