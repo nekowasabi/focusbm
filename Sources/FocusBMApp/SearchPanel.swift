@@ -44,10 +44,7 @@ class SearchPanel: NSPanel {
         viewModel.onAutoExecute = { [weak self] in
             guard let self else { return }
             if let target = self.viewModel.restoreSelected() {
-                self.close()
-                DispatchQueue.main.async {
-                    target.activate()
-                }
+                self.activateItem(target: target)
             }
         }
     }
@@ -87,6 +84,15 @@ class SearchPanel: NSPanel {
         return result
     }()
 
+    // Why: SearchPanel に配置。理由: panel.close() が必要なためPanel層のメソッドが適切
+    // Why: target を受け取る設計。理由: restoreSelected() は既に ActivationTarget? を返すため変換不要
+    private func activateItem(target: ActivationTarget) {
+        self.close()
+        DispatchQueue.main.async {
+            target.activate()
+        }
+    }
+
     private func startLocalKeyMonitor() {
         guard localKeyMonitor == nil else { return }
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -103,29 +109,23 @@ class SearchPanel: NSPanel {
                     if let index = self.viewModel.digitToIndex[number] {
                         self.viewModel.selectedIndex = index
                         if let target = self.viewModel.restoreSelected() {
-                            self.close()
-                            DispatchQueue.main.async {
-                                target.activate()
-                            }
+                            self.activateItem(target: target)
                         }
                     }
                     return nil
                 }
             }
 
-            // アルファベットショートカット: query が空かつ labelToIndex に登録済みキーで発動
+            // アルファベットショートカット: query が空かつ shortcutBarItems に登録済みキーで発動
+            // Why: selectedIndex をバイパス。理由: shortcutBarItems はメインリスト外のためインデックスが対応しない
             // ANSI layout only - see alphabetKeyCodes
             if let label = Self.alphabetKeyCodes[event.keyCode] {
                 let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
                 let isBareOrCmd = flags.isEmpty || flags == .command
                 if isBareOrCmd, self.viewModel.query.isEmpty,
-                   let index = self.viewModel.labelToIndex[label] {
-                    self.viewModel.selectedIndex = index
-                    if let target = self.viewModel.restoreSelected() {
-                        self.close()
-                        DispatchQueue.main.async {
-                            target.activate()
-                        }
+                   let pair = self.viewModel.shortcutBarItems.first(where: { $0.label == label }) {
+                    if let target = self.viewModel.activationTarget(for: pair.item) {
+                        self.activateItem(target: target)
                     }
                     return nil
                 }

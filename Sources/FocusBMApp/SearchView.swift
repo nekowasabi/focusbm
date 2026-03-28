@@ -32,7 +32,7 @@ struct SearchView: View {
             Divider()
 
             // Item list
-            if viewModel.searchItems.isEmpty {
+            if viewModel.mainListAssignments.isEmpty {
                 Text("No bookmarks found")
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -40,7 +40,7 @@ struct SearchView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 2) {
-                            ForEach(Array(viewModel.shortcutAssignments.enumerated()), id: \.element.item.id) { index, pair in
+                            ForEach(Array(viewModel.mainListAssignments.enumerated()), id: \.element.item.id) { index, pair in
                                 BookmarkRow(
                                     searchItem: pair.item,
                                     isSelected: index == viewModel.selectedIndex,
@@ -57,7 +57,7 @@ struct SearchView: View {
                                     RoundedRectangle(cornerRadius: 6)
                                         .fill(index == viewModel.selectedIndex
                                             ? Color.accentColor.opacity(
-                                                viewModel.isAutoExecuteHighlighted && viewModel.searchItems.count == 1
+                                                viewModel.isAutoExecuteHighlighted && viewModel.mainListAssignments.count == 1
                                                     ? 0.5 : 0.2)
                                             : Color.clear)
                                 )
@@ -77,7 +77,8 @@ struct SearchView: View {
                         .padding(.vertical, 4)
                     }
                     .onChange(of: viewModel.selectedIndex) { newIndex in
-                        if let item = viewModel.searchItems[safe: newIndex] {
+                        // Why: mainListAssignments[safe: newIndex]?.item を参照。理由: selectedIndex はメインリストのみを追跡する新契約
+                        if let item = viewModel.mainListAssignments[safe: newIndex]?.item {
                             withAnimation {
                                 proxy.scrollTo(item.id, anchor: .bottom)
                             }
@@ -97,6 +98,26 @@ struct SearchView: View {
             .foregroundColor(.secondary)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
+
+            // Shortcut bar: query が空かつショートカットアイテムがある場合のみ表示
+            // Why: query 非空時は検索モードのため非表示。空の場合のみバーを表示する設計
+            if viewModel.query.isEmpty && !viewModel.shortcutBarItems.isEmpty {
+                Divider()
+                ShortcutBarView(
+                    items: viewModel.shortcutBarItems,
+                    directNumberKeys: viewModel.appSettings?.directNumberKeys ?? true,
+                    fontSize: viewModel.listFontSize,
+                    fontName: viewModel.fontName,
+                    onActivate: { item in
+                        if let target = viewModel.activationTarget(for: item) {
+                            panel?.close()
+                            DispatchQueue.main.async {
+                                target.activate()
+                            }
+                        }
+                    }
+                )
+            }
         }
         .onChange(of: viewModel.isActive) { active in
             if active {

@@ -186,8 +186,9 @@ class SearchViewModel: ObservableObject {
         #endif
 
         searchItems = items
-        if selectedIndex >= searchItems.count {
-            selectedIndex = max(0, searchItems.count - 1)
+        // Why: mainListAssignments.count で clamp。理由: selectedIndex はメインリストのみを追跡する新契約
+        if selectedIndex >= mainListAssignments.count {
+            selectedIndex = max(0, mainListAssignments.count - 1)
         }
 
         // 候補が1件 + クエリ非空 + 設定ON → ディレイ後にハイライト → 自動実行
@@ -256,6 +257,23 @@ class SearchViewModel: ObservableObject {
         }
     }
 
+    // Why: shortcutAssignments を分解せず filter で分離。理由: 既存ロジックの変更最小化
+    /// YAML shortcut 指定があるアイテムのみ（ショートカットバー表示用）
+    var shortcutBarItems: [(item: SearchItem, label: String)] {
+        shortcutAssignments.compactMap { pair in
+            guard let label = pair.label,
+                  case .bookmark(let bm) = pair.item,
+                  bm.shortcut != nil else { return nil }
+            return (item: pair.item, label: label)
+        }
+    }
+
+    /// shortcutBarItems を除いたメインリスト用アサインメント
+    var mainListAssignments: [(item: SearchItem, label: String?)] {
+        let barItemIds = Set(shortcutBarItems.map { $0.item.id })
+        return shortcutAssignments.filter { !barItemIds.contains($0.item.id) }
+    }
+
     /// 数字キー → searchItems 配列インデックスの逆引きマップ
     /// 数字キー → searchItems 配列インデックスの逆引きマップ（SearchPanel 後方互換; labelToIndex から派生）
     var digitToIndex: [Int: Int] {
@@ -268,8 +286,11 @@ class SearchViewModel: ObservableObject {
 
     /// ラベル文字列 → searchItems 配列インデックスの逆引きマップ
     var labelToIndex: [String: Int] {
+        // Why: shortcutAssignments.enumerated() ではなく mainListAssignments.enumerated()。
+        // 理由: selectedIndex が mainListAssignments ベースに変更されたため、
+        // labelToIndex もメインリストのインデックスを返す必要がある。
         var result: [String: Int] = [:]
-        for (arrayIndex, pair) in shortcutAssignments.enumerated() {
+        for (arrayIndex, pair) in mainListAssignments.enumerated() {
             if let l = pair.label { result[l] = arrayIndex }
         }
         return result
@@ -282,14 +303,16 @@ class SearchViewModel: ObservableObject {
     }
 
     func moveDown() {
-        if selectedIndex < searchItems.count - 1 {
+        // Why: mainListAssignments を直接参照。理由: selectedIndex はメインリストのみを追跡する新契約
+        if selectedIndex < mainListAssignments.count - 1 {
             selectedIndex += 1
         }
     }
 
     func restoreSelected() -> ActivationTarget? {
-        guard selectedIndex >= 0, selectedIndex < searchItems.count else { return nil }
-        let item = searchItems[selectedIndex]
+        // Why: mainListAssignments[selectedIndex].item を参照。理由: selectedIndex はメインリストのみを追跡する新契約
+        guard selectedIndex >= 0, selectedIndex < mainListAssignments.count else { return nil }
+        let item = mainListAssignments[selectedIndex].item
         switch item {
         case .bookmark(let bookmark):
             do {
@@ -303,6 +326,36 @@ class SearchViewModel: ObservableObject {
             FloatingWindowProvider.focus(entry: entry)
             // AXRaise + activate は focus() 内で完了済み。
             // ただし close 後の再 activate のため PID を返す
+            return .pid(entry.pid)
+        case .tmuxPane(let pane):
+            do {
+                let target = try TmuxProvider.focusPane(pane, settings: appSettings)
+                return target
+            } catch {
+                print("TmuxProvider.focusPane failed: \(error)")
+                return nil
+            }
+        case .aiProcess(let proc):
+            guard let bundleId = proc.terminalBundleId else { return nil }
+            return .bundleId(bundleId, appName: proc.terminalAppName ?? "Terminal")
+        }
+    }
+
+    // Why: SearchItem から直接 ActivationTarget を取得するメソッド。
+    // restoreSelected() は selectedIndex 経由だが、shortcutBarItems はメインリスト外のため
+    // selectedIndex を使えない。ShortcutBarView と P6 のアルファベットキーハンドラが使用する。
+    func activationTarget(for item: SearchItem) -> ActivationTarget? {
+        switch item {
+        case .bookmark(let bookmark):
+            do {
+                let target = try BookmarkRestorer.restoreAndGetTarget(bookmark)
+                return target
+            } catch {
+                print("Restore failed: \(error)")
+                return nil
+            }
+        case .floatingWindow(let entry):
+            FloatingWindowProvider.focus(entry: entry)
             return .pid(entry.pid)
         case .tmuxPane(let pane):
             do {
