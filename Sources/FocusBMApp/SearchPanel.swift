@@ -6,6 +6,11 @@ import FocusBMLib
 class SearchPanel: NSPanel {
     private let viewModel: SearchViewModel
     private var localKeyMonitor: Any?
+    // Why: close()一点で全close pathのフォーカス復元をカバーするため、
+    //      パネル表示時の前アプリ参照を保持する。各close pathに個別にactivate()を
+    //      追加する方式(Strategy D)ではなく一元管理を選択した理由:
+    //      将来のclose path追加でも自動的にフォーカス復元が保証されるため
+    private var previousApp: NSRunningApplication?
 
     init(viewModel: SearchViewModel, width: CGFloat = 500, height: CGFloat = 400) {
         self.viewModel = viewModel
@@ -56,14 +61,25 @@ class SearchPanel: NSPanel {
     }
 
     override func makeKeyAndOrderFront(_ sender: Any?) {
+        // Why: toggleSearchPanel()内ではなくここでキャプチャする理由:
+        //      将来のパネル表示経路追加でも自動的にキャプチャされるため。
+        //      NSApp.activate()の前に取得必須 — activate()後はfocusbm自身が返される
+        previousApp = NSWorkspace.shared.frontmostApplication
         switchToASCIIInput()
         super.makeKeyAndOrderFront(sender)
         startLocalKeyMonitor()
     }
 
     override func close() {
+        let appToRestore = previousApp
+        previousApp = nil  // 先にnilクリア（再入防止）
         stopLocalKeyMonitor()
         super.close()
+        // Why: super.close()の後にactivate()する理由:
+        //      パネルが完全に閉じてからフォーカスを移動させるため。
+        //      OK paths (P4-P8)ではこの後にDispatchQueue.main.asyncで
+        //      target.activate()が実行され、このactivateを上書きする（後勝ち）
+        appToRestore?.activate()
     }
 
     // 数字キー 1-9 の keyCode
