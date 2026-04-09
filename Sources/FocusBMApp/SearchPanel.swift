@@ -75,11 +75,12 @@ class SearchPanel: NSPanel {
         previousApp = nil  // 先にnilクリア（再入防止）
         stopLocalKeyMonitor()
         super.close()
-        // Why: super.close()の後にactivate()する理由:
-        //      パネルが完全に閉じてからフォーカスを移動させるため。
-        //      OK paths (P4-P8)ではこの後にDispatchQueue.main.asyncで
-        //      target.activate()が実行され、このactivateを上書きする（後勝ち）
-        appToRestore?.activate()
+        // Why: 同期activate()はsuper.close()直後のAppKitイベントループと干渉しフリーズする。
+        //      非同期化により安全にフォーカス移動。OK paths (P4-P8) の target.activate() も
+        //      DispatchQueue.main.asyncのため、キュー順序で後勝ちセマンティクスは維持される
+        DispatchQueue.main.async {
+            appToRestore?.activate()
+        }
     }
 
     // 数字キー 1-9 の keyCode
