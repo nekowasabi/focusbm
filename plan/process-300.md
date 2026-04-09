@@ -1,53 +1,41 @@
 # Process 300: OODA レビュー
 
 ## Overview
-全実装完了後の振り返り。実装結果の評価、発見された問題、次回への教訓を記録する。
+Process 1 (実装) と Process 10 (テスト) の完了後に、OODA サイクルで最終レビューを実施する。実装が調査結果と整合しているか、勝利条件を全て満たしているかを検証する。
 
 ## Affected Files
-- なし（レビュードキュメントのみ）
+- `Sources/FocusBMApp/SearchPanel.swift` (実装レビュー)
+- `Tests/FocusBMAppTests/SearchPanelFocusTests.swift` (テストレビュー)
 
-## Implementation Notes
-- OODA サイクルの各フェーズを振り返る:
-  - Observe: 調査で見落とした点はなかったか
-  - Orient: 分析の精度は適切だったか
-  - Decide: 意思決定は正しかったか（特に selectedIndex の Option A 選択）
-  - Act: 実装は計画通りに進んだか
+## レビューチェックリスト
 
-レビュー項目:
-1. **計画 vs 実態の差分**: 予定外の変更があったか
-2. **リスク的中率**: 事前に特定したリスク3件のうち、実際に問題になったものは
-3. **テストカバレッジ**: 統合テストで発見された問題
-4. **UX検証**: ショートカットバーの使用感
-5. **パフォーマンス**: computed property の呼び出し頻度による影響
+### 勝利条件の充足確認
 
----
+| # | 条件 | 検証方法 |
+|---|------|---------|
+| 1 | P1 (Escape) でフォーカスが復元される | close() 内の activate() 呼び出しを確認 |
+| 2 | P2 (cancelOperation) でフォーカスが復元される | cancelOperation → close() → activate() のチェーンを確認 |
+| 3 | P3 (hotkey toggle) でフォーカスが復元される | toggleSearchPanel → close() → activate() のチェーンを確認 |
+| 4 | OK paths (P4-P8) が正常に動作する | target.activate() が close() 内の activate() を上書きすることを確認 |
+| 5 | previousApp が makeKeyAndOrderFront() でキャプチャされる | コードレビューで確認 |
+| 6 | previousApp が close() 後に nil にリセットされる | コードレビュー + テストで確認 |
+| 7 | テストが全て通る | `swift test` 実行 |
 
-## Red Phase: テスト作成と失敗確認
+### コード品質確認
 
-- [ ] レビューチェックリストを作成
+- [ ] Why コメントが主要な設計判断に付与されているか
+- [ ] エッジケース（terminated app, Desktop active, self-activate）が考慮されているか
+- [ ] macOS 13.0+ 互換性が維持されているか
+- [ ] `activate()` の呼び出しが引数なし版（non-deprecated）を使用しているか
 
-✅ **Phase Complete**
+### 回帰テスト
 
----
-
-## Green Phase: 最小実装と成功確認
-
-- [ ] 各レビュー項目を記入
-- [ ] 教訓を PLAN.md の Risks セクションに反映
-- [ ] PLAN.md の Overall status を更新
-
-✅ **Phase Complete**
-
----
-
-## Refactor Phase: 品質改善
-
-- [ ] 教訓を次回プロジェクトに活用可能な形で整理
-
-✅ **Phase Complete**
+- [ ] `swift build` が成功すること
+- [ ] `swift test` が全件パスすること
+- [ ] 既存のショートカットバーテスト (ShortcutBarTests) が引き続きパスすること
 
 ---
 
 ## Dependencies
-- Requires: Process 200
+- Requires: Process 1, Process 10
 - Blocks: -
