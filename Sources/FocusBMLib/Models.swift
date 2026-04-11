@@ -296,7 +296,10 @@ public enum SearchItem: Identifiable {
     public var agentEmoji: String {
         switch self {
         case .tmuxPane(let p):
-            return TmuxProvider.agentCommandToEmoji(p.command)
+            // Why: Node.js経由で検出されたAIツールはcommandが"node"になるため、
+            //      resolvedNodeCommandを優先して絵文字を解決する
+            let effectiveCommand = p.resolvedNodeCommand ?? p.command
+            return TmuxProvider.agentCommandToEmoji(effectiveCommand)
         case .aiProcess(let p):
             return TmuxProvider.agentCommandToEmoji(p.command)
         default:

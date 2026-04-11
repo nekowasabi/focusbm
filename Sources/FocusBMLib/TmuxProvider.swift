@@ -43,8 +43,22 @@ public struct TmuxPane {
     public var terminalAppName: String? = nil
     public var clientTTY: String? = nil  // focusPane() で -c 指定に使用
 
+    // Why: pane_pid から子プロセスのコマンドライン引数を取得し、
+    //      Node.jsベースAIツールの実際のコマンド名を解決するために使用
+    public var panePid: pid_t? = nil
+
+    // Why: listAllPanes() で解決された Node.js ベース AI ツールのコマンド名を保持。
+    //      isAIAgent の判定で外部プロセス呼び出しを避け、ストア済みデータのみで判定する設計
+    public var resolvedNodeCommand: String? = nil
+
     public var isAIAgent: Bool {
         let t = title.lowercased()
+        // Why: Node.jsベースCLIは pane_current_command が "node" になるため、
+        //      resolvedNodeCommand から実際の AI ツール名を判定する
+        if let resolved = resolvedNodeCommand,
+           ProcessProvider.aiAgentCommands.contains(resolved) {
+            return true
+        }
         // コマンド名で直接判定できるエージェント（終了すればコマンドがシェルに戻る）
         if command == "claude" || command == "aider" || command == "gemini" ||
            command == "copilot" || command == "agent" {
@@ -118,6 +132,18 @@ public struct TmuxPane {
         case "copilot": return "Copilot"
         case "agent":   return "Agent"
         default:
+            // Why: Node.js ランタイム経由で起動されたAIツールの名前を
+            //      resolvedNodeCommand から解決（command = "node" の場合）
+            if let resolved = resolvedNodeCommand {
+                switch resolved {
+                case "codex": return "Codex"
+                case "copilot": return "Copilot"
+                case "claude": return "Claude Code"
+                case "aider": return "aider"
+                case "gemini": return "Gemini"
+                default: return resolved.capitalized
+                }
+            }
             if t.contains("claude code") { return "Claude Code" }
             if t.contains("codex")   { return "Codex" }
             if t.contains("copilot") { return "Copilot" }
@@ -135,7 +161,7 @@ public struct TmuxPane {
 public struct TmuxProvider {
     static let envPath = "/usr/bin/env"
     static let separator = "||"
-    static let formatString = "#{pane_id}||#{session_name}||#{window_index}||#{window_name}||#{pane_current_command}||#{pane_title}||#{pane_current_path}"
+    static let formatString = "#{pane_id}||#{session_name}||#{window_index}||#{window_name}||#{pane_current_command}||#{pane_title}||#{pane_current_path}||#{pane_pid}"
 
     // MARK: - Debug Logging
 
@@ -273,6 +299,16 @@ public struct TmuxProvider {
         log("list-panes raw output: \(output.trimmingCharacters(in: .newlines))")
         var panes = try parseOutput(output)
         log("parsed panes count: \(panes.count)")
+
+        // Why: pane_current_command が "node"/"deno"/"bun" の場合、
+        //      pane_pid の子プロセスからAIツール名を解決する
+        for i in panes.indices {
+            if panes[i].command == "node" || panes[i].command == "deno" || panes[i].command == "bun" {
+                if let panePid = panes[i].panePid {
+                    panes[i].resolvedNodeCommand = resolveNodeAgentCommand(panePid: panePid)
+                }
+            }
+        }
 
         // list-clients で全クライアントを一括取得（セッション→TTY/bundleId マッピング）
         let clientMap = buildClientMap()
@@ -714,6 +750,63 @@ public struct TmuxProvider {
         return name.isEmpty ? nil : name
     }
 
+    // Why: pgrep -P <pid> で直接の子プロセスPIDリストを取得する。
+    //      getDescendantPids() から再帰的に呼び出すため独立したヘルパーに分離。
+    private static func getChildPids(_ pid: pid_t) -> [pid_t] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+        process.arguments = ["-P", "\(pid)"]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        try? process.run()
+        process.waitUntilExit()
+        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return output.split(separator: "\n").compactMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
+    }
+
+    // Why: pane_pid の直接子プロセスだけでなく孫・曾孫まで探索する。
+    //      codex は zsh → zsh → node codex のように中間シェルを挟むため、
+    //      pgrep -P <panePid> の1段階だけでは node プロセスに到達できない。
+    //      maxDepth=3 は実運用での zsh→zsh→node の3段構成をカバーする最小値。
+    private static func getDescendantPids(_ pid: pid_t, maxDepth: Int = 3) -> [pid_t] {
+        var allPids: [pid_t] = []
+        var currentLevel: [pid_t] = [pid]
+
+        for _ in 0..<maxDepth {
+            var nextLevel: [pid_t] = []
+            for parentPid in currentLevel {
+                let children = getChildPids(parentPid)
+                nextLevel.append(contentsOf: children)
+            }
+            allPids.append(contentsOf: nextLevel)
+            currentLevel = nextLevel
+            if currentLevel.isEmpty { break }
+        }
+        return allPids
+    }
+
+    // Why: pane_pid の子孫プロセスのコマンドラインから AI ツール名を特定する。
+    //      直接子のみの pgrep -P <panePid> から getDescendantPids() による深さ3探索に変更。
+    //      理由: codex は pane_pid(zsh) → intermediate_zsh → node codex の孫として起動するため。
+    static func resolveNodeAgentCommand(panePid: pid_t) -> String? {
+        // 1. pane_pid の子孫プロセスを深さ3まで収集
+        let descendantPids = getDescendantPids(panePid, maxDepth: 3)
+
+        // 2. 各子孫プロセスのコマンドラインを確認
+        for childPid in descendantPids {
+            let args = ProcessProvider.getCommandLineArgs(childPid)
+            // 3. aiAgentCommands とマッチング（"bin/codex" パターン）
+            for cmd in ProcessProvider.aiAgentCommands {
+                if args.contains("bin/" + cmd) || args.contains("/" + cmd + " ") {
+                    return cmd
+                }
+            }
+        }
+
+        return nil
+    }
+
     // パース処理（テスト可能にするため internal）
     static func parseOutput(_ output: String) throws -> [TmuxPane] {
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
@@ -722,7 +815,7 @@ public struct TmuxProvider {
             guard parts.count >= 7 else {
                 throw TmuxError.parseError("Expected 7 fields, got \(parts.count): \(line)")
             }
-            return TmuxPane(
+            var pane = TmuxPane(
                 paneId: parts[0],
                 sessionName: parts[1],
                 windowIndex: Int(parts[2]) ?? 0,
@@ -731,6 +824,12 @@ public struct TmuxProvider {
                 title: parts[5],
                 currentPath: parts[6]
             )
+            // Why: 案C — guard >= 7 を維持して後方互換性を確保。
+            //      8フィールド目（pane_pid）はオプショナルとしてパース
+            if parts.count > 7 {
+                pane.panePid = Int32(parts[7])
+            }
+            return pane
         }
     }
 }
