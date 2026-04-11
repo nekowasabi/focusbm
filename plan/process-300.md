@@ -1,41 +1,26 @@
 # Process 300: OODA レビュー
 
 ## Overview
-Process 1 (実装) と Process 10 (テスト) の完了後に、OODA サイクルで最終レビューを実施する。実装が調査結果と整合しているか、勝利条件を全て満たしているかを検証する。
+全 Process 完了後の振り返り。実装の妥当性、テストカバレッジ、残課題を確認する。
 
-## Affected Files
-- `Sources/FocusBMApp/SearchPanel.swift` (実装レビュー)
-- `Tests/FocusBMAppTests/SearchPanelFocusTests.swift` (テストレビュー)
+## Checklist
 
-## レビューチェックリスト
+- [x] 全テストが通過していること (`swift test`)
+- [x] Why コメントが主要な判断箇所に記載されていること
+- [x] 既存機能のリグレッションがないこと
+- [x] パフォーマンスへの影響が許容範囲であること（ps コマンド追加呼び出し）
+- [x] 将来の Node.js ベース AI ツール追加時の拡張性が確保されていること
 
-### 勝利条件の充足確認
+## Risks Review
 
-| # | 条件 | 検証方法 |
-|---|------|---------|
-| 1 | P1 (Escape) でフォーカスが復元される | close() 内の activate() 呼び出しを確認 |
-| 2 | P2 (cancelOperation) でフォーカスが復元される | cancelOperation → close() → activate() のチェーンを確認 |
-| 3 | P3 (hotkey toggle) でフォーカスが復元される | toggleSearchPanel → close() → activate() のチェーンを確認 |
-| 4 | OK paths (P4-P8) が正常に動作する | target.activate() が close() 内の activate() を上書きすることを確認 |
-| 5 | previousApp が makeKeyAndOrderFront() でキャプチャされる | コードレビューで確認 |
-| 6 | previousApp が close() 後に nil にリセットされる | コードレビュー + テストで確認 |
-| 7 | テストが全て通る | `swift test` 実行 |
-
-### コード品質確認
-
-- [ ] Why コメントが主要な設計判断に付与されているか
-- [ ] エッジケース（terminated app, Desktop active, self-activate）が考慮されているか
-- [ ] macOS 13.0+ 互換性が維持されているか
-- [ ] `activate()` の呼び出しが引数なし版（non-deprecated）を使用しているか
-
-### 回帰テスト
-
-- [ ] `swift build` が成功すること
-- [ ] `swift test` が全件パスすること
-- [ ] 既存のショートカットバーテスト (ShortcutBarTests) が引き続きパスすること
+| リスク | 確認結果 |
+|--------|---------|
+| pgrep パターン変更による正規プロセス除外 | ✅ 確認済 |
+| ps コマンド追加によるパフォーマンス低下 | ✅ 確認済 |
+| 他の Node.js ベース CLI での同様の問題 | ✅ 確認済 |
 
 ---
 
 ## Dependencies
-- Requires: Process 1, Process 10
+- Requires: -
 - Blocks: -
