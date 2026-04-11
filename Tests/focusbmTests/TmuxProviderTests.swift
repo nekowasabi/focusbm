@@ -829,3 +829,55 @@ final class MockRunningApp: RunningAppProtocol {
 @Test func test_agentCommandToEmoji_unknown() {
     #expect(TmuxProvider.agentCommandToEmoji("unknown") == "🤖")
 }
+
+// MARK: - Node.js AI Tool Detection Tests
+
+@Test func test_isAIAgent_nodeCommand_withResolvedCodex() {
+    var pane = TmuxPane(paneId: "%20", sessionName: "main", windowIndex: 0,
+                        windowName: "dev", command: "node",
+                        title: "tmux-ai-agents-status", currentPath: "/tmp")
+    pane.resolvedNodeCommand = "codex"
+    #expect(pane.isAIAgent == true)
+}
+
+@Test func test_isAIAgent_nodeCommand_withResolvedCopilot() {
+    var pane = TmuxPane(paneId: "%21", sessionName: "main", windowIndex: 0,
+                        windowName: "dev", command: "node",
+                        title: "", currentPath: "/tmp")
+    pane.resolvedNodeCommand = "copilot"
+    #expect(pane.isAIAgent == true)
+}
+
+@Test func test_isAIAgent_nodeCommand_noResolved_noTitle_notAI() {
+    var pane = TmuxPane(paneId: "%22", sessionName: "main", windowIndex: 0,
+                        windowName: "dev", command: "node",
+                        title: "my-web-app", currentPath: "/tmp")
+    pane.resolvedNodeCommand = nil
+    #expect(pane.isAIAgent == false)
+}
+
+@Test func test_agentName_nodeCommand_resolvedCodex() {
+    var pane = TmuxPane(paneId: "%23", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "node", title: "", currentPath: "")
+    pane.resolvedNodeCommand = "codex"
+    #expect(pane.agentName == "Codex")
+}
+
+@Test func test_agentName_nodeCommand_resolvedCopilot() {
+    var pane = TmuxPane(paneId: "%24", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "node", title: "", currentPath: "")
+    pane.resolvedNodeCommand = "copilot"
+    #expect(pane.agentName == "Copilot")
+}
+
+@Test func test_panePid_defaultNil() {
+    let pane = TmuxPane(paneId: "%25", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "zsh", title: "", currentPath: "")
+    #expect(pane.panePid == nil)
+}
+
+@Test func test_resolvedNodeCommand_defaultNil() {
+    let pane = TmuxPane(paneId: "%26", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "node", title: "", currentPath: "")
+    #expect(pane.resolvedNodeCommand == nil)
+}

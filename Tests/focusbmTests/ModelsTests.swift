@@ -216,3 +216,12 @@ import Yams
     let item = SearchItem.tmuxPane(pane)
     #expect(item.agentEmoji == "✈️")
 }
+
+@Test func test_agentEmoji_tmuxPane_codex_via_resolvedNodeCommand() {
+    // Why: command="node" でもresolvedNodeCommandが"codex"なら📖を返すことを保証する
+    var pane = TmuxPane(paneId: "%21", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "node", title: "", currentPath: "/tmp")
+    pane.resolvedNodeCommand = "codex"
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.agentEmoji == "📖")
+}
