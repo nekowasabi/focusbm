@@ -41,7 +41,7 @@ struct BookmarkRow: View {
 
             // App icon
             if searchItem.isAIAgent {
-                Text("🤖")
+                Text(searchItem.agentEmoji)
                     .font(.system(size: 16))
                     .frame(width: 20, height: 20)
             } else {

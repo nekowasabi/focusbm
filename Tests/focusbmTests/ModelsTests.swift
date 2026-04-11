@@ -180,3 +180,39 @@ import Yams
         Issue.record("Expected .browser case with urlPrefix")
     }
 }
+
+// MARK: - SearchItem.agentEmoji Tests
+
+@Test func test_agentEmoji_aiProcess_copilot() {
+    let process = ProcessProvider.AIProcess(
+        pid: 1, command: "copilot", workingDirectory: "/tmp",
+        terminalBundleId: nil, terminalAppName: nil, terminalEmoji: "👻", title: ""
+    )
+    let item = SearchItem.aiProcess(process)
+    #expect(item.agentEmoji == "✈️")
+}
+
+@Test func test_agentEmoji_aiProcess_codex() {
+    let process = ProcessProvider.AIProcess(
+        pid: 2, command: "codex", workingDirectory: "/tmp",
+        terminalBundleId: nil, terminalAppName: nil, terminalEmoji: "👻", title: ""
+    )
+    let item = SearchItem.aiProcess(process)
+    #expect(item.agentEmoji == "📖")
+}
+
+@Test func test_agentEmoji_aiProcess_claude() {
+    let process = ProcessProvider.AIProcess(
+        pid: 3, command: "claude", workingDirectory: "/tmp",
+        terminalBundleId: nil, terminalAppName: nil, terminalEmoji: "👻", title: ""
+    )
+    let item = SearchItem.aiProcess(process)
+    #expect(item.agentEmoji == "🤖")
+}
+
+@Test func test_agentEmoji_tmuxPane_copilot() {
+    let pane = TmuxPane(paneId: "%20", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "copilot", title: "", currentPath: "/tmp")
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.agentEmoji == "✈️")
+}

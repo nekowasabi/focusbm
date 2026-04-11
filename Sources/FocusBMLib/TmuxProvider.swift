@@ -149,6 +149,17 @@ public struct TmuxProvider {
         debugLog?("[TmuxProvider] \(message)")
     }
 
+    // MARK: - Agent Emoji
+
+    // Why: terminalBundleIdToEmoji（ターミナル種類）とは独立 — AIツールの「役割」を表す絵文字
+    public static func agentCommandToEmoji(_ command: String) -> String {
+        switch command {
+        case "copilot": return "✈️"
+        case "codex":   return "📖"
+        default:        return "🤖"
+        }
+    }
+
     // tmuxが起動しているか確認
     public static func isTmuxAvailable() -> Bool {
         let process = Process()

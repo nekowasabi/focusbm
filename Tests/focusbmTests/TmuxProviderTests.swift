@@ -807,3 +807,25 @@ final class MockRunningApp: RunningAppProtocol {
     // 存在しないPIDなので nil が返る（実際の iTermServer PIDでは iTerm2 が返る）
     #expect(result == nil)
 }
+
+// MARK: - TmuxProvider.agentCommandToEmoji Tests
+
+@Test func test_agentCommandToEmoji_copilot() {
+    #expect(TmuxProvider.agentCommandToEmoji("copilot") == "✈️")
+}
+
+@Test func test_agentCommandToEmoji_codex() {
+    #expect(TmuxProvider.agentCommandToEmoji("codex") == "📖")
+}
+
+@Test func test_agentCommandToEmoji_claude() {
+    #expect(TmuxProvider.agentCommandToEmoji("claude") == "🤖")
+}
+
+@Test func test_agentCommandToEmoji_aider() {
+    #expect(TmuxProvider.agentCommandToEmoji("aider") == "🤖")
+}
+
+@Test func test_agentCommandToEmoji_unknown() {
+    #expect(TmuxProvider.agentCommandToEmoji("unknown") == "🤖")
+}

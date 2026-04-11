@@ -292,6 +292,18 @@ public enum SearchItem: Identifiable {
         }
     }
 
+    /// AIエージェントツール固有の絵文字
+    public var agentEmoji: String {
+        switch self {
+        case .tmuxPane(let p):
+            return TmuxProvider.agentCommandToEmoji(p.command)
+        case .aiProcess(let p):
+            return TmuxProvider.agentCommandToEmoji(p.command)
+        default:
+            return "🤖"
+        }
+    }
+
     /// AI エージェントプロセスかどうか
     public var isAIAgent: Bool {
         switch self {
