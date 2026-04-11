@@ -37,6 +37,40 @@ public struct ProcessProvider {
     /// 検出対象のAIエージェントコマンド名
     static let aiAgentCommands = ["claude", "aider", "gemini", "copilot", "codex"]
 
+    // MARK: - Daemon Process Filtering
+
+    /// デーモンとして動作するサブコマンド一覧
+    // Why: "app-server" のようなサブコマンドはユーザーインタラクションがないデーモンモードであり、
+    //      フォーカス切替の対象外とする。定数化することでテスト・本実装を同期させる。
+    static let daemonSubcommands = ["app-server"]
+
+    /// コマンドライン文字列がデーモンプロセスかどうかを判定する
+    /// - Parameter commandLine: ps コマンドで取得したフルコマンドライン文字列
+    /// - Returns: デーモンサブコマンドを含む場合 true
+    // Why: pgrep パターンだけではサブコマンドの除外が困難 —
+    //      コマンドライン文字列から既知のデーモンサブコマンドを検出する純粋関数方式を採用
+    static func isDaemonCommandLine(_ commandLine: String) -> Bool {
+        return daemonSubcommands.contains { commandLine.contains(" " + $0) }
+    }
+
+    /// プロセスのコマンドライン引数を取得する
+    /// - Parameter pid: 対象プロセスID
+    /// - Returns: フルコマンドライン文字列（取得失敗時は空文字列）
+    // Why: getTTYForProcess と同パターンでプロセスのコマンドライン引数を取得 —
+    //      DRY 違反だが、共通化は Refactor Phase のスコープ（本ミッションのスコープ外）
+    static func getCommandLineArgs(_ pid: pid_t) -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/ps")
+        process.arguments = ["-p", "\(pid)", "-o", "args="]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = Pipe()
+        try? process.run()
+        process.waitUntilExit()
+        return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
     // MARK: - Debug Logging
 
     private static var debugLog: ((String) -> Void)? = nil
@@ -65,6 +99,13 @@ public struct ProcessProvider {
                 // tmuxペインに属するプロセスは除外
                 if isProcessInTmux(pid) {
                     log("  pid \(pid): skip (in tmux)")
+                    continue
+                }
+
+                // Why: codex app-server 等のデーモンプロセスを AI エージェントリストから除外
+                let cmdLine = getCommandLineArgs(pid)
+                if isDaemonCommandLine(cmdLine) {
+                    log("  pid \(pid): skip (daemon subcommand)")
                     continue
                 }
 
