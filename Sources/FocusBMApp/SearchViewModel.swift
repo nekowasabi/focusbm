@@ -234,10 +234,18 @@ class SearchViewModel: ObservableObject {
 
         var usedYAMLLabels: Set<String> = []  // 重複 YAML shortcut の先着優先制御
         var autoNumber = 1
+        // Why: appSettings?.showAIAgentShortcut == false（明示 false）時のみスキップ。
+        // nil は「未指定＝従来挙動（AI 行にも番号付与）」として true 相当に扱う。
+        let skipAIAgentShortcut = appSettings?.showAIAgentShortcut == false
 
         return searchItems.map { item in
             // noShortcut が true → ラベルなし
             if item.noShortcut { return (item, nil) }
+
+            // AI エージェント行のショートカット抑止（autoNumber を消費しない）
+            if skipAIAgentShortcut && item.isAIAgent {
+                return (item, nil)
+            }
 
             // YAML 指定ショートカット
             if case .bookmark(let bm) = item, let s = bm.shortcut {

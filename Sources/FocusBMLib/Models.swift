@@ -135,6 +135,10 @@ public struct AppSettings: Codable, Equatable {
     public var directNumberKeys: Bool?
     /// 1=縦列（デフォルト）、2=横2列、他=nil扱い
     public var bookmarkListColumns: Int?
+    /// AIエージェント行にショートカット番号を割り当てるか（デフォルト: true）
+    /// Why: showTmuxAgents（行自体の表示制御）とは責務が異なる。
+    /// 表示はするがブックマーク側の番号連続性を優先したいユースケース向けに独立トグルを用意した。
+    public var showAIAgentShortcut: Bool?
 
     public init(
         hotkey: HotkeySettings = HotkeySettings(),
@@ -148,7 +152,8 @@ public struct AppSettings: Codable, Equatable {
         autoExecuteOnSingleResult: Bool? = nil,
         autoExecuteDelay: Double? = nil,
         directNumberKeys: Bool? = nil,
-        bookmarkListColumns: Int? = nil
+        bookmarkListColumns: Int? = nil,
+        showAIAgentShortcut: Bool? = nil
     ) {
         self.hotkey = hotkey
         self.displayNumber = displayNumber
@@ -162,6 +167,7 @@ public struct AppSettings: Codable, Equatable {
         self.autoExecuteDelay = autoExecuteDelay
         self.directNumberKeys = directNumberKeys
         self.bookmarkListColumns = bookmarkListColumns
+        self.showAIAgentShortcut = showAIAgentShortcut
     }
 
     public init(from decoder: Decoder) throws {
@@ -177,6 +183,7 @@ public struct AppSettings: Codable, Equatable {
         autoExecuteOnSingleResult = try container.decodeIfPresent(Bool.self, forKey: .autoExecuteOnSingleResult)
         autoExecuteDelay = try container.decodeIfPresent(Double.self, forKey: .autoExecuteDelay)
         directNumberKeys = try container.decodeIfPresent(Bool.self, forKey: .directNumberKeys)
+        showAIAgentShortcut = try container.decodeIfPresent(Bool.self, forKey: .showAIAgentShortcut)
         let rawColumns = try container.decodeIfPresent(Int.self, forKey: .bookmarkListColumns)
         // Why: normalizedColumns で {1,2} 以外を nil に正規化。
         // UIは最大2列グリッドのみサポートするため、それ以外の値は未指定扱いとする。
