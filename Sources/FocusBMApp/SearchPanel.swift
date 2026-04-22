@@ -123,8 +123,7 @@ class SearchPanel: NSPanel {
                 let direct = self.viewModel.appSettings?.directNumberKeys ?? true
                 let isBareOrCmd = direct ? (flags.isEmpty || flags == .command) : flags == .command
                 if isBareOrCmd, self.viewModel.query.isEmpty {
-                    if let index = self.viewModel.digitToIndex[number] {
-                        self.viewModel.selectedIndex = index
+                    if self.viewModel.selectByDigit(number) {
                         if let target = self.viewModel.restoreSelected() {
                             self.activateItem(target: target)
                         }

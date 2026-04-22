@@ -20,7 +20,9 @@ class SearchViewModel: ObservableObject {
     private var tmuxPaneCache: [TmuxPane] = []
     private var aiProcessCache: [ProcessProvider.AIProcess] = []
     private(set) var showTmuxAgents: Bool = true
-    private(set) var appSettings: AppSettings? = nil
+    // Why: private(set) → internal(set) に変更。理由: テストから appSettings を注入するため。
+    // 外部からの書き込みは load() 経由が正規経路だが、テスト専用注入を許容する。
+    internal(set) var appSettings: AppSettings? = nil
     private var refreshGeneration: Int = 0
     /// 自動実行ハイライト中かどうか（実行直前の視覚フィードバック用）
     @Published var isAutoExecuteHighlighted: Bool = false
@@ -296,17 +298,67 @@ class SearchViewModel: ObservableObject {
         return result
     }
 
+    // Why: 1D インデックスを内部表現として維持する。理由: mainListAssignments は 1D 配列ビューであり、
+    // selectedIndex との整合性を保つためには 2D を計算で導出する方が変換コストが低い。
+
+    /// bookmarkListColumns に基づく列数。nil または未設定の場合は 1 列扱い
+    var columns: Int { appSettings?.bookmarkListColumns ?? 1 }
+
+    /// 1D インデックスを (row, col) に変換する
+    func indexToGrid(_ index: Int) -> (row: Int, col: Int) {
+        let cols = max(1, columns)
+        return (row: index / cols, col: index % cols)
+    }
+
+    /// (row, col) を 1D インデックスに変換する。存在しないセル（奇数件最終行右セル等）は nil
+    func gridToIndex(row: Int, col: Int) -> Int? {
+        let cols = max(1, columns)
+        let index = row * cols + col
+        guard index >= 0, index < mainListAssignments.count else { return nil }
+        return index
+    }
+
+    func moveLeft() {
+        guard columns >= 2 else { return }
+        let (_, col) = indexToGrid(selectedIndex)
+        guard col > 0 else { return }  // 行頭は no-op
+        selectedIndex = clampIndex(selectedIndex - 1)
+    }
+
+    func moveRight() {
+        guard columns >= 2 else { return }
+        let (row, col) = indexToGrid(selectedIndex)
+        guard col < columns - 1 else { return }  // 行末は no-op
+        // 奇数件最終行右セルが存在しない場合も no-op
+        guard gridToIndex(row: row, col: col + 1) != nil else { return }
+        selectedIndex = clampIndex(selectedIndex + 1)
+    }
+
     func moveUp() {
-        if selectedIndex > 0 {
-            selectedIndex -= 1
-        }
+        let newIndex = selectedIndex - columns
+        selectedIndex = clampIndex(newIndex)
     }
 
     func moveDown() {
         // Why: mainListAssignments を直接参照。理由: selectedIndex はメインリストのみを追跡する新契約
-        if selectedIndex < mainListAssignments.count - 1 {
-            selectedIndex += 1
-        }
+        let newIndex = selectedIndex + columns
+        selectedIndex = clampIndex(newIndex)
+    }
+
+    /// 数字キーに対応する selectedIndex を設定する。成功時 true を返す
+    func selectByDigit(_ number: Int) -> Bool {
+        guard let index = digitToIndex[number] else { return false }
+        selectedIndex = index
+        return true
+    }
+
+    // MARK: - Private helpers
+
+    /// selectedIndex を mainListAssignments の範囲 [0, count-1] にクランプする
+    private func clampIndex(_ index: Int) -> Int {
+        let count = mainListAssignments.count
+        guard count > 0 else { return 0 }
+        return max(0, min(index, count - 1))
     }
 
     func restoreSelected() -> ActivationTarget? {
