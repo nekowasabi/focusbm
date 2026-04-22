@@ -147,12 +147,21 @@ class SearchPanel: NSPanel {
                 }
             }
 
+            // Why: 矢印キーのロジックを SearchPanel に持たず VM に委譲することで、
+            //      ナビゲーション挙動は SearchViewModelGridTests でテスト可能となる。
+            //      SearchPanel はキー監視とイベント消費のみを担う薄いレイヤーに留める。
             switch event.keyCode {
             case 126: // Up arrow
                 self.viewModel.moveUp()
                 return nil
             case 125: // Down arrow
                 self.viewModel.moveDown()
+                return nil
+            case 123: // Left arrow
+                self.viewModel.moveLeft()
+                return nil
+            case 124: // Right arrow
+                self.viewModel.moveRight()
                 return nil
             case 53: // Escape
                 self.close()
