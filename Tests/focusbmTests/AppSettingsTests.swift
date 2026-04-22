@@ -261,3 +261,64 @@ import Yams
     let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
     #expect(decoded.settings?.fontName == "SF Mono")
 }
+
+// MARK: - bookmarkListColumns (process-10)
+// Why: AppSettings.bookmarkListColumns は Int? 型で、1/2 のみ有効。
+//      normalizedColumns(_:) が範囲外を nil 化する仕様を YAML round-trip レベルで検証する。
+
+@Test func test_bookmarkListColumns_default_isNil() {
+    let settings = AppSettings()
+    #expect(settings.bookmarkListColumns == nil)
+}
+
+@Test func test_bookmarkListColumns_fromYAML_is2() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+      bookmarkListColumns: 2
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.bookmarkListColumns == 2)
+}
+
+@Test func test_bookmarkListColumns_roundTrip_nil() throws {
+    var store = BookmarkStore()
+    store.settings = AppSettings()
+    store.settings?.bookmarkListColumns = nil
+    let text = try YAMLEncoder().encode(store)
+    let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
+    #expect(decoded.settings?.bookmarkListColumns == nil)
+}
+
+@Test func test_bookmarkListColumns_roundTrip_1() throws {
+    var store = BookmarkStore()
+    store.settings = AppSettings()
+    store.settings?.bookmarkListColumns = 1
+    let text = try YAMLEncoder().encode(store)
+    let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
+    #expect(decoded.settings?.bookmarkListColumns == 1)
+}
+
+@Test func test_bookmarkListColumns_roundTrip_2() throws {
+    var store = BookmarkStore()
+    store.settings = AppSettings()
+    store.settings?.bookmarkListColumns = 2
+    let text = try YAMLEncoder().encode(store)
+    let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
+    #expect(decoded.settings?.bookmarkListColumns == 2)
+}
+
+@Test func test_bookmarkListColumns_invalid_3_decodesAsNil() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+      bookmarkListColumns: 3
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    // Why: normalizedColumns(_:) が 3 を nil に正規化するため nil を期待する
+    #expect(store.settings?.bookmarkListColumns == nil)
+}
