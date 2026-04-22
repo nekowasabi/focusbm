@@ -1,6 +1,14 @@
 import Foundation
 import Yams
 
+// Why: 定数を一箇所に集約し、散在するマジックナンバーを排除。enum にすることで
+//      インスタンス化不可であることを型レベルで保証する（namespaced constants パターン）
+public enum PanelDefaults {
+    public static let width: CGFloat = 500
+    public static let widthTwoColumns: CGFloat = 800
+    public static let height: CGFloat = 400
+}
+
 // アプリ固有の状態（Tagged Union で型安全に表現）
 public enum AppState: Codable {
     case browser(urlPattern: String, title: String, tabIndex: Int?, urlPrefix: String?)
