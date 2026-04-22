@@ -20,9 +20,9 @@ class SearchViewModel: ObservableObject {
     private var tmuxPaneCache: [TmuxPane] = []
     private var aiProcessCache: [ProcessProvider.AIProcess] = []
     private(set) var showTmuxAgents: Bool = true
-    // Why: private(set) → internal(set) に変更。理由: テストから appSettings を注入するため。
-    // 外部からの書き込みは load() 経由が正規経路だが、テスト専用注入を許容する。
-    internal(set) var appSettings: AppSettings? = nil
+    // Why: private(set) ではなく var を採用。理由: テストから appSettings を注入するため（同モジュール内の書き込みを許容）。
+    // 外部からの書き込みは load() 経由が正規経路だが、テスト専用注入を許容する。internal がデフォルトのため明示修飾子は付けない。
+    var appSettings: AppSettings? = nil
     private var refreshGeneration: Int = 0
     /// 自動実行ハイライト中かどうか（実行直前の視覚フィードバック用）
     @Published var isAutoExecuteHighlighted: Bool = false
