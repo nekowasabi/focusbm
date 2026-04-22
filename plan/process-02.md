@@ -1,72 +1,18 @@
-# Process 2: Node.jsベースAIツールのtmux検出強化
+# Process 2: YAMLStorage マイグレーションと不正値フォールバック
 
 ## Overview
-tmux ペイン内で実行中の codex（Node.jsベース）が `pane_current_command = "node"` として報告されるため、`isAIAgent` 判定に失敗し、AIエージェントとして検出されない問題を修正する。
+`bookmarks.yml` から `bookmarkListColumns` を読み込む際、未指定・不正値（0、3以上、文字列等）を安全に nil にフォールバックし、旧 yml との互換性を担保する。
 
 ## Affected Files
-- `Sources/FocusBMLib/TmuxProvider.swift`:
-  - L46-62: `isAIAgent` computed property — "node" コマンド時の追加判定ロジック
-  - L112-126: `agentName` — "node" 経由で検出されたエージェントの名前解決
-  - L248-302: `listAllPanes()` — ペイン情報取得時にプロセス引数を補完
-- `Tests/focusbmTests/TmuxProviderTests.swift`:
-  - Node.js経由のAIエージェント検出テスト追加
+- `Sources/FocusBMLib/YAMLStorage.swift:20-42` — `loadYAML()` もしくは `migrateV1YAML()` に正規化処理を追加
+- 必要に応じて `Sources/FocusBMLib/Models.swift` の decode カスタマイズ
 
 ## Implementation Notes
-
-### 根本原因
-tmux の `pane_current_command` は実行バイナリ名を返す。Node.jsベースのCLI（codex等）は実際には `node /path/to/codex` として実行されるため、tmux は "node" としか報告しない。
-
-codex の実際のペイン情報:
-```
-pane_current_command: "node"      ← "codex" ではない
-pane_title: "tmux-ai-agents-status"  ← "codex" を含まない
-```
-
-### 修正アプローチ
-
-**案A: ペインPIDからプロセス引数を取得** ⭐⭐⭐⭐⭐ (推奨)
-tmux の `pane_pid` でペイン内のシェルPIDを取得し、その子プロセスのコマンドライン引数を `ps` で確認する。
-
-```swift
-// isAIAgent 内:
-// Why: Node.jsベースCLIは pane_current_command が "node" になるため、
-//      プロセスの引数から実際のAIツール名を判定する必要がある
-if command == "node" || command == "deno" || command == "bun" {
-    return resolveNodeAgentCommand() != nil
-}
-```
-
-**resolveNodeAgentCommand() の実装:**
-```swift
-// Why: pane_pid の子プロセスのコマンドラインから bin/{agent} パターンを検索
-private func resolveNodeAgentCommand() -> String? {
-    // 1. pane_pid を取得（tmux list-panes で #{pane_pid} を含める必要あり）
-    // 2. ps -o args= -p <child_pid> でコマンドライン取得
-    // 3. aiAgentCommands とマッチング
-    // 4. マッチしたコマンド名を返す
-}
-```
-
-**案B: listAllPanes() で pane_pid を取得し事前解決** ⭐⭐⭐⭐
-`tmux list-panes` のフォーマット文字列に `#{pane_pid}` を追加し、TmuxPane 構造体に格納。
-`isAIAgent` 判定時にこのPIDを使ってプロセス引数を確認。
-
-### listAllPanes のフォーマット変更
-現在の tmux list-panes フォーマット文字列を確認し、`#{pane_pid}` を追加する必要がある。
-
-### agentName の対応
-`command == "node"` の場合、`resolveNodeAgentCommand()` の結果を使って agentName を返す:
-```swift
-case "node", "deno", "bun":
-    if let resolved = resolveNodeAgentCommand() {
-        switch resolved {
-        case "codex": return "Codex"
-        case "copilot": return "Copilot"
-        default: return resolved.capitalized
-        }
-    }
-    return command
-```
+- Yams の `YAMLDecoder` が未指定キーを自動的に nil にするため、主要ケースは既存挙動で通過
+- 明示的に不正値（例: `bookmarkListColumns: 0` / `3` / `"two"`）は nil に正規化するため、`init(from decoder:)` で範囲チェック（許可: nil, 1, 2）
+- 許可外の値は WARN ログ（`os_log` もしくは既存ログ経路）に残して nil 扱い
+- encode 時は nil なら出力省略（現行 encode 挙動に揃える）
+- マイグレーションスキーマに version フィールドがある場合でも新規追加キーは不要（Optional のため）
 
 ---
 
@@ -74,41 +20,34 @@ case "node", "deno", "bun":
 
 - [x] ブリーフィング確認
 - [x] テストケースを作成（実装前に失敗確認）
-  - command="node", 子プロセスが "codex" → isAIAgent == true
-  - command="node", 子プロセスが "codex" → agentName == "Codex"
-  - command="node", 子プロセスが一般的なnodeアプリ → isAIAgent == false
-  - command="node", 子プロセス情報取得失敗 → isAIAgent == false（安全側）
+  - Process 12 の migration テスト（旧 yml 読み込み・不正値フォールバック）を先行実装
 - [x] テストを実行して失敗することを確認
 
-✅ **Phase Complete**
+Phase Complete
 
 ---
 
 ## Green Phase: 最小実装と成功確認
 
 - [x] ブリーフィング確認
-- [x] TmuxPane に `panePid` プロパティを追加
-- [x] `listAllPanes()` のフォーマット文字列に `#{pane_pid}` を追加
-- [x] `resolveNodeAgentCommand()` メソッドを実装
-- [x] `isAIAgent` に "node"/"deno"/"bun" 判定を追加
-- [x] `agentName` に node 経由の名前解決を追加
-- [x] ビルドが通ることを確認 (`swift build`)
-- [x] テストを実行して成功することを確認
+- [x] `AppSettings.init(from:)` で `bookmarkListColumns` を decode し、値が {1,2} 以外なら nil に正規化
+- [x] 不正値検出時のログ出力（既存ログ経路に合わせる）
+- [x] `swift test` で migration テストが通ることを確認
 
-✅ **Phase Complete**
+Phase Complete
 
 ---
 
 ## Refactor Phase: 品質改善
 
-- [x] resolveNodeAgentCommand() の結果キャッシュを検討（ps 呼び出し削減）
-- [x] Why コメントが適切に記載されていることを確認
+- [x] 正規化ロジックを `AppSettings.normalizedColumns` のような private helper に切り出し
+- [x] 将来 3 列対応する場合の拡張ポイントをコメントで明記（Why コメント）
 - [x] テストが継続して成功することを確認
 
-✅ **Phase Complete**
+Phase Complete
 
 ---
 
 ## Dependencies
-- Requires: -
-- Blocks: Process 10
+- Requires: 1
+- Blocks: 3, 4, 5, 6, 12

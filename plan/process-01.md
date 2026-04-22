@@ -1,53 +1,17 @@
-# Process 1: デーモンプロセスのフィルタリング
+# Process 1: AppSettings に bookmarkListColumns フィールド追加
 
 ## Overview
-`pgrep -f "bin/codex"` が `codex app-server`（内部デーモン）にもマッチし、存在しないように見えるゴーストプロセスとしてリストに表示される問題を修正する。
+`bookmarks.yml` 経由で絞り込み画面の列数をユーザー設定可能にする基礎として、`AppSettings` 構造体に `bookmarkListColumns: Int?` を追加する。既存設定との互換を壊さないよう Optional で導入する。
 
 ## Affected Files
-- `Sources/FocusBMLib/ProcessProvider.swift`:
-  - L98-110: `findProcessesByName()` — pgrep パターンまたは結果フィルタリングを修正
-  - L56-93: `listNonTmuxAIProcesses()` — フィルタリング後のプロセスリスト生成
-- `Tests/focusbmTests/ProcessProviderTests.swift`:
-  - デーモンプロセス除外のテストケース追加
+- `Sources/FocusBMLib/Models.swift:108-154` — `AppSettings` 構造体に `bookmarkListColumns: Int?` プロパティを追加
+- `Sources/FocusBMLib/Models.swift`（`CodingKeys` 定義があれば同期）
 
 ## Implementation Notes
-
-### 根本原因
-`findProcessesByName()` の pgrep パターン `"bin/codex([[:space:]]|$)"` は以下の両方にマッチする:
-- `node /opt/homebrew/bin/codex --full-auto` (正規のAIエージェント) ✅
-- `node /opt/homebrew/bin/codex app-server` (内部デーモン) ❌
-
-### 修正アプローチ候補
-
-**案A: pgrep パターンで除外** ⭐⭐⭐⭐
-pgrep に `-v` (invert) は使えないため、結果取得後にフィルタリング。
-
-**案B: コマンドライン引数チェックで除外** ⭐⭐⭐⭐⭐ (推奨)
-PID取得後に `ps -p <pid> -o args=` でコマンドライン全体を取得し、
-既知のデーモンサブコマンド（`app-server`）を含むプロセスを除外する。
-
-```swift
-// Why: pgrep パターンだけではサブコマンドの除外が困難 —
-//      PID取得後にコマンドライン引数で判別する方式を採用
-private static let daemonSubcommands = ["app-server"]
-
-// listNonTmuxAIProcesses() 内:
-let args = getCommandLineArgs(pid)
-if daemonSubcommands.contains(where: { args.contains($0) }) {
-    log("  pid \(pid): skip (daemon subcommand)")
-    continue
-}
-```
-
-### getCommandLineArgs の実装
-```swift
-static func getCommandLineArgs(_ pid: pid_t) -> String {
-    let process = Process()
-    process.executableURL = URL(fileURLWithPath: "/bin/ps")
-    process.arguments = ["-p", "\(pid)", "-o", "args="]
-    // ... (getTTYForProcess と同パターン)
-}
-```
+- 既存の `listFontSize: Double?`, `showTmuxAgents: Bool?`, `directNumberKeys: Bool?` と同じ Optional パターンに倣う
+- デフォルト値は nil（未設定時は1列として扱われることを後続 Process 3 の VM 層で保証）
+- `Codable` + `Equatable` conformance を維持
+- init(...) に引数追加する場合、既存呼び出し箇所（テスト含む）のデフォルト値を nil に
 
 ---
 
@@ -55,38 +19,36 @@ static func getCommandLineArgs(_ pid: pid_t) -> String {
 
 - [x] ブリーフィング確認
 - [x] テストケースを作成（実装前に失敗確認）
-  - `codex app-server` を含むコマンドラインがフィルタリングされること
-  - `codex --full-auto` を含むコマンドラインがフィルタリングされないこと
-  - `codex` (引数なし) がフィルタリングされないこと
+  - Process 10 で追加する `test_bookmarkListColumns_default_isNil` を先行実装しコンパイル失敗を確認
 - [x] テストを実行して失敗することを確認
 
-✅ **Phase Complete**
+Phase Complete
 
 ---
 
 ## Green Phase: 最小実装と成功確認
 
 - [x] ブリーフィング確認
-- [x] `daemonSubcommands` 定数を ProcessProvider に追加
-- [x] `getCommandLineArgs()` メソッドを追加
-- [x] `listNonTmuxAIProcesses()` にデーモンフィルタリングロジックを追加
-- [x] ビルドが通ることを確認 (`swift build`)
+- [x] `AppSettings` に `public var bookmarkListColumns: Int?` を追加
+- [x] CodingKeys に同期（明示的に定義されている場合のみ）
+- [x] 既存 init の呼び出し側を壊さないため引数はデフォルト nil
+- [x] `swift build` でコンパイル通過確認
 - [x] テストを実行して成功することを確認
 
-✅ **Phase Complete**
+Phase Complete
 
 ---
 
 ## Refactor Phase: 品質改善
 
-- [x] Why コメントが適切に記載されていることを確認
-- [x] getCommandLineArgs と getTTYForProcess の共通化を検討（DRY原則）
+- [x] プロパティ順序を既存の「表示系」グループに整列
+- [x] ドキュメントコメントで「1=縦1列(既定) / 2=横2列 / その他=nil 扱い」を明記
 - [x] テストが継続して成功することを確認
 
-✅ **Phase Complete**
+Phase Complete
 
 ---
 
 ## Dependencies
 - Requires: -
-- Blocks: Process 10
+- Blocks: 2, 3, 10

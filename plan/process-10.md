@@ -1,65 +1,63 @@
-# Process 10: 統合テスト
+# Process 10: AppSettingsTests 拡張（round-trip 6ケース）
 
 ## Overview
-Process 1（デーモンフィルタリング）と Process 2（Node.js検出強化）の修正が連携して正しく動作することを検証する統合テスト。
+`Tests/focusbmTests/AppSettingsTests.swift` に `bookmarkListColumns` の YAML round-trip テストを 6 ケース追加する。既定・明示値・不正値・未指定の境界を網羅する。
 
 ## Affected Files
-- `Tests/focusbmTests/ProcessProviderTests.swift`: 統合シナリオテスト追加
-- `Tests/focusbmTests/TmuxProviderTests.swift`: 統合シナリオテスト追加
+- `Tests/focusbmTests/AppSettingsTests.swift` — 以下テスト関数追加:
+  - `test_bookmarkListColumns_default_isNil`
+  - `test_bookmarkListColumns_fromYAML_is2`
+  - `test_bookmarkListColumns_roundTrip_nil`
+  - `test_bookmarkListColumns_roundTrip_1`
+  - `test_bookmarkListColumns_roundTrip_2`
+  - `test_bookmarkListColumns_invalid_3_decodesAsNil`
 
 ## Implementation Notes
-
-### テストシナリオ
-
-1. **codex app-server がリストに表示されない**
-   - pgrep で codex app-server PID が返される状況をシミュレート
-   - listNonTmuxAIProcesses() の結果に含まれないことを確認
-
-2. **tmux内 codex (node経由) が正しく検出される**
-   - pane_current_command="node", 子プロセスが codex のペインを構築
-   - isAIAgent == true, agentName == "Codex" を確認
-   - agentEmoji == "📖" を確認（先行コミットの絵文字マッピング）
-
-3. **既存エージェント検出が壊れていない**
-   - claude, aider, gemini, copilot が従来通り検出されることを確認
-   - 非AIプロセス（vim, ssh等）がフィルタリングされることを確認
-
-4. **エッジケース**
-   - node プロセスが AI ツール以外（一般的な node アプリ）→ isAIAgent == false
-   - tmux 外の codex app-server → 非表示
-   - tmux 内の codex → 表示（node 経由で検出）
+- 既存テストは Swift Testing (`@Test` マクロ) 使用。新規も同形式で統一
+- YAML サンプルは文字列リテラルで直接記述:
+  ```swift
+  let yaml = """
+  bookmarkListColumns: 2
+  """
+  ```
+- `YAMLDecoder().decode(AppSettings.self, from: yaml)` でデコード検証
+- round-trip は encode → decode で値保持を確認
+- `invalid_3_decodesAsNil` は Process 2 の正規化ロジックが効くことを検証（3 → nil）
+- 不正値ケース追加: 0、負値、文字列（Swift 側で型不整合が発生するケースは decode エラーの期待値をチェック）
 
 ---
 
 ## Red Phase: テスト作成と失敗確認
 
 - [x] ブリーフィング確認
-- [x] 上記4シナリオのテストケースを作成
+- [x] テストケースを作成（実装前に失敗確認）
+  - 上記6関数を追加し、Process 1/2 実装前の状態でコンパイルエラーまたは Red を確認
 - [x] テストを実行して失敗することを確認
 
-✅ **Phase Complete**
+Phase Complete
 
 ---
 
 ## Green Phase: 最小実装と成功確認
 
 - [x] ブリーフィング確認
-- [x] Process 1, 2 の実装が完了していることを前提に、テストが通ることを確認
-- [x] `swift test` で全テスト通過を確認
+- [x] Process 1/2 完了後に全6ケースが Green になることを確認
+- [x] `swift test --filter AppSettingsTests` で通過確認
 
-✅ **Phase Complete**
+Phase Complete
 
 ---
 
 ## Refactor Phase: 品質改善
 
-- [x] テストの重複を整理
+- [x] テストヘルパー（yaml 文字列生成）を private func に抽出
+- [x] 命名規則を既存テストと整合（`test_<対象>_<条件>_<期待>`）
 - [x] テストが継続して成功することを確認
 
-✅ **Phase Complete**
+Phase Complete
 
 ---
 
 ## Dependencies
-- Requires: Process 1, Process 2
-- Blocks: -
+- Requires: 1, 2
+- Blocks: 100
