@@ -125,6 +125,8 @@ public struct AppSettings: Codable, Equatable {
     public var autoExecuteDelay: Double?
     /// 数字キー単体でブックマークにフォーカスする（デフォルト: true）
     public var directNumberKeys: Bool?
+    /// 1=縦列（デフォルト）、2=横2列、他=nil扱い
+    public var bookmarkListColumns: Int?
 
     public init(
         hotkey: HotkeySettings = HotkeySettings(),
@@ -137,7 +139,8 @@ public struct AppSettings: Codable, Equatable {
         preferredTerminal: String? = nil,
         autoExecuteOnSingleResult: Bool? = nil,
         autoExecuteDelay: Double? = nil,
-        directNumberKeys: Bool? = nil
+        directNumberKeys: Bool? = nil,
+        bookmarkListColumns: Int? = nil
     ) {
         self.hotkey = hotkey
         self.displayNumber = displayNumber
@@ -150,6 +153,7 @@ public struct AppSettings: Codable, Equatable {
         self.autoExecuteOnSingleResult = autoExecuteOnSingleResult
         self.autoExecuteDelay = autoExecuteDelay
         self.directNumberKeys = directNumberKeys
+        self.bookmarkListColumns = bookmarkListColumns
     }
 }
 
