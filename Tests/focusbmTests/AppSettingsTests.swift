@@ -322,3 +322,55 @@ import Yams
     // Why: normalizedColumns(_:) が 3 を nil に正規化するため nil を期待する
     #expect(store.settings?.bookmarkListColumns == nil)
 }
+
+// MARK: - bookmarkListColumns migration (process-12)
+// Why: 旧 YAML（bookmarkListColumns キー未存在）からの後方互換性と、
+//      不正値が nil に落ちることを AppSettings レベルで保証する。
+
+@Test func test_bookmarkListColumns_migration_legacyYAML_isNil() throws {
+    // 旧 YAML（bookmarkListColumns キーなし）→ nil（後方互換）
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.bookmarkListColumns == nil)
+}
+
+@Test func test_bookmarkListColumns_migration_invalidZero_isNil() throws {
+    // Why: 0 は 1/2 の範囲外のため normalizedColumns が nil を返す
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+      bookmarkListColumns: 0
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.bookmarkListColumns == nil)
+}
+
+@Test func test_bookmarkListColumns_migration_invalidNegative_isNil() throws {
+    // Why: 負数は 1/2 の範囲外のため normalizedColumns が nil を返す
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+      bookmarkListColumns: -1
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.bookmarkListColumns == nil)
+}
+
+@Test func test_bookmarkListColumns_migration_roundTripRetainsValidValue() throws {
+    // 有効値 1 が encode → decode 後も保持されることを確認
+    var store = BookmarkStore()
+    store.settings = AppSettings()
+    store.settings?.bookmarkListColumns = 1
+    let text = try YAMLEncoder().encode(store)
+    let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
+    #expect(decoded.settings?.bookmarkListColumns == 1)
+}
