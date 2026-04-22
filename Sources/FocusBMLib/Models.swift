@@ -155,6 +155,40 @@ public struct AppSettings: Codable, Equatable {
         self.directNumberKeys = directNumberKeys
         self.bookmarkListColumns = bookmarkListColumns
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        hotkey = try container.decodeIfPresent(HotkeySettings.self, forKey: .hotkey) ?? HotkeySettings()
+        displayNumber = try container.decodeIfPresent(Int.self, forKey: .displayNumber)
+        listFontSize = try container.decodeIfPresent(Double.self, forKey: .listFontSize)
+        showTmuxAgents = try container.decodeIfPresent(Bool.self, forKey: .showTmuxAgents)
+        panelWidth = try container.decodeIfPresent(Double.self, forKey: .panelWidth)
+        panelHeight = try container.decodeIfPresent(Double.self, forKey: .panelHeight)
+        fontName = try container.decodeIfPresent(String.self, forKey: .fontName)
+        preferredTerminal = try container.decodeIfPresent(String.self, forKey: .preferredTerminal)
+        autoExecuteOnSingleResult = try container.decodeIfPresent(Bool.self, forKey: .autoExecuteOnSingleResult)
+        autoExecuteDelay = try container.decodeIfPresent(Double.self, forKey: .autoExecuteDelay)
+        directNumberKeys = try container.decodeIfPresent(Bool.self, forKey: .directNumberKeys)
+        let rawColumns = try container.decodeIfPresent(Int.self, forKey: .bookmarkListColumns)
+        // Why: normalizedColumns で {1,2} 以外を nil に正規化。
+        // UIは最大2列グリッドのみサポートするため、それ以外の値は未指定扱いとする。
+        bookmarkListColumns = AppSettings.normalizedColumns(rawColumns)
+    }
+
+    // Why: private static helper に切り出してテスト可能性を確保。
+    // 将来 3 列対応する場合はここの許可セットに 3 を追加するだけでよい。
+    // Why: throw せず nil に正規化するのは UX 保護のため（不正値で起動不能になるリスクを排除）。
+    // Why: 許可値を {1,2} に限定するのは UI が最大 2 列グリッドのみサポートするため
+    //      （SearchView の 2D レイアウト制約による）。
+    static func normalizedColumns(_ value: Int?) -> Int? {
+        // Note: internal (not private) to allow unit testing from the same module
+        guard let v = value else { return nil }
+        guard v == 1 || v == 2 else {
+            print("[FocusBM][WARN] bookmarkListColumns: \(v) is invalid (allowed: 1, 2); falling back to nil")
+            return nil
+        }
+        return v
+    }
 }
 
 // MARK: - Hotkey Parsing
