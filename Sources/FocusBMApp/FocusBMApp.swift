@@ -244,8 +244,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupSearchPanel() {
         viewModel.load()
         let store = BookmarkStore.loadYAML()
-        cachedPanelWidth = CGFloat(store.settings?.panelWidth ?? 500)
-        cachedPanelHeight = CGFloat(store.settings?.panelHeight ?? 400)
+        // Why: 未指定かつ 2 列時は 500px では狭すぎるため 800 にブースト（ユーザー明示値は尊重）
+        //      単純な `?? 500` から列数考慮の defaultWidth に変更
+        let defaultWidth: CGFloat = (store.settings?.bookmarkListColumns == 2)
+            ? PanelDefaults.widthTwoColumns : PanelDefaults.width
+        cachedPanelWidth = store.settings?.panelWidth.map { CGFloat($0) } ?? defaultWidth
+        cachedPanelHeight = store.settings?.panelHeight.map { CGFloat($0) } ?? PanelDefaults.height
         cachedDisplayNumber = store.settings?.displayNumber
         searchPanel = SearchPanel(viewModel: viewModel, width: cachedPanelWidth, height: cachedPanelHeight)
         backgroundRefreshService = BackgroundRefreshService(viewModel: viewModel)
@@ -316,8 +320,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func reloadBookmarks() {
         viewModel.load()
         let store = BookmarkStore.loadYAML()
-        cachedPanelWidth = CGFloat(store.settings?.panelWidth ?? 500)
-        cachedPanelHeight = CGFloat(store.settings?.panelHeight ?? 400)
+        // Why: setupSearchPanel と同じ列数考慮ロジックを適用（再読み込み時も一貫性を保つ）
+        let defaultWidth: CGFloat = (store.settings?.bookmarkListColumns == 2)
+            ? PanelDefaults.widthTwoColumns : PanelDefaults.width
+        cachedPanelWidth = store.settings?.panelWidth.map { CGFloat($0) } ?? defaultWidth
+        cachedPanelHeight = store.settings?.panelHeight.map { CGFloat($0) } ?? PanelDefaults.height
         cachedDisplayNumber = store.settings?.displayNumber
         setupStatusItem()
     }
