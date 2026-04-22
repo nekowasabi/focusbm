@@ -272,6 +272,7 @@ settings:
   displayNumber: 1
   listFontSize: 15.0   # 省略時はシステム標準 .body (≈13pt)
   directNumberKeys: true  # 数字キー単体でブックマークにフォーカス（false: Cmd+数字のみ）
+  showAIAgentShortcut: true # AI エージェント行（aiProcess / tmux ペインの AI）に番号を振る（false で非表示）
 
 bookmarks:
   - id: ...
@@ -283,6 +284,7 @@ bookmarks:
 | `settings.displayNumber` | 整数 | `1` | パネルを表示するディスプレイ番号（1始まり） |
 | `settings.listFontSize` | 小数 | `nil`（≈13pt）| 候補リストのフォントサイズ（pt）。省略時はシステム標準サイズ |
 | `settings.directNumberKeys` | 真偽値 | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |
+| `settings.showAIAgentShortcut` | 真偽値? | `nil`（= `true` 相当） | `true`/未指定: AI エージェント行（`aiProcess` と tmux ペインの AI エージェント）にも ⌘1–⌘9 番号を振る（現行動作）。`false`: AI エージェント行には番号を振らず、ブックマーク側の番号が 1,2,3... と詰まる。数字キーによるジャンプも AI 行には効かなくなる |
 
 ### フィールド説明
 

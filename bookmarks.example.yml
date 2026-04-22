@@ -4,11 +4,18 @@
 # このファイルをコピーして bookmarks.yml にリネームし、
 # `bookmarks` 配列を自分の用途に合わせて編集してください。
 
-# パネル幅（pixel）。bookmarkListColumns: 2 で未指定の場合 800 が自動適用される
-panelWidth: 800
+settings:
+  # パネル幅（pixel）。bookmarkListColumns: 2 で未指定の場合 800 が自動適用される
+  panelWidth: 800
 
-# 一覧表示の列数（1: 縦1列 / 2: 横2列）。0, 3, 負数などの不正値は 1 にフォールバック
-bookmarkListColumns: 2
+  # 一覧表示の列数（1: 縦1列 / 2: 横2列）。0, 3, 負数などの不正値は 1 にフォールバック
+  bookmarkListColumns: 2
+
+  # AI エージェント行（aiProcess / tmux ペインの AI エージェント）に番号を振るか。
+  # 未指定時は true（現行動作: AI 行にも番号を振る）。
+  # false にすると AI 行に番号を振らず、ブックマーク側の番号が 1,2,3... と詰まる。
+  # 数字キーによるジャンプも AI 行には効かなくなる。
+  # showAIAgentShortcut: false
 
 # ブックマーク一覧
 # - title: 表示名

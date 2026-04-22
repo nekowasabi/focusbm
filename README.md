@@ -276,6 +276,7 @@ settings:
   fontName: "Fira Code"   # フォント名（省略時: system monospaced）
   preferredTerminal: "com.github.wez.wezterm"  # 優先ターミナル（bundleId 形式）
   directNumberKeys: true    # 数字キー単体でブックマークにフォーカス（false: Cmd+数字のみ）
+  showAIAgentShortcut: true # AI エージェント行（aiProcess / tmux ペインの AI）に番号を振る（false で非表示）
 
 bookmarks:
   - id: ...
@@ -291,6 +292,7 @@ bookmarks:
 | `settings.fontName` | string | `nil`（システム等幅フォント） | リスト表示のフォント名。省略時はシステムの等幅フォントを使用 |
 | `settings.preferredTerminal` | string | `nil` | tmux ペインを開く際に使用するターミナルの bundleId（例: `"com.github.wez.wezterm"`）。設定すると自動検出より優先される |
 | `settings.directNumberKeys` | bool | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |
+| `settings.showAIAgentShortcut` | bool? | `nil`（= `true` 相当） | `true`/未指定: AI エージェント行（`aiProcess` および tmux ペインの AI エージェント）にも ⌘1–⌘9 番号を振る（現行動作）。`false`: AI エージェント行に番号を振らず、ブックマーク側の番号が 1,2,3... と詰まる。数字キーによるジャンプも AI 行には効かなくなる |
 
 ### Field Descriptions
 
