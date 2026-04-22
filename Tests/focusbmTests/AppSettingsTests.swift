@@ -374,3 +374,55 @@ import Yams
     let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
     #expect(decoded.settings?.bookmarkListColumns == 1)
 }
+
+// MARK: - showAIAgentShortcut
+
+@Test func test_appSettings_showAIAgentShortcut_default() {
+    let settings = AppSettings()
+    #expect(settings.showAIAgentShortcut == nil)
+}
+
+@Test func test_appSettings_showAIAgentShortcut_fromYAML_true() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+      showAIAgentShortcut: true
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.showAIAgentShortcut == true)
+}
+
+@Test func test_appSettings_showAIAgentShortcut_fromYAML_false() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+      showAIAgentShortcut: false
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.showAIAgentShortcut == false)
+}
+
+@Test func test_appSettings_showAIAgentShortcut_omitted() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.showAIAgentShortcut == nil)
+}
+
+@Test func test_appSettings_showAIAgentShortcut_roundTrip() throws {
+    var store = BookmarkStore()
+    store.settings = AppSettings()
+    store.settings?.showAIAgentShortcut = false
+
+    let text = try YAMLEncoder().encode(store)
+    let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
+    #expect(decoded.settings?.showAIAgentShortcut == false)
+}

@@ -578,6 +578,108 @@ private func makeAIProcess(pid: Int32) -> ProcessProvider.AIProcess {
     #expect(index4 == 3, "digitToIndex[4] should be 3 (0-based in mainListAssignments)")
 }
 
+// MARK: - showAIAgentShortcut toggle tests
+
+/// showAIAgentShortcut 未指定: AI 行にもショートカット番号が割り当てられる（従来動作）
+@Test func test_showAIAgentShortcut_nil_defaultsToAssigningLabels() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(name: "ghostty", appName: "com.mitchellh.ghostty"),
+    ]
+    vm.applyBackgroundCache(tmuxPanes: [makeTmuxPane(id: "%1")], aiProcesses: [makeAIProcess(pid: 1001)])
+    vm.updateItems()
+
+    let assignments = vm.shortcutAssignments
+    let tmuxPair = assignments.first(where: {
+        if case .tmuxPane = $0.item { return true }
+        return false
+    })
+    let aiPair = assignments.first(where: {
+        if case .aiProcess = $0.item { return true }
+        return false
+    })
+    #expect(tmuxPair?.label == "2", "未指定時は tmuxPane にも番号が振られる")
+    #expect(aiPair?.label == "3", "未指定時は aiProcess にも番号が振られる")
+}
+
+/// showAIAgentShortcut == true: AI 行にもショートカット番号が割り当てられる（明示 true）
+@Test func test_showAIAgentShortcut_true_assignsLabels() {
+    let vm = SearchViewModel()
+    vm.appSettings = AppSettings(showAIAgentShortcut: true)
+    vm.bookmarks = [
+        makeBookmark(name: "ghostty", appName: "com.mitchellh.ghostty"),
+    ]
+    vm.applyBackgroundCache(tmuxPanes: [makeTmuxPane(id: "%1")], aiProcesses: [makeAIProcess(pid: 1001)])
+    vm.updateItems()
+
+    let assignments = vm.shortcutAssignments
+    let tmuxPair = assignments.first(where: {
+        if case .tmuxPane = $0.item { return true }
+        return false
+    })
+    let aiPair = assignments.first(where: {
+        if case .aiProcess = $0.item { return true }
+        return false
+    })
+    #expect(tmuxPair?.label == "2")
+    #expect(aiPair?.label == "3")
+}
+
+/// showAIAgentShortcut == false: AI 行はラベル nil、かつブックマーク側の番号が詰まる
+@Test func test_showAIAgentShortcut_false_aiRowsGetNilLabel_bookmarksStayContiguous() {
+    let vm = SearchViewModel()
+    vm.appSettings = AppSettings(showAIAgentShortcut: false)
+    vm.bookmarks = [
+        makeBookmark(name: "ghostty", appName: "com.mitchellh.ghostty"),
+        makeBookmark(name: "chrome", appName: "com.google.Chrome"),
+    ]
+    vm.applyBackgroundCache(tmuxPanes: [makeTmuxPane(id: "%1")], aiProcesses: [makeAIProcess(pid: 1001)])
+    vm.updateItems()
+
+    // 想定順序: [ghostty(bm), chrome(bm), tmuxPane, aiProcess]
+    // ラベル:    ["1",        "2",        nil,      nil]
+    let assignments = vm.shortcutAssignments
+    let labels = assignments.map { $0.label ?? "nil" }
+    #expect(labels == ["1", "2", "nil", "nil"],
+            "AI 行は nil、ブックマーク番号は 1,2 と連続すべきだが got \(labels)")
+}
+
+/// showAIAgentShortcut == false: AI 行が先頭に来てもブックマーク番号は 1 から始まる
+@Test func test_showAIAgentShortcut_false_aiFirst_bookmarkStartsAt1() {
+    // bookmarks が空でも lowPriority=false なので、AI 行が先に並ぶケースを作る
+    let vm = SearchViewModel()
+    vm.appSettings = AppSettings(showAIAgentShortcut: false)
+    vm.bookmarks = [
+        makeBookmark(name: "chrome", appName: "com.google.Chrome", lowPriority: true),
+    ]
+    vm.applyBackgroundCache(tmuxPanes: [makeTmuxPane(id: "%1")], aiProcesses: [makeAIProcess(pid: 1001)])
+    vm.updateItems()
+
+    // 期待順序: [tmuxPane, aiProcess, lpBookmark]
+    // ラベル:   [nil,     nil,       "1"]
+    let assignments = vm.shortcutAssignments
+    let labels = assignments.map { $0.label ?? "nil" }
+    #expect(labels == ["nil", "nil", "1"],
+            "AI 行が先でも後続ブックマークは '1' から始まるべきだが got \(labels)")
+}
+
+/// showAIAgentShortcut == false: labelToIndex から AI 行が引けない
+@Test func test_showAIAgentShortcut_false_labelToIndex_excludesAIRows() {
+    let vm = SearchViewModel()
+    vm.appSettings = AppSettings(showAIAgentShortcut: false)
+    vm.bookmarks = [
+        makeBookmark(name: "ghostty", appName: "com.mitchellh.ghostty"),
+    ]
+    vm.applyBackgroundCache(tmuxPanes: [makeTmuxPane(id: "%1")], aiProcesses: [makeAIProcess(pid: 1001)])
+    vm.updateItems()
+
+    let map = vm.labelToIndex
+    // ブックマーク "1" は引けるが、"2"/"3" は存在しない（AI 行分のラベルなし）
+    #expect(map["1"] != nil, "ブックマーク側のラベル '1' は存在すべき")
+    #expect(map["2"] == nil, "AI 行はラベル nil のため labelToIndex に '2' は存在しない")
+    #expect(map["3"] == nil, "AI 行はラベル nil のため labelToIndex に '3' は存在しない")
+}
+
 @Test func digitKey_selectedIndex_withinMainListBounds() {
     let vm = SearchViewModel()
     vm.bookmarks = [
