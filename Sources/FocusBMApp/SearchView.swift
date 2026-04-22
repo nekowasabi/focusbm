@@ -6,6 +6,10 @@ struct SearchView: View {
     @FocusState private var isSearchFieldFocused: Bool
     weak var panel: SearchPanel?
 
+    // Why: GridItem 定義を static let に抽出。LazyVGrid 使用時のみ参照し、
+    //      列数判定は VM に集約することで View は描画選択のみを担う
+    private static let twoColumnGrid = [GridItem(.flexible()), GridItem(.flexible())]
+
     var body: some View {
         VStack(spacing: 0) {
             // Search field
@@ -39,42 +43,83 @@ struct SearchView: View {
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
-                        LazyVStack(spacing: 2) {
-                            ForEach(Array(viewModel.mainListAssignments.enumerated()), id: \.element.item.id) { index, pair in
-                                BookmarkRow(
-                                    searchItem: pair.item,
-                                    isSelected: index == viewModel.selectedIndex,
-                                    shortcutLabel: pair.label,
-                                    directNumberKeys: viewModel.appSettings?.directNumberKeys ?? true,
-                                    fontSize: viewModel.listFontSize,
-                                    fontName: viewModel.fontName
-                                )
-                                .id(pair.item.id)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .fill(index == viewModel.selectedIndex
-                                            ? Color.accentColor.opacity(
-                                                viewModel.isAutoExecuteHighlighted && viewModel.mainListAssignments.count == 1
-                                                    ? 0.5 : 0.2)
-                                            : Color.clear)
-                                )
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    viewModel.selectedIndex = index
-                                    if let target = viewModel.restoreSelected() {
-                                        panel?.close()
-                                        DispatchQueue.main.async {
-                                            target.activate()
+                        // Why: LazyVStack と LazyVGrid を viewModel.columns で切替。
+                        //      列数の判定ロジックは VM に集約し、View は描画選択のみ担う
+                        if viewModel.columns == 2 {
+                            LazyVGrid(columns: Self.twoColumnGrid, spacing: 2) {
+                                ForEach(Array(viewModel.mainListAssignments.enumerated()), id: \.element.item.id) { index, pair in
+                                    BookmarkRow(
+                                        searchItem: pair.item,
+                                        isSelected: index == viewModel.selectedIndex,
+                                        shortcutLabel: pair.label,
+                                        directNumberKeys: viewModel.appSettings?.directNumberKeys ?? true,
+                                        fontSize: viewModel.listFontSize,
+                                        fontName: viewModel.fontName
+                                    )
+                                    .id(pair.item.id)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(index == viewModel.selectedIndex
+                                                ? Color.accentColor.opacity(
+                                                    viewModel.isAutoExecuteHighlighted && viewModel.mainListAssignments.count == 1
+                                                        ? 0.5 : 0.2)
+                                                : Color.clear)
+                                    )
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        viewModel.selectedIndex = index
+                                        if let target = viewModel.restoreSelected() {
+                                            panel?.close()
+                                            DispatchQueue.main.async {
+                                                target.activate()
+                                            }
                                         }
                                     }
                                 }
                             }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 4)
+                        } else {
+                            LazyVStack(spacing: 2) {
+                                ForEach(Array(viewModel.mainListAssignments.enumerated()), id: \.element.item.id) { index, pair in
+                                    BookmarkRow(
+                                        searchItem: pair.item,
+                                        isSelected: index == viewModel.selectedIndex,
+                                        shortcutLabel: pair.label,
+                                        directNumberKeys: viewModel.appSettings?.directNumberKeys ?? true,
+                                        fontSize: viewModel.listFontSize,
+                                        fontName: viewModel.fontName
+                                    )
+                                    .id(pair.item.id)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .fill(index == viewModel.selectedIndex
+                                                ? Color.accentColor.opacity(
+                                                    viewModel.isAutoExecuteHighlighted && viewModel.mainListAssignments.count == 1
+                                                        ? 0.5 : 0.2)
+                                                : Color.clear)
+                                    )
+                                    .contentShape(Rectangle())
+                                    .onTapGesture {
+                                        viewModel.selectedIndex = index
+                                        if let target = viewModel.restoreSelected() {
+                                            panel?.close()
+                                            DispatchQueue.main.async {
+                                                target.activate()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 4)
                         }
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 4)
                     }
                     .onChange(of: viewModel.selectedIndex) { newIndex in
                         // Why: mainListAssignments[safe: newIndex]?.item を参照。理由: selectedIndex はメインリストのみを追跡する新契約
