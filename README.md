@@ -418,6 +418,33 @@ focusbm/
 
 ---
 
+## Bookmark List Layout (List Columns)
+
+`~/.config/focusbm/bookmarks.yml` の `bookmarkListColumns` キーで、メニューバーアプリの一覧表示を 1 列／2 列に切替できます。
+
+### 設定値
+
+| 値 | 動作 |
+|----|------|
+| 未指定 | 縦 1 列（既存動作） |
+| 1 | 縦 1 列 |
+| 2 | 横 2 列（推奨 panelWidth: 800 以上） |
+| その他（0, 3, 負数） | 縦 1 列にフォールバック（WARN ログ） |
+
+### 推奨 panelWidth
+
+2 列表示時に `panelWidth` を未指定にすると 800px が自動適用されます。明示指定した場合はユーザー値を優先します。
+
+### キー操作
+
+- `↑↓` / `kj`: 上下移動（1 列: ±1 / 2 列: ±列数）
+- `←→` / `hl`: 左右移動（1 列: 無効 / 2 列: ±1 境界クランプ）
+- `1`〜`9`: 直接実行（2 列レイアウトでも正しい項目に対応）
+
+設定例は [`bookmarks.example.yml`](./bookmarks.example.yml) を参照してください。
+
+---
+
 ## License
 
 MIT

@@ -1,0 +1,28 @@
+# focusbm 設定例
+# 配置先: ~/.config/focusbm/bookmarks.yml
+#
+# このファイルをコピーして bookmarks.yml にリネームし、
+# `bookmarks` 配列を自分の用途に合わせて編集してください。
+
+# パネル幅（pixel）。bookmarkListColumns: 2 で未指定の場合 800 が自動適用される
+panelWidth: 800
+
+# 一覧表示の列数（1: 縦1列 / 2: 横2列）。0, 3, 負数などの不正値は 1 にフォールバック
+bookmarkListColumns: 2
+
+# ブックマーク一覧
+# - title: 表示名
+# - url: 開く URL
+# - priority: high (上位) / 未指定 / low (末尾) で並び順を制御
+bookmarks:
+  - title: GitHub
+    url: https://github.com
+    priority: high
+  - title: Apple Developer
+    url: https://developer.apple.com
+    priority: high
+  - title: Stack Overflow
+    url: https://stackoverflow.com
+  - title: Hacker News
+    url: https://news.ycombinator.com
+    priority: low
