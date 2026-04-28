@@ -1,28 +1,27 @@
 ---
-title: "ブックマーク絞り込み画面の横2列表示トグル対応"
+title: "AIエージェント行の動作状態を色分け表示"
 status: planning
-created: "2026-04-22"
+created: "2026-04-28"
 ---
 
 # Commander's Intent
 
 ## Purpose
-ブックマーク件数の増加に伴い縦1列レイアウトでは一覧性と管理性が低下するため、`bookmarks.yml` から切替可能な横2列表示を提供する。パネル占有サイズが大きくなる副作用を設定でオプトインさせ、既存ユーザーの体験を破壊しない。
+SearchPanel の AIエージェント行で動作状態（statusEmoji ○/●）が文字列に埋め込まれているため視認性が低い。View 層で別 Text として描画し、処理中=緑●、それ以外=赤○ で色分けすることでユーザーが agent の実行状況を一目で識別できるようにする。
 
 ## End State
-`bookmarks.yml` に `bookmarkListColumns: 2` を設定すると絞り込み画面が横2列で描画され、左右矢印と数字キーが2D選択に追従する。未設定/`1`/不正値ではこれまで通り縦1列。ViewModel レベル振る舞いが Swift Testing で自動担保されている。
+BookmarkRow が AIエージェント行の場合、HStack 内で statusEmoji を別 Text として `.foregroundColor` 付きで描画し、displayName 本体（statusEmoji を除いた agentName + path）を後ろに並べる。FocusBMLib は SwiftUI 非依存を維持し、Color マッピングは App 層で行う。全テスト Green。
 
 ## Key Tasks
-- `AppSettings` に `bookmarkListColumns: Int?` を追加し YAML round-trip を担保
-- `SearchViewModel` に `moveLeft/moveRight/selectByDigit` を切り出し、1D↔2D 変換ロジックを集約
-- `SearchView` を `LazyVStack`/`LazyVGrid` 切替構造に変更し、`SearchPanel` のキー経路を VM 呼び出しに統一
+- TmuxPane に statusEmoji / displayNameWithoutEmoji を分離公開（既存 displayName 契約は維持）
+- SearchItem に AIエージェント行を識別する判別経路を確保（既存 isAIAgent / case 分岐を活用）
+- BookmarkRow で `.tmuxPane` 分岐 → statusEmoji を着色 Text として描画
 
 ## Constraints
-- 未指定時は既存動作（1列）を維持し、旧 yml の破壊的変更を禁止
-- 不正値（0, 3以上, 文字列等）は安全に nil 扱い→1列フォールバック
-- 親セッションでは Read/Grep/Glob を行わず、調査・実装はサブエージェント委譲
-- キーバインドは既存の `↑↓` / hjkl / 数字キー(1-9) を壊さず左右拡張
-- 新規設定キー追加のみで、既存設定の意味論は不変
+- FocusBMLib は SwiftUI/Color に非依存を維持（Color enum を Lib 層に持ち込まない）
+- TmuxPane.displayName の既存文字列契約（statusEmoji を含む）は変更しない（後方互換）
+- showAIAgentShortcut 設定との独立性を維持（ショートカット番号表示は影響なし）
+- agentStatus の 4 状態（running / planMode / acceptEdits / idle）のうち、running のみ「処理中=緑●」、それ以外は「赤○」に二値化
 
 ---
 
@@ -30,23 +29,20 @@ created: "2026-04-22"
 
 | Process | Title | Status | File |
 |---------|-------|--------|------|
-| 1 | AppSettings に bookmarkListColumns フィールド追加 | ☑ done | [→ plan/process-01.md](plan/process-01.md) |
-| 2 | YAMLStorage マイグレーションと不正値フォールバック | ☑ done | [→ plan/process-02.md](plan/process-02.md) |
-| 3 | SearchViewModel ロジック引き上げ+2D選択遷移 | ☑ done | [→ plan/process-03.md](plan/process-03.md) |
-| 4 | SearchView の LazyVStack/LazyVGrid 切替 | ☑ done | [→ plan/process-04.md](plan/process-04.md) |
-| 5 | SearchPanel の左右矢印+数字キーVM委譲 | ☑ done | [→ plan/process-05.md](plan/process-05.md) |
-| 6 | FocusBMApp の2列時デフォルト幅補正 | ☑ done | [→ plan/process-06.md](plan/process-06.md) |
-| 10 | AppSettingsTests 拡張（round-trip 6ケース） | ☑ done | [→ plan/process-10.md](plan/process-10.md) |
-| 11 | SearchViewModelGridTests 新設 | ☑ done | [→ plan/process-11.md](plan/process-11.md) |
-| 12 | YAMLStorage マイグレーションテスト追加 | ☑ done | [→ plan/process-12.md](plan/process-12.md) |
-| 50 | GUI 手動検証チェックリスト | ☐ planning | [→ plan/process-50.md](plan/process-50.md) |
-| 100 | 全体回帰テストと Swift build/test 実行 | ☐ planning | [→ plan/process-100.md](plan/process-100.md) |
-| 200 | README と bookmarks.yml サンプル更新 | ☐ planning | [→ plan/process-200.md](plan/process-200.md) |
-| 300 | OODA 振り返りと教訓記録 | ☐ planning | [→ plan/process-300.md](plan/process-300.md) |
+| 1 | TmuxPane に displayNameWithoutEmoji 追加 | ✅ completed | [→ plan/process-01.md](plan/process-01.md) |
+| 2 | SearchItem に agentDisplay 計算プロパティ追加 | ✅ completed | [→ plan/process-02.md](plan/process-02.md) |
+| 3 | BookmarkRow で statusEmoji を分離着色描画 | ✅ completed | [→ plan/process-03.md](plan/process-03.md) |
+| 10 | TmuxPane プロパティ分離テスト | ✅ completed | [→ plan/process-10.md](plan/process-10.md) |
+| 11 | SearchItem.agentDisplay テスト | ✅ completed | [→ plan/process-11.md](plan/process-11.md) |
+| 12 | BookmarkRow 着色描画テスト | ✅ completed | [→ plan/process-12.md](plan/process-12.md) |
+| 50 | showAIAgentShortcut との干渉確認 | ✅ completed | [→ plan/process-50.md](plan/process-50.md) |
+| 100 | 全テスト Green 確認（swift test） | ✅ completed | [→ plan/process-100.md](plan/process-100.md) |
+| 200 | ドキュメント更新（README/DESIGN） | ☐ planning | [→ plan/process-200.md](plan/process-200.md) |
+| 300 | OODA 振り返り（設計決定の記録） | ☐ planning | [→ plan/process-300.md](plan/process-300.md) |
 
-**DAG**: `1→2→{3,4,5,6}→{10,11,12}→100→{50,200}→300`
+**DAG**: `{1,2}→3→{10,11,12,50}→100→200→300`
 **DAG凡例**: `{A,B}` = 並列実行可能、`A→B` = A完了後にB実行、`|` = 独立した依存チェーン
-**Overall**: ☑ 9/13 completed
+**Overall**: ☑ 8/10 completed
 
 ---
 
@@ -54,13 +50,10 @@ created: "2026-04-22"
 
 | @ref | @target | @test |
 |------|---------|-------|
-| 設定モデル | Sources/FocusBMLib/Models.swift:108-154 | Tests/focusbmTests/AppSettingsTests.swift |
-| YAML I/O | Sources/FocusBMLib/YAMLStorage.swift:20-42 | Tests/focusbmTests/AppSettingsTests.swift |
-| 画面描画 | Sources/FocusBMApp/SearchView.swift:42 | (GUI 目視) |
-| 行UI | Sources/FocusBMApp/BookmarkRow.swift:35-89 | (GUI 目視) |
-| 選択状態 | Sources/FocusBMApp/SearchViewModel.swift:22-40 | Tests/FocusBMAppTests/SearchViewModelOrderingTests.swift |
-| キー処理 | Sources/FocusBMApp/SearchPanel.swift:121-134 | Tests/FocusBMAppTests/SearchViewModelGridTests.swift (新規) |
-| パネル幅 | Sources/FocusBMApp/FocusBMApp.swift:247,319 | (GUI 目視) |
+| Sources/FocusBMLib/TmuxProvider.swift:107-158 | TmuxPane.agentStatus / statusEmoji / displayName | Tests/focusbmTests/TmuxProviderTests.swift |
+| Sources/FocusBMLib/Models.swift:304-313 | SearchItem.displayName / .tmuxPane ケース | Tests/focusbmTests/ModelsTests.swift |
+| Sources/FocusBMApp/BookmarkRow.swift:68-74 | Text(searchItem.displayName) 描画箇所 | Tests/FocusBMAppTests/BookmarkRowTests.swift（新規候補） |
+| Sources/FocusBMApp/SearchView.swift:50-122 | リスト描画と選択時背景 | - |
 
 ---
 
@@ -68,8 +61,6 @@ created: "2026-04-22"
 
 | リスク | 対策 |
 |--------|------|
-| 既存 yml との互換崩壊（新キー未指定で壊れる） | 未指定時は nil→1列で明示フォールバック。migration テスト必須 |
-| キーバインド競合（hjkl / 矢印 / 数字） | ViewModel 層で入力ディスパッチを集約し、優先度を単体テスト化 |
-| 狭幅パネル(既定500px)で2列が破綻 | 2列時のみ最小/推奨幅を補正し、テキスト省略 lineLimit を維持 |
-
----
+| TmuxPane.displayName の既存契約変更による破壊 | displayName 自体は不変。新プロパティ displayNameWithoutEmoji を追加する非破壊変更で対応。既存テストの期待値も維持。 |
+| Color が FocusBMLib に漏れる | TmuxAgentStatus enum を Lib に置き、Color マッピングは App 層 (BookmarkRow) で計算。SwiftUI import を Lib に追加しない。 |
+| ダークモード/アクセシビリティでの視認性不足 | Color.green / .red の代わりに、ダークモード対応の semantic color（必要なら Asset Catalog）を採用検討。ただし初版は標準 Color でリリースし、Process 200 で評価。 |

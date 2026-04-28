@@ -1,64 +1,73 @@
-# Process 300: OODA 振り返りと教訓記録
+# Process 300: OODA 振り返り（設計決定の記録）
 
 ## Overview
-実装完了後の OODA 振り返り。成功要因・改善機会・再利用可能パターンを `stigmergy/doctrine-learning/lessons.jsonl` もしくは `.serena/memories/` に記録し、次回の類似タスクに継承する。
+本ミッション完了後の振り返り。OODA ループの各フェーズで得た知見、設計決定の根拠、教訓を記録する。.serena/stigmergy/ または PR description に成果物として残し、将来の類似ミッションで参照可能にする。
 
 ## Affected Files
-- `stigmergy/doctrine-learning/lessons.jsonl`（追記）もしくは
-- `.serena/memories/focusbm-column-toggle-lessons.md`（新規）
+- `.serena/stigmergy/lessons.jsonl`（存在する場合、追記）
+- `.serena/memories/design_decisions.md`（存在する場合、追記。なければ新規可）
+- PR description（GitHub PR を作成する場合）
 
 ## Implementation Notes
-振り返り観点:
-- **Observe**: 当初の仮説（「TUI かと思ったら SwiftUI」）と実態の差分
-- **Orient**: ViewModel 引き上げ戦略が View 層テスト不能性をどう解決したか
-- **Decide**: 設定 Optional 化 + 不正値フォールバックの判断基準
-- **Act**: TDD Red→Green→Refactor の実践結果（どの Process で詰まったか）
+- 振り返り観点（OODA 各フェーズ）:
+  1. **Observe**: 現状の displayName 文字列結合構造、SwiftUI Text の単一描画
+  2. **Orient**: 視認性問題の本質（文字列内に状態情報が埋込まれているため部分着色不可）
+  3. **Decide**: 方針1（最小侵襲：displayNameWithoutEmoji 追加 + agentDisplay 計算プロパティ + BookmarkRow 分岐）採用理由
+     - 代替案（方針2: SearchItem に Color 直接埋込）を却下した理由 → Lib 層の SwiftUI 依存
+  4. **Act**: 実装の難易度評価、テストカバレッジ
+  5. **Feedback**: 手動 UI 確認の重要性、SwiftUI View テストのコスト
 
-教訓候補:
-- SwiftUI 画面のテスト容易性は ViewModel の責務分離で決まる
-- `Int?` + 値範囲正規化の Codable パターンは再利用性が高い
-- `LazyVStack` → `LazyVGrid` 切替は View 層の最小差分で列数対応が可能
-- 数字キーや矢印キーの NSEvent 処理は VM メソッド呼び出し1行に集約するとテスト担保範囲が最大化
+- 教訓:
+  - **層分離の重要性**: ロジック層と UI 層の依存方向を一方向に保つことで、テスト容易性と将来の UI フレームワーク変更耐性が得られる
+  - **非破壊変更の優位性**: displayName の既存契約を維持して新プロパティを追加することで、外部参照箇所への影響をゼロに保てる
+  - **状態の二値化判断**: 4 状態を 2 色に集約する判断は「ぱっと見の視認性」というユーザー要求に沿った妥当な簡素化
 
-記録フォーマット（例）:
-```json
-{"date":"2026-04-XX","project":"focusbm","pattern":"swiftui-vm-liftup","summary":"...","applicability":"similar UI toggle tasks"}
-```
+- PR description テンプレ:
+  ```
+  ## 概要
+  AIエージェント行の動作状態を色分け表示
+
+  ## 変更内容
+  - TmuxPane.displayNameWithoutEmoji 追加
+  - SearchItem.agentDisplay 計算プロパティ追加
+  - BookmarkRow で statusEmoji を別 Text に分離して着色
+
+  ## 設計判断
+  - FocusBMLib は SwiftUI 非依存を維持（Color マッピングは App 層）
+  - displayName 既存契約は維持（後方互換）
+  ```
 
 ---
 
 ## Red Phase: テスト作成と失敗確認
 
 - [ ] ブリーフィング確認
-- [ ] （振り返りのため該当なし、skip 記録）
+- [ ] OODA 各フェーズの記録を整理
 
-Phase Complete
+✅ **Phase Complete**
 
 ---
 
 ## Green Phase: 最小実装と成功確認
 
 - [ ] ブリーフィング確認
-- [ ] OODA 4 フェーズを振り返り、差分を言語化
-- [ ] 教訓を 3-5 件抽出
-- [ ] lessons.jsonl または serena memory に記録
-- [ ] PLAN.md の status を `completed` に更新
-- [ ] 全 Process の Progress Map チェックボックスを ☑ に更新
+- [ ] .serena/stigmergy/ または .serena/memories/ に振り返りを記録
+- [ ] PR description に設計判断を記載
+- [ ] 教訓セクションを記述
 
-Phase Complete
+✅ **Phase Complete**
 
 ---
 
 ## Refactor Phase: 品質改善
 
-- [ ] 教訓を類似タスク検索用にタグ付け（例: `tag: swiftui, toggle, viewmodel-liftup`）
-- [ ] 次回 `/x` 実行時に自動参照されるよう lesson-index に登録
-- [ ] ドキュメントリンクを README からも辿れるようにする（任意）
+- [ ] 振り返り内容のレビュー
+- [ ] 将来参照しやすい形式に整える
 
-Phase Complete
+✅ **Phase Complete**
 
 ---
 
 ## Dependencies
-- Requires: 50, 200
+- Requires: 200
 - Blocks: -

@@ -1,17 +1,18 @@
-# Process 1: AppSettings に bookmarkListColumns フィールド追加
+# Process 1: TmuxPane に displayNameWithoutEmoji 追加
 
 ## Overview
-`bookmarks.yml` 経由で絞り込み画面の列数をユーザー設定可能にする基礎として、`AppSettings` 構造体に `bookmarkListColumns: Int?` を追加する。既存設定との互換を壊さないよう Optional で導入する。
+TmuxPane の displayName が statusEmoji + agentName + path を文字列結合しているため、SwiftUI 側で部分着色できない。statusEmoji を除いた表示名を返す `displayNameWithoutEmoji` プロパティを public で追加し、既存 displayName 契約は維持する（非破壊変更）。
 
 ## Affected Files
-- `Sources/FocusBMLib/Models.swift:108-154` — `AppSettings` 構造体に `bookmarkListColumns: Int?` プロパティを追加
-- `Sources/FocusBMLib/Models.swift`（`CodingKeys` 定義があれば同期）
+- `Sources/FocusBMLib/TmuxProvider.swift:154-158` - `displayName` 定義の隣接箇所に新プロパティ追加
+- `Sources/FocusBMLib/TmuxProvider.swift:117-124` - 既存 `statusEmoji` プロパティ（変更なし、参照のみ）
 
 ## Implementation Notes
-- 既存の `listFontSize: Double?`, `showTmuxAgents: Bool?`, `directNumberKeys: Bool?` と同じ Optional パターンに倣う
-- デフォルト値は nil（未設定時は1列として扱われることを後続 Process 3 の VM 層で保証）
-- `Codable` + `Equatable` conformance を維持
-- init(...) に引数追加する場合、既存呼び出し箇所（テスト含む）のデフォルト値を nil に
+- 既存 `displayName` は `terminalEmoji + statusEmoji + agentName + path` の構造（要確認）
+- 新プロパティ `public var displayNameWithoutEmoji: String` を追加
+- statusEmoji 部分のみを除いた残りの文字列を返す
+- displayName と displayNameWithoutEmoji の整合性: `displayName == statusEmoji + " " + displayNameWithoutEmoji`（または既存フォーマットに準拠）
+- 実装後 displayName 自体は変更せず、外部参照箇所への影響をゼロに保つ
 
 ---
 
@@ -19,33 +20,32 @@
 
 - [x] ブリーフィング確認
 - [x] テストケースを作成（実装前に失敗確認）
-  - Process 10 で追加する `test_bookmarkListColumns_default_isNil` を先行実装しコンパイル失敗を確認
+  - `displayNameWithoutEmoji` が statusEmoji（●/○）を含まないこと
+  - `displayNameWithoutEmoji` が agentName と path を含むこと
+  - 既存 `displayName` の値が変更されないこと（後方互換）
 - [x] テストを実行して失敗することを確認
 
-Phase Complete
+✅ **Phase Complete**
 
 ---
 
 ## Green Phase: 最小実装と成功確認
 
 - [x] ブリーフィング確認
-- [x] `AppSettings` に `public var bookmarkListColumns: Int?` を追加
-- [x] CodingKeys に同期（明示的に定義されている場合のみ）
-- [x] 既存 init の呼び出し側を壊さないため引数はデフォルト nil
-- [x] `swift build` でコンパイル通過確認
+- [x] TmuxProvider.swift に `public var displayNameWithoutEmoji: String` を追加
+- [x] statusEmoji を除いた文字列を返す実装
 - [x] テストを実行して成功することを確認
 
-Phase Complete
+✅ **Phase Complete**
 
 ---
 
 ## Refactor Phase: 品質改善
 
-- [x] プロパティ順序を既存の「表示系」グループに整列
-- [x] ドキュメントコメントで「1=縦1列(既定) / 2=横2列 / その他=nil 扱い」を明記
+- [x] displayName を `statusEmoji + " " + displayNameWithoutEmoji` の組合せに置き換え可能か検討（既存テスト維持優先で見送り可）
 - [x] テストが継続して成功することを確認
 
-Phase Complete
+✅ **Phase Complete**
 
 ---
 

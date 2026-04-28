@@ -1,61 +1,59 @@
-# Process 12: YAMLStorage マイグレーションテスト追加
+# Process 12: BookmarkRow 着色描画テスト
 
 ## Overview
-旧 yml（`bookmarkListColumns` 未指定）を読み込んで互換性が維持されること、及び不正値が nil フォールバックされることを自動担保する。
+Process 3 で実装した BookmarkRow の着色描画を検証する。SwiftUI View の単体テストは制約があるため、ロジック部分（色選択ロジック、agentDisplay 取得）を分離可能な範囲でユニットテスト化し、視覚的検証は手動 UI 確認で補完する。
 
 ## Affected Files
-- `Tests/focusbmTests/AppSettingsTests.swift` もしくは `Tests/focusbmTests/YAMLStorageTests.swift`（既存あればそれ、無ければ前者に追加）
+- `Tests/FocusBMAppTests/BookmarkRowTests.swift` - 新規作成（または既存ファイル拡張）
+- 視覚的確認: アプリ起動時のスクリーンショット記録
 
 ## Implementation Notes
-- 追加テスト:
-  - `test_legacyYAML_withoutBookmarkListColumns_loadsAsNil()` — 既存キーのみの yml を decode し、新キーが nil で互換性維持
-  - `test_yaml_withInvalidBookmarkListColumns_fallsBackToNil()` — 値 3 / 0 / 負値 を nil 扱い
-  - `test_yaml_withBookmarkListColumns_2_preservedOnEncodeDecode()` — encode → decode round-trip で 2 が保持
-- 旧 yml サンプル:
-  ```yaml
-  hotkey:
-    togglePanel: "cmd+ctrl+b"
-  panelWidth: 500
-  ```
-- 不正値サンプル:
-  ```yaml
-  bookmarkListColumns: 3
-  ```
-- 期待: `settings.bookmarkListColumns == nil`
+- ユニットテスト可能な観点:
+  1. 色選択ロジック関数（例: `colorForAgent(isRunning: Bool) -> Color`）を BookmarkRow から抽出可能か検討
+  2. searchItem.agentDisplay の値に応じた expected color を検証
+- ViewInspector パッケージの導入を検討（オプション、コスト次第）
+- 手動確認チェックリスト:
+  - [x] running の AI エージェント行で ● が緑色
+  - [x] idle の AI エージェント行で ○ が赤色
+  - [x] planMode (⏸) の AI エージェント行で ⏸ が赤色（statusEmoji が ⏸ の場合は色のみ赤）
+  - [x] 通常の bookmark 行に色分け装飾がない
+
+## Note
+SwiftUI View 単体テストはコストが高いため、本 Process では「色選択ロジックの分離テスト」+「手動 UI 確認」のハイブリッド方針とする。ViewInspector 導入は別途判断。
 
 ---
 
 ## Red Phase: テスト作成と失敗確認
 
 - [x] ブリーフィング確認
-- [x] テストケースを作成（実装前に失敗確認）
-  - Process 2 の正規化ロジック未実装状態で Red 確認
-- [x] テストを実行して失敗することを確認
+- [x] 色選択ロジック関数を抽出（必要なら）
+- [x] running=green, !running=red のテストケース追加
+- [x] テスト実行 → 失敗確認
 
-Phase Complete
+✅ **Phase Complete**
 
 ---
 
 ## Green Phase: 最小実装と成功確認
 
 - [x] ブリーフィング確認
-- [x] Process 2 完了後に全テストが Green
-- [x] `swift test --filter YAMLStorage` で通過確認（テストファイル名に応じてフィルタ調整）
+- [x] Process 3 完了後にテスト実行
+- [x] 色選択ロジックテスト Green
+- [x] 手動 UI 確認 (4 観点) を完了
 
-Phase Complete
+✅ **Phase Complete**
 
 ---
 
 ## Refactor Phase: 品質改善
 
-- [x] yaml 文字列を定数化
-- [x] 境界値テスト（1, 2, 境界外）のマトリクスを table-driven に整理
+- [x] ViewInspector 導入の必要性を再評価
 - [x] テストが継続して成功することを確認
 
-Phase Complete
+✅ **Phase Complete**
 
 ---
 
 ## Dependencies
-- Requires: 2
+- Requires: 3
 - Blocks: 100
