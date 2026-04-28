@@ -156,6 +156,12 @@ public struct TmuxPane {
             " — \(URL(fileURLWithPath: currentPath).lastPathComponent)"
         return "\(terminalEmoji) \(statusEmoji) \(agentName)\(pathPart)"
     }
+
+    public var displayNameWithoutEmoji: String {
+        let pathPart = currentPath.isEmpty ? "" :
+            " — \(URL(fileURLWithPath: currentPath).lastPathComponent)"
+        return "\(terminalEmoji) \(agentName)\(pathPart)"
+    }
 }
 
 public struct TmuxProvider {
