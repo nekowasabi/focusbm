@@ -283,6 +283,22 @@ public struct BookmarkSearcher {
     }
 }
 
+// MARK: - AgentDisplay
+
+/// SearchItem の tmuxPane ケースにおけるエージェント表示情報
+/// Color を含まず Bool で状態を表現するため、App 層で Color マッピングする責務とする
+public struct AgentDisplay {
+    public let emoji: String
+    public let isRunning: Bool
+    public let nameWithoutEmoji: String
+
+    public init(emoji: String, isRunning: Bool, nameWithoutEmoji: String) {
+        self.emoji = emoji
+        self.isRunning = isRunning
+        self.nameWithoutEmoji = nameWithoutEmoji
+    }
+}
+
 // MARK: - SearchItem
 
 /// Bookmark（静的）と FloatingWindowEntry（動的）を統合する表示型
@@ -357,6 +373,22 @@ public enum SearchItem: Identifiable {
             return TmuxProvider.agentCommandToEmoji(p.command)
         default:
             return "🤖"
+        }
+    }
+
+    /// AI エージェントペイン（tmuxPane）の表示情報
+    public var agentDisplay: AgentDisplay? {
+        switch self {
+        case .tmuxPane(let pane):
+            let pathPart = pane.currentPath.isEmpty ? "" :
+                " — \(URL(fileURLWithPath: pane.currentPath).lastPathComponent)"
+            return AgentDisplay(
+                emoji: pane.statusEmoji,
+                isRunning: pane.agentStatus == .running,
+                nameWithoutEmoji: "\(pane.agentName)\(pathPart)"
+            )
+        case .bookmark, .floatingWindow, .aiProcess:
+            return nil
         }
     }
 
