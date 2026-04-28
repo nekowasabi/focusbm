@@ -84,6 +84,36 @@ import AppKit
     #expect(pane.displayName == "❓ ○ zsh")
 }
 
+// MARK: - TmuxPane.displayNameWithoutEmoji Tests
+
+@Test func test_displayNameWithoutEmoji_withTitle() {
+    let pane = TmuxPane(paneId: "%1", sessionName: "work", windowIndex: 2,
+                        windowName: "dev", command: "claude", title: "Claude Code", currentPath: "/tmp")
+    #expect(pane.displayNameWithoutEmoji == "❓ Claude Code — tmp")
+}
+
+@Test func test_displayNameWithoutEmoji_withoutTitle() {
+    let pane = TmuxPane(paneId: "%1", sessionName: "work", windowIndex: 0,
+                        windowName: "main", command: "claude", title: "", currentPath: "/tmp")
+    #expect(pane.displayNameWithoutEmoji == "❓ Claude Code — tmp")
+}
+
+@Test func test_displayNameWithoutEmoji_emptyPath() {
+    let pane = TmuxPane(paneId: "%6", sessionName: "work", windowIndex: 0,
+                        windowName: "main", command: "zsh", title: "", currentPath: "")
+    #expect(pane.displayNameWithoutEmoji == "❓ zsh")
+}
+
+@Test func test_displayNameWithoutEmoji_noStatusEmoji() {
+    let pane = TmuxPane(paneId: "%5", sessionName: "mySession", windowIndex: 3,
+                        windowName: "editor", command: "aider", title: "Aider", currentPath: "/projects")
+    // statusEmoji (○/●) が含まれていないことを確認
+    #expect(!pane.displayNameWithoutEmoji.contains("○"))
+    #expect(!pane.displayNameWithoutEmoji.contains("●"))
+    // 元の displayName には statusEmoji が含まれている
+    #expect(pane.displayName.contains("○"))
+}
+
 // MARK: - TmuxProvider.parseOutput Tests
 
 @Test func test_parseOutput_singlePane() throws {

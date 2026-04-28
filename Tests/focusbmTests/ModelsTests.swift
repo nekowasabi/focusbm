@@ -225,3 +225,55 @@ import Yams
     let item = SearchItem.tmuxPane(pane)
     #expect(item.agentEmoji == "📖")
 }
+
+// MARK: - SearchItem.agentDisplay Tests
+
+@Test func test_agentDisplay_tmuxPane_running() {
+    // Braille character ⠋ (U+280B) triggers .running in agentStatus detection
+    let pane = TmuxPane(paneId: "%1", sessionName: "main", windowIndex: 0,
+                        windowName: "dev", command: "claude", title: "\u{280B} Claude Code", currentPath: "/tmp")
+    let item = SearchItem.tmuxPane(pane)
+    let display = item.agentDisplay
+    #expect(display != nil)
+    #expect(display?.emoji == "●")
+    #expect(display?.isRunning == true)
+}
+
+@Test func test_agentDisplay_tmuxPane_idle() {
+    let pane = TmuxPane(paneId: "%2", sessionName: "work", windowIndex: 0,
+                        windowName: "dev", command: "claude", title: "Claude Code", currentPath: "/tmp")
+    let item = SearchItem.tmuxPane(pane)
+    let display = item.agentDisplay
+    #expect(display != nil)
+    #expect(display?.emoji == "○")
+    #expect(display?.isRunning == false)
+}
+
+@Test func test_agentDisplay_bookmark_nil() {
+    let bm = Bookmark(id: "test", appName: "Terminal", bundleIdPattern: "com.apple.Terminal",
+                      context: "work", state: .app(windowTitle: "zsh"),
+                      createdAt: "2024-01-01T00:00:00Z")
+    let item = SearchItem.bookmark(bm)
+    #expect(item.agentDisplay == nil)
+}
+
+@Test func test_agentDisplay_aiProcess_nil() {
+    let process = ProcessProvider.AIProcess(
+        pid: 1234, command: "/usr/local/bin/codex",
+        workingDirectory: "/tmp", terminalBundleId: nil,
+        terminalAppName: "Terminal", terminalEmoji: "💻",
+        title: "codex"
+    )
+    let item = SearchItem.aiProcess(process)
+    #expect(item.agentDisplay == nil)
+}
+
+@Test func test_agentDisplay_nameWithoutEmoji_containsAgentName() {
+    let pane = TmuxPane(paneId: "%3", sessionName: "main", windowIndex: 0,
+                        windowName: "dev", command: "claude", title: "Claude Code", currentPath: "/tmp")
+    let item = SearchItem.tmuxPane(pane)
+    let display = item.agentDisplay
+    #expect(display?.nameWithoutEmoji.contains("Claude Code") == true)
+    #expect(!(display?.nameWithoutEmoji.contains("○") ?? false))
+    #expect(!(display?.nameWithoutEmoji.contains("●") ?? false))
+}
