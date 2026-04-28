@@ -380,12 +380,10 @@ public enum SearchItem: Identifiable {
     public var agentDisplay: AgentDisplay? {
         switch self {
         case .tmuxPane(let pane):
-            let pathPart = pane.currentPath.isEmpty ? "" :
-                " — \(URL(fileURLWithPath: pane.currentPath).lastPathComponent)"
             return AgentDisplay(
                 emoji: pane.statusEmoji,
                 isRunning: pane.agentStatus == .running,
-                nameWithoutEmoji: "\(pane.agentName)\(pathPart)"
+                nameWithoutEmoji: pane.displayNameWithoutEmoji
             )
         case .bookmark, .floatingWindow, .aiProcess:
             return nil

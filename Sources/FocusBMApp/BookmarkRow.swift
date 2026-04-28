@@ -67,9 +67,16 @@ struct BookmarkRow: View {
             // Item info
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text(searchItem.displayName)
-                        .font(resolvedBodyFont)
-                        .fontWeight(isSelected ? .bold : .regular)
+                    if let agent = searchItem.agentDisplay {
+                        Text("\(agent.emoji) \(agent.nameWithoutEmoji)")
+                            .foregroundColor(agent.isRunning ? Color.green.opacity(0.7) : Color.red.opacity(0.7))
+                            .font(resolvedBodyFont)
+                            .fontWeight(isSelected ? .bold : .regular)
+                    } else {
+                        Text(searchItem.displayName)
+                            .font(resolvedBodyFont)
+                            .fontWeight(isSelected ? .bold : .regular)
+                    }
                     Spacer()
                 }
 
