@@ -52,6 +52,11 @@ class SearchPanel: NSPanel {
                 self.activateItem(target: target)
             }
         }
+
+        // Why: NSWindowDelegate を採用し resignKey() override は避けた。
+        //      理由: super.close() 経路で resignKey が発火し再入する可能性があるため、
+        //      delegate + isVisible ガードで一度きりのclose保証を行う
+        self.delegate = self
     }
 
     override var canBecomeKey: Bool { true }
@@ -185,5 +190,15 @@ class SearchPanel: NSPanel {
 
     deinit {
         stopLocalKeyMonitor()
+    }
+}
+
+// Why: windowDidResignKey で自動close。理由: ユーザーが他アプリ/ウィンドウへ切り替えた時点で
+//      絞り込みパネルの存在意義が失われるため。
+//      isVisible ガード: super.close() 中にも resignKey 通知が発火するため再入を防ぐ
+extension SearchPanel: NSWindowDelegate {
+    func windowDidResignKey(_ notification: Notification) {
+        guard isVisible else { return }
+        close()
     }
 }
