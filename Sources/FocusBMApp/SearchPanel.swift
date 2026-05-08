@@ -31,19 +31,20 @@ class SearchPanel: NSPanel {
         self.backgroundColor = .clear
         self.hasShadow = true
 
-        // Visual effect background
-        let visualEffect = NSVisualEffectView(frame: contentRect)
-        visualEffect.material = .hudWindow
-        visualEffect.state = .active
-        visualEffect.wantsLayer = true
-        visualEffect.layer?.cornerRadius = 12
+        // Why: NSVisualEffectView(.hudWindow) は背景ブラー透過によりテキスト視認性を下げるため、
+        //      不透明な単色 NSView に置換。Panel自体の isOpaque=false / backgroundColor=.clear は
+        //      角丸外側ピクセルを透過させるためのものであり、中身が単色なら視覚的には完全に不透明
+        let backgroundView = NSView(frame: contentRect)
+        backgroundView.wantsLayer = true
+        backgroundView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
+        backgroundView.layer?.cornerRadius = 12
 
         let hostingView = NSHostingView(rootView: SearchView(viewModel: viewModel, panel: self))
         hostingView.frame = contentRect
         hostingView.autoresizingMask = [.width, .height]
 
-        visualEffect.addSubview(hostingView)
-        self.contentView = visualEffect
+        backgroundView.addSubview(hostingView)
+        self.contentView = backgroundView
 
         // 候補が1件になったとき自動実行
         viewModel.onAutoExecute = { [weak self] in

@@ -358,6 +358,7 @@ focusbm now supports discovering and focusing tmux panes running AI agents.
 - Claude Code (`claude`)
 - Aider (`aider`)
 - Gemini (`gemini`)
+- Hermes (`hermes`)
 
 ### Status indicators
 

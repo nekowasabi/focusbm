@@ -69,9 +69,11 @@ struct BookmarkRow: View {
                 HStack {
                     if let agent = searchItem.agentDisplay {
                         Text("\(agent.emoji) \(agent.nameWithoutEmoji)")
-                            .foregroundColor(agent.isRunning ? Color.green.opacity(0.7) : Color.red.opacity(0.7))
+                            .foregroundColor(agent.isRunning
+                                ? Color(red: 0.30, green: 0.95, blue: 0.45)
+                                : Color(red: 1.00, green: 0.45, blue: 0.45))
                             .font(resolvedBodyFont)
-                            .fontWeight(isSelected ? .bold : .regular)
+                            .fontWeight(isSelected ? .bold : .semibold)
                     } else {
                         Text(searchItem.displayName)
                             .font(resolvedBodyFont)

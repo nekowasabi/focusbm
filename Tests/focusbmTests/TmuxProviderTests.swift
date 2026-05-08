@@ -46,6 +46,18 @@ import AppKit
     #expect(pane.isAIAgent == true)
 }
 
+@Test func test_isAIAgent_hermesCommand() {
+    let pane = TmuxPane(paneId: "%10", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "hermes", title: "", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+}
+
+@Test func test_isAIAgent_hermesInTitle() {
+    let pane = TmuxPane(paneId: "%11", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "node", title: "Hermes Agent", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+}
+
 @Test func test_isAIAgent_nonAICommand() {
     let pane = TmuxPane(paneId: "%8", sessionName: "main", windowIndex: 0,
                         windowName: "editor", command: "vim", title: "README.md", currentPath: "/tmp")
@@ -856,6 +868,10 @@ final class MockRunningApp: RunningAppProtocol {
     #expect(TmuxProvider.agentCommandToEmoji("aider") == "🤖")
 }
 
+@Test func test_agentCommandToEmoji_hermes() {
+    #expect(TmuxProvider.agentCommandToEmoji("hermes") == "📨")
+}
+
 @Test func test_agentCommandToEmoji_unknown() {
     #expect(TmuxProvider.agentCommandToEmoji("unknown") == "🤖")
 }
@@ -875,6 +891,14 @@ final class MockRunningApp: RunningAppProtocol {
                         windowName: "dev", command: "node",
                         title: "", currentPath: "/tmp")
     pane.resolvedNodeCommand = "copilot"
+    #expect(pane.isAIAgent == true)
+}
+
+@Test func test_isAIAgent_nodeCommand_withResolvedHermes() {
+    var pane = TmuxPane(paneId: "%27", sessionName: "main", windowIndex: 0,
+                        windowName: "dev", command: "node",
+                        title: "", currentPath: "/tmp")
+    pane.resolvedNodeCommand = "hermes"
     #expect(pane.isAIAgent == true)
 }
 
@@ -898,6 +922,19 @@ final class MockRunningApp: RunningAppProtocol {
                         windowName: "w", command: "node", title: "", currentPath: "")
     pane.resolvedNodeCommand = "copilot"
     #expect(pane.agentName == "Copilot")
+}
+
+@Test func test_agentName_hermesCommand() {
+    let pane = TmuxPane(paneId: "%28", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "hermes", title: "", currentPath: "")
+    #expect(pane.agentName == "Hermes")
+}
+
+@Test func test_agentName_nodeCommand_resolvedHermes() {
+    var pane = TmuxPane(paneId: "%29", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "node", title: "", currentPath: "")
+    pane.resolvedNodeCommand = "hermes"
+    #expect(pane.agentName == "Hermes")
 }
 
 @Test func test_panePid_defaultNil() {

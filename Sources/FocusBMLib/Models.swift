@@ -324,7 +324,8 @@ public enum SearchItem: Identifiable {
         case .tmuxPane(let p): return p.displayName
         case .aiProcess(let p):
             let dir = URL(fileURLWithPath: p.workingDirectory).lastPathComponent
-            return "\(p.terminalEmoji) \(p.command) — \(dir)"
+            let name = p.command == "hermes" ? "Hermes" : p.command
+            return "\(p.terminalEmoji) \(name) — \(dir)"
         }
     }
 

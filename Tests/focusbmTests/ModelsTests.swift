@@ -210,11 +210,27 @@ import Yams
     #expect(item.agentEmoji == "🤖")
 }
 
+@Test func test_agentEmoji_aiProcess_hermes() {
+    let process = ProcessProvider.AIProcess(
+        pid: 4, command: "hermes", workingDirectory: "/tmp",
+        terminalBundleId: nil, terminalAppName: nil, terminalEmoji: "👻", title: ""
+    )
+    let item = SearchItem.aiProcess(process)
+    #expect(item.agentEmoji == "📨")
+}
+
 @Test func test_agentEmoji_tmuxPane_copilot() {
     let pane = TmuxPane(paneId: "%20", sessionName: "s", windowIndex: 0,
                         windowName: "w", command: "copilot", title: "", currentPath: "/tmp")
     let item = SearchItem.tmuxPane(pane)
     #expect(item.agentEmoji == "✈️")
+}
+
+@Test func test_agentEmoji_tmuxPane_hermes() {
+    let pane = TmuxPane(paneId: "%22", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "hermes", title: "", currentPath: "/tmp")
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.agentEmoji == "📨")
 }
 
 @Test func test_agentEmoji_tmuxPane_codex_via_resolvedNodeCommand() {

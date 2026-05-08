@@ -341,6 +341,19 @@ Cmd+Tab に表示されない LSUIElement アプリの floating window をパネ
 
 ---
 
+## tmux 連携
+
+focusbm は tmux ペイン内で実行中の AI エージェントを検出し、検索パネルからフォーカスできます。
+
+### サポート対象 AI エージェント
+
+- Claude Code (`claude`)
+- Aider (`aider`)
+- Gemini (`gemini`)
+- Hermes (`hermes`)
+
+---
+
 ## プロジェクト構成
 
 ```

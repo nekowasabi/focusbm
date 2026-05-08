@@ -105,6 +105,20 @@ import AppKit
     #expect(item.displayName == "🍎 claude — myproject")
 }
 
+@Test func test_searchItem_aiProcess_displayName_hermesUsesDisplayName() {
+    let proc = ProcessProvider.AIProcess(
+        pid: 2,
+        command: "hermes",
+        workingDirectory: "/Users/user/messages",
+        terminalBundleId: "com.googlecode.iterm2",
+        terminalAppName: "iTerm2",
+        terminalEmoji: "📨",
+        title: "hermes (pid: 2)"
+    )
+    let item = SearchItem.aiProcess(proc)
+    #expect(item.displayName == "📨 Hermes — messages")
+}
+
 @Test func test_searchItem_aiProcess_context() {
     let proc = ProcessProvider.AIProcess(
         pid: 1,
@@ -169,6 +183,7 @@ import AppKit
     #expect(commands.contains("aider"))
     #expect(commands.contains("gemini"))
     #expect(commands.contains("copilot"))
+    #expect(commands.contains("hermes"))
 }
 
 // MARK: - Daemon Process Filtering Tests

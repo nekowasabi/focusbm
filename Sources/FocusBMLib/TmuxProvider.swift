@@ -61,7 +61,7 @@ public struct TmuxPane {
         }
         // コマンド名で直接判定できるエージェント（終了すればコマンドがシェルに戻る）
         if command == "claude" || command == "aider" || command == "gemini" ||
-           command == "copilot" || command == "agent" {
+           command == "copilot" || command == "agent" || command == "hermes" {
             return true
         }
         // タイトル含有で判定する場合、コマンドがシェルなら終了済みと判断
@@ -71,6 +71,7 @@ public struct TmuxPane {
                t.contains("gemini") ||
                t.contains("codex") ||
                t.contains("copilot") ||
+               t.contains("hermes") ||
                t.contains("openai") ||
                t.contains("ai agent")
     }
@@ -87,7 +88,7 @@ public struct TmuxPane {
     var aiAgentReason: String {
         let t = title.lowercased()
         if command == "claude" || command == "aider" || command == "gemini" ||
-           command == "copilot" || command == "agent" {
+           command == "copilot" || command == "agent" || command == "hermes" {
             return "command_match(\(command))"
         }
         if isShellCommand { return "ghost_shell" }
@@ -96,6 +97,7 @@ public struct TmuxPane {
         if t.contains("gemini")  { return "title_match(gemini)" }
         if t.contains("codex")   { return "title_match(codex)" }
         if t.contains("copilot") { return "title_match(copilot)" }
+        if t.contains("hermes")  { return "title_match(hermes)" }
         if t.contains("openai")  { return "title_match(openai)" }
         if t.contains("ai agent") { return "title_match(ai agent)" }
         return "not_ai"
@@ -130,6 +132,7 @@ public struct TmuxPane {
         case "aider":   return "Aider"
         case "gemini":  return "Gemini"
         case "copilot": return "Copilot"
+        case "hermes":  return "Hermes"
         case "agent":   return "Agent"
         default:
             // Why: Node.js ランタイム経由で起動されたAIツールの名前を
@@ -141,12 +144,14 @@ public struct TmuxPane {
                 case "claude": return "Claude Code"
                 case "aider": return "aider"
                 case "gemini": return "Gemini"
+                case "hermes": return "Hermes"
                 default: return resolved.capitalized
                 }
             }
             if t.contains("claude code") { return "Claude Code" }
             if t.contains("codex")   { return "Codex" }
             if t.contains("copilot") { return "Copilot" }
+            if t.contains("hermes")  { return "Hermes" }
             return command
         }
     }
@@ -188,6 +193,7 @@ public struct TmuxProvider {
         switch command {
         case "copilot": return "✈️"
         case "codex":   return "📖"
+        case "hermes":  return "📨"
         default:        return "🤖"
         }
     }
