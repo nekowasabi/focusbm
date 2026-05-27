@@ -214,4 +214,17 @@ import AppKit
 
 @Test func test_daemonSubcommands_containsAppServer() {
     #expect(ProcessProvider.daemonSubcommands.contains("app-server"))
+    #expect(ProcessProvider.daemonSubcommands.contains("mcp-server"))
+}
+
+@Test func test_isDaemonCommandLine_mcpServer_returnsTrue() {
+    let result = ProcessProvider.isDaemonCommandLine("node /opt/homebrew/bin/codex mcp-server")
+    #expect(result == true)
+}
+
+@Test func test_isDaemonCommandLine_appServerFullPath_returnsTrue() {
+    let result = ProcessProvider.isDaemonCommandLine(
+        "/Applications/Codex.app/Contents/Resources/codex app-server --analytics-default-enabled"
+    )
+    #expect(result == true)
 }

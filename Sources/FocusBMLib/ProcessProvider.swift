@@ -40,9 +40,10 @@ public struct ProcessProvider {
     // MARK: - Daemon Process Filtering
 
     /// デーモンとして動作するサブコマンド一覧
-    // Why: "app-server" のようなサブコマンドはユーザーインタラクションがないデーモンモードであり、
-    //      フォーカス切替の対象外とする。定数化することでテスト・本実装を同期させる。
-    static let daemonSubcommands = ["app-server"]
+    // Why: "app-server" / "mcp-server" のようなサブコマンドはユーザーインタラクションがない
+    //      デーモンモード（他ツールのMCPバックエンド等）であり、フォーカス切替の対象外とする。
+    //      定数化することでテスト・本実装を同期させる。
+    static let daemonSubcommands = ["app-server", "mcp-server"]
 
     /// コマンドライン文字列がデーモンプロセスかどうかを判定する
     /// - Parameter commandLine: ps コマンドで取得したフルコマンドライン文字列
