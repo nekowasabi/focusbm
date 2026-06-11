@@ -2,6 +2,18 @@
 
 プロジェクトで得た教訓の見出しインデックス。詳細は `.serena/memories/` および個別 `stigmergy/*.md` を参照。
 
+## 2026-06-11 ミッション（リファクタリング計画フェーズ: 20260611-120143-29486-001）
+ミッション: 全体リファクタリング計画（PLAN.md策定、Phase0先行調査、310テスト全green確認）
+詳細ファイル: `stigmergy/lessons-20260611-refactor-planning.md`
+
+| ID | 見出し | 重要度 | 保存先 |
+|----|--------|--------|--------|
+| L-A | 計画書の定量数値は必ず grep 実測で確定せよ | high | `.serena/memories/focusbm-refactor-planning-lessons` |
+| L-B | 同一制約値は define once, reference many（Markdown でも） | medium | `.serena/memories/focusbm-refactor-planning-lessons` |
+| L-C | 双方向循環依存は「逆方向依存」と区別して記録せよ | high | `.serena/memories/focusbm-refactor-planning-lessons` |
+| L-D | I/O 呼出点はファイル数でなく呼出サイト数で計上せよ | medium | `.serena/memories/focusbm-refactor-planning-lessons` |
+| L-E | テストベースラインは実装者以外が独立実行して確定せよ | high | `.serena/memories/focusbm-refactor-planning-lessons` |
+
 ## 2026-04-22 ミッション（process-04〜12）
 ミッションログ: `stigmergy/mission-2026-04-22-process-04-12.md`
 
