@@ -172,6 +172,56 @@ import AppKit
     #expect(label == nil)
 }
 
+/// Control 単独押下で "g" キーを押すとキャレット記法ラベル "^g" を返すこと
+@Test func alphabetShortcutLabel_withControl_returnsCaretLabel() {
+    let gKeyCode = UInt16(AppDelegate.keyCodeForCharacter("g"))
+    let label = SearchPanel.alphabetShortcutLabel(keyCode: gKeyCode, flags: .control)
+    #expect(label == "^g")
+}
+
+/// Control+Shift は今回非対応（Ctrl 単独のみ）のため nil
+@Test func alphabetShortcutLabel_withControlShift_returnsNil() {
+    let gKeyCode = UInt16(AppDelegate.keyCodeForCharacter("g"))
+    let label = SearchPanel.alphabetShortcutLabel(keyCode: gKeyCode, flags: [.control, .shift])
+    #expect(label == nil)
+}
+
+/// Control+Command も非対応のため nil
+@Test func alphabetShortcutLabel_withControlCommand_returnsNil() {
+    let gKeyCode = UInt16(AppDelegate.keyCodeForCharacter("g"))
+    let label = SearchPanel.alphabetShortcutLabel(keyCode: gKeyCode, flags: [.control, .command])
+    #expect(label == nil)
+}
+
+/// shortcutAssignments が Ctrl 記法 "^g" と単押し "g" を別ラベルとして共存させること
+@Test func shortcutAssignments_distinguishesCtrlAndBare() {
+    let vm = SearchViewModel()
+    var bare = Bookmark(
+        id: "chrome",
+        appName: "Google Chrome",
+        bundleIdPattern: nil,
+        context: "",
+        state: .app(windowTitle: ""),
+        createdAt: "2024-01-01T00:00:00Z"
+    )
+    bare.shortcut = "g"
+    var ctrl = Bookmark(
+        id: "gmail",
+        appName: "Gmail",
+        bundleIdPattern: nil,
+        context: "",
+        state: .app(windowTitle: ""),
+        createdAt: "2024-01-01T00:00:00Z"
+    )
+    ctrl.shortcut = "^g"
+    vm.bookmarks = [bare, ctrl]
+    vm.query = ""
+    vm.updateItems()
+
+    #expect(vm.shortcutBarItems.first(where: { $0.label == "g" })?.item.id == "chrome")
+    #expect(vm.shortcutBarItems.first(where: { $0.label == "^g" })?.item.id == "gmail")
+}
+
 /// shortcutAssignments が大文字 "G" と小文字 "g" を別ラベルとして共存させること
 @Test func shortcutAssignments_distinguishesUpperAndLowerCase() {
     let vm = SearchViewModel()

@@ -111,11 +111,18 @@ class SearchPanel: NSPanel {
     /// Why: keyCode は物理キーのため大小文字を区別できない（"g" と Shift+"G" は同一 keyCode）。
     ///      Shift 修飾の有無で大文字へ変換することで、YAML の shortcut: "g" / "G" を別ラベルとして
     ///      区別可能にする。判定ロジックを純粋関数に切り出し単体テスト可能にする狙いもある。
-    /// - Returns: アルファベットキーかつ Shift/Command 以外の修飾がない場合のみラベル。
-    ///            Shift 押下時は大文字、未押下時は小文字。対象外なら nil。
+    /// - Returns: アルファベットキーの場合のみラベル。
+    ///            Control 単独押下時はキャレット記法 "^g"、Shift 押下時は大文字、未押下時は小文字。対象外なら nil。
     static func alphabetShortcutLabel(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> String? {
         guard let baseLetter = alphabetKeyCodes[keyCode] else { return nil }
         let masked = flags.intersection(.deviceIndependentFlagsMask)
+        // Why: Control 単独で Ctrl+アルファベット → "^g"（キャレット記法）。
+        //      Shift/Command/Option との併用は今回非対応（Ctrl 単独のみ要件）のため、
+        //      control 以外が混じる場合は nil。YAML 側も shortcut: "^g" と表記する。
+        if masked.contains(.control) {
+            guard masked.subtracting(.control).isEmpty else { return nil }
+            return "^" + baseLetter
+        }
         // Option/Control 等が混じる場合は対象外（既存挙動: bare または Command のみを許容し、Shift を追加）
         guard masked.subtracting([.shift, .command]).isEmpty else { return nil }
         return masked.contains(.shift) ? baseLetter.uppercased() : baseLetter

@@ -53,13 +53,19 @@ struct ShortcutBadge: View {
         return CGFloat(base * 1.4)
     }
 
+    // Why: "^g"（Ctrl 記法）は ⌘ を付けず ⌃g と表示する。directNumberKeys の ⌘ 分岐対象外。
+    private var displayLabel: String {
+        if label.hasPrefix("^") { return "⌃" + label.dropFirst() }
+        return directNumberKeys ? label : "⌘\(label)"
+    }
+
     var body: some View {
         VStack(spacing: 2) {
             Image(nsImage: AppIconProvider.shared.icon(forAppName: item.appName))
                 .resizable()
                 .frame(width: iconSize, height: iconSize)
                 .accessibilityLabel(item.displayName)
-            Text(directNumberKeys ? label : "⌘\(label)")
+            Text(displayLabel)
                 .font(resolvedLabelFont)
                 .foregroundColor(.secondary)
         }
@@ -67,6 +73,6 @@ struct ShortcutBadge: View {
         .padding(.vertical, 4)
         .background(Color.accentColor.opacity(0.08))
         .cornerRadius(6)
-        .accessibilityLabel("\(item.displayName) shortcut \(label)")
+        .accessibilityLabel("\(item.displayName) shortcut \(displayLabel)")
     }
 }
