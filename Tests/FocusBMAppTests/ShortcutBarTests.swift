@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import AppKit
 @testable import FocusBMApp
 @testable import FocusBMLib
 
@@ -126,6 +127,79 @@ import Foundation
 
     // selectedIndex が変更されていない（shortcutBarItems はメインリスト外なので selectedIndex をバイパス）
     #expect(vm.selectedIndex == initialIndex)
+}
+
+// MARK: - 大文字/小文字ショートカット区別テスト（alphabetShortcutLabel）
+
+/// "g" キー（keyCode=5）を Shift なしで押すと小文字ラベル "g" を返すこと
+@Test func alphabetShortcutLabel_bareKey_returnsLowercase() {
+    let gKeyCode = UInt16(AppDelegate.keyCodeForCharacter("g"))  // ANSI: 5
+    let label = SearchPanel.alphabetShortcutLabel(keyCode: gKeyCode, flags: [])
+    #expect(label == "g")
+}
+
+/// "g" キーを Shift 押下で押すと大文字ラベル "G" を返すこと（大小区別の核心）
+@Test func alphabetShortcutLabel_withShift_returnsUppercase() {
+    let gKeyCode = UInt16(AppDelegate.keyCodeForCharacter("g"))
+    let label = SearchPanel.alphabetShortcutLabel(keyCode: gKeyCode, flags: .shift)
+    #expect(label == "G")
+}
+
+/// Command のみ押下では小文字ラベル（Cmd+g は既存挙動を維持）
+@Test func alphabetShortcutLabel_withCommand_returnsLowercase() {
+    let gKeyCode = UInt16(AppDelegate.keyCodeForCharacter("g"))
+    let label = SearchPanel.alphabetShortcutLabel(keyCode: gKeyCode, flags: .command)
+    #expect(label == "g")
+}
+
+/// Command+Shift 併用では大文字ラベル
+@Test func alphabetShortcutLabel_withCommandShift_returnsUppercase() {
+    let gKeyCode = UInt16(AppDelegate.keyCodeForCharacter("g"))
+    let label = SearchPanel.alphabetShortcutLabel(keyCode: gKeyCode, flags: [.command, .shift])
+    #expect(label == "G")
+}
+
+/// Option など対象外修飾キーが混じる場合は nil（ショートカット非発動）
+@Test func alphabetShortcutLabel_withOption_returnsNil() {
+    let gKeyCode = UInt16(AppDelegate.keyCodeForCharacter("g"))
+    let label = SearchPanel.alphabetShortcutLabel(keyCode: gKeyCode, flags: .option)
+    #expect(label == nil)
+}
+
+/// アルファベット以外の keyCode（矢印キー等）は nil
+@Test func alphabetShortcutLabel_nonAlphabetKey_returnsNil() {
+    let label = SearchPanel.alphabetShortcutLabel(keyCode: 126, flags: [])  // 126 = Up arrow
+    #expect(label == nil)
+}
+
+/// shortcutAssignments が大文字 "G" と小文字 "g" を別ラベルとして共存させること
+@Test func shortcutAssignments_distinguishesUpperAndLowerCase() {
+    let vm = SearchViewModel()
+    var lower = Bookmark(
+        id: "chrome",
+        appName: "Google Chrome",
+        bundleIdPattern: nil,
+        context: "",
+        state: .app(windowTitle: ""),
+        createdAt: "2024-01-01T00:00:00Z"
+    )
+    lower.shortcut = "g"
+    var upper = Bookmark(
+        id: "gmail",
+        appName: "Gmail",
+        bundleIdPattern: nil,
+        context: "",
+        state: .app(windowTitle: ""),
+        createdAt: "2024-01-01T00:00:00Z"
+    )
+    upper.shortcut = "G"
+    vm.bookmarks = [lower, upper]
+    vm.query = ""
+    vm.updateItems()
+
+    // "g" と "G" が両方ともショートカットバーに別ラベルで存在する
+    #expect(vm.shortcutBarItems.first(where: { $0.label == "g" })?.item.id == "chrome")
+    #expect(vm.shortcutBarItems.first(where: { $0.label == "G" })?.item.id == "gmail")
 }
 
 // MARK: - P5: ViewModel レベルショートカットバー表示条件テスト

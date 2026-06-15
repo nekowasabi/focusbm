@@ -107,6 +107,20 @@ class SearchPanel: NSPanel {
         return result
     }()
 
+    /// keyCode と修飾キーからアルファベットショートカットのラベルを解決する。
+    /// Why: keyCode は物理キーのため大小文字を区別できない（"g" と Shift+"G" は同一 keyCode）。
+    ///      Shift 修飾の有無で大文字へ変換することで、YAML の shortcut: "g" / "G" を別ラベルとして
+    ///      区別可能にする。判定ロジックを純粋関数に切り出し単体テスト可能にする狙いもある。
+    /// - Returns: アルファベットキーかつ Shift/Command 以外の修飾がない場合のみラベル。
+    ///            Shift 押下時は大文字、未押下時は小文字。対象外なら nil。
+    static func alphabetShortcutLabel(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> String? {
+        guard let baseLetter = alphabetKeyCodes[keyCode] else { return nil }
+        let masked = flags.intersection(.deviceIndependentFlagsMask)
+        // Option/Control 等が混じる場合は対象外（既存挙動: bare または Command のみを許容し、Shift を追加）
+        guard masked.subtracting([.shift, .command]).isEmpty else { return nil }
+        return masked.contains(.shift) ? baseLetter.uppercased() : baseLetter
+    }
+
     // Why: SearchPanel に配置。理由: panel.close() が必要なためPanel層のメソッドが適切
     // Why: target を受け取る設計。理由: restoreSelected() は既に ActivationTarget? を返すため変換不要
     private func activateItem(target: ActivationTarget) {
@@ -141,10 +155,9 @@ class SearchPanel: NSPanel {
             // アルファベットショートカット: query が空かつ shortcutBarItems に登録済みキーで発動
             // Why: selectedIndex をバイパス。理由: shortcutBarItems はメインリスト外のためインデックスが対応しない
             // ANSI layout only - see alphabetKeyCodes
-            if let label = Self.alphabetKeyCodes[event.keyCode] {
-                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-                let isBareOrCmd = flags.isEmpty || flags == .command
-                if isBareOrCmd, self.viewModel.query.isEmpty,
+            // Shift 押下で大文字ラベルを解決し、YAML の "g"/"G" を大小区別する（alphabetShortcutLabel 参照）
+            if let label = Self.alphabetShortcutLabel(keyCode: event.keyCode, flags: event.modifierFlags) {
+                if self.viewModel.query.isEmpty,
                    let pair = self.viewModel.shortcutBarItems.first(where: { $0.label == label }) {
                     if let target = self.viewModel.activationTarget(for: pair.item) {
                         self.activateItem(target: target)
