@@ -137,10 +137,15 @@ public struct ProcessProvider {
     // MARK: - Private Helpers
 
     /// pgrep でコマンド名からPIDを取得
+    static func processNamePattern(_ name: String) -> String {
+        let escapedName = NSRegularExpression.escapedPattern(for: name)
+        return "(^|/)" + escapedName + "([[:space:]]|$)"
+    }
+
     static func findProcessesByName(_ name: String) -> [pid_t] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        process.arguments = ["-f", "bin/" + name + "([[:space:]]|$)"]
+        process.arguments = ["-f", processNamePattern(name)]
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = Pipe()

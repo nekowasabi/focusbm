@@ -95,11 +95,14 @@ class SearchViewModel: ObservableObject {
     var currentAppSettings: AppSettings? { appSettings }
     var currentShowTmuxAgents: Bool { showTmuxAgents }
 
-    /// バックグラウンドサービスからキャッシュを更新（パネル非表示時のプリウォーム用）
-    /// updateItems() は呼ばない — パネル表示時に load() → updateItems() で反映される
+    /// バックグラウンドサービスからキャッシュを更新（パネル非表示時はプリウォーム、表示中は即時反映）
     func applyBackgroundCache(tmuxPanes: [TmuxPane], aiProcesses: [ProcessProvider.AIProcess]) {
         tmuxPaneCache = tmuxPanes
         aiProcessCache = aiProcesses
+
+        if isActive {
+            updateItems()
+        }
     }
 
     /// floatingWindows 型ブックマークの enumerate() をパネル表示時に1回だけ実行してキャッシュ

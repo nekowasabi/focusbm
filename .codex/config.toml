@@ -1,0 +1,12 @@
+[mcp_servers.serena]
+args = [
+    "--from",
+    "git+https://github.com/oraios/serena",
+    "serena",
+    "start-mcp-server",
+    "--context",
+    "claude-code",
+    "--project",
+    "/Users/ttakeda/repos/focusbm",
+]
+command = "uvx"

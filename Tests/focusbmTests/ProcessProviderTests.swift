@@ -46,6 +46,14 @@ import AppKit
     #expect(pids.isEmpty)
 }
 
+@Test func test_processNamePattern_matchesCommandBasename() {
+    #expect(ProcessProvider.processNamePattern("codex") == "(^|/)codex([[:space:]]|$)")
+}
+
+@Test func test_processNamePattern_escapesRegexCharacters() {
+    #expect(ProcessProvider.processNamePattern("foo.bar") == "(^|/)foo\\.bar([[:space:]]|$)")
+}
+
 // MARK: - getTTYForProcess テスト（存在しないPID）
 
 @Test func test_getTTYForProcess_invalidPid_returnsNil() {

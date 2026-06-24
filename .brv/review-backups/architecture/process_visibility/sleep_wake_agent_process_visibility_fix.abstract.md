@@ -1,0 +1,1 @@
+FocusBM now refreshes immediately on wake, suppresses background cache updates while inactive, and uses basename-aware process matching with daemon filtering to improve AI agent visibility.

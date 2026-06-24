@@ -1,0 +1,37 @@
+{
+  "active_context": [
+    {
+      "order": 3,
+      "path": "_index.md",
+      "tokens": 483,
+      "type": "summary"
+    },
+    {
+      "order": 2,
+      "path": "architecture/_index.md",
+      "tokens": 486,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "architecture/process_visibility/_index.md",
+      "tokens": 569,
+      "type": "summary"
+    },
+    {
+      "importance": 50,
+      "path": "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md",
+      "tokens": 1652,
+      "type": "context"
+    }
+  ],
+  "generated_at": "2026-06-24T02:31:14.650Z",
+  "lane_tokens": {
+    "contexts": 1652,
+    "stubs": 0,
+    "summaries": 1538
+  },
+  "source_fingerprint": "2ac9c0e8165d8988414fbcd4544facfee6039e1d74e81c737693d24041c4e4a2",
+  "total_tokens": 3190,
+  "version": 1
+}

@@ -8,21 +8,19 @@ class BackgroundRefreshService {
     private var timer: DispatchSourceTimer?
     private weak var viewModel: SearchViewModel?
     private var isSleeping = false
-    private var sleepObserver: NSObjectProtocol?
-    private var wakeObserver: NSObjectProtocol?
+    private var powerObservers: [NSObjectProtocol] = []
     private let interval: TimeInterval
 
     init(viewModel: SearchViewModel, interval: TimeInterval = 15) {
         self.viewModel = viewModel
         self.interval = interval
-        observeScreenSleep()
+        observePowerState()
         start()
     }
 
     deinit {
         stop()
-        if let obs = sleepObserver { NSWorkspace.shared.notificationCenter.removeObserver(obs) }
-        if let obs = wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(obs) }
+        powerObservers.forEach { NSWorkspace.shared.notificationCenter.removeObserver($0) }
     }
 
     func start() {
@@ -58,18 +56,43 @@ class BackgroundRefreshService {
         }
     }
 
-    private func observeScreenSleep() {
-        sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.screensDidSleepNotification,
-            object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.isSleeping = true
+    private func refreshAsync() {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            self?.refresh()
         }
-        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.screensDidWakeNotification,
-            object: nil, queue: .main
-        ) { [weak self] _ in
-            self?.isSleeping = false
+    }
+
+    private func observePowerState() {
+        let sleepNotifications: [Notification.Name] = [
+            NSWorkspace.screensDidSleepNotification,
+            NSWorkspace.willSleepNotification
+        ]
+        let wakeNotifications: [Notification.Name] = [
+            NSWorkspace.screensDidWakeNotification,
+            NSWorkspace.didWakeNotification
+        ]
+
+        for notification in sleepNotifications {
+            let observer = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: notification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.isSleeping = true
+            }
+            powerObservers.append(observer)
+        }
+
+        for notification in wakeNotifications {
+            let observer = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: notification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.isSleeping = false
+                self?.refreshAsync()
+            }
+            powerObservers.append(observer)
         }
     }
 }
