@@ -79,6 +79,7 @@ class SearchPanel: NSPanel {
     override func close() {
         let appToRestore = previousApp
         previousApp = nil  // 先にnilクリア（再入防止）
+        viewModel.deactivatePanel()
         stopLocalKeyMonitor()
         super.close()
         // Why: 同期activate()はsuper.close()直後のAppKitイベントループと干渉しフリーズする。

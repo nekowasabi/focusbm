@@ -50,6 +50,10 @@ private func makeAIProcess(pid: Int32) -> ProcessProvider.AIProcess {
     )
 }
 
+private final class AutoExecuteProbe {
+    var didFire = false
+}
+
 // MARK: - query.isEmpty ordering tests
 
 /// query.isEmpty 時: lowPriority ブックマークは tmuxPane より後ろに来ること
@@ -696,4 +700,49 @@ private func makeAIProcess(pid: Int32) -> ProcessProvider.AIProcess {
         #expect(index >= 0 && index < vm.mainListAssignments.count,
                 "All digitToIndex values must be within mainListAssignments bounds")
     }
+}
+
+// MARK: - autoExecute regression tests
+
+/// バックグラウンド更新で候補が1件になっても、ユーザー操作なしに自動実行しないこと。
+@Test func test_applyBackgroundCache_doesNotAutoExecuteSingleResult() async throws {
+    let vm = SearchViewModel()
+    vm.appSettings = AppSettings(autoExecuteOnSingleResult: true, autoExecuteDelay: 0.01)
+    vm.isActive = true
+    vm.query = "claude"
+
+    let probe = AutoExecuteProbe()
+    vm.onAutoExecute = {
+        probe.didFire = true
+    }
+
+    vm.applyBackgroundCache(tmuxPanes: [makeTmuxPane(id: "%auto")], aiProcesses: [])
+
+    #expect(vm.searchItems.count == 1, "表示中パネルのリスト更新自体は維持する")
+    try await Task.sleep(nanoseconds: 300_000_000)
+    #expect(probe.didFire == false, "バックグラウンド更新由来の候補1件化では自動実行しない")
+}
+
+/// パネル非アクティブ化時に isActive と自動実行予約が解除されること。
+@Test func test_deactivatePanel_cancelsPendingAutoExecute() async throws {
+    let vm = SearchViewModel()
+    vm.appSettings = AppSettings(autoExecuteOnSingleResult: true, autoExecuteDelay: 0.01)
+    vm.bookmarks = [
+        makeBookmark(name: "claude-target", appName: "Google Chrome"),
+    ]
+
+    let probe = AutoExecuteProbe()
+    vm.onAutoExecute = {
+        probe.didFire = true
+    }
+
+    vm.query = "claude"
+    #expect(vm.searchItems.count == 1)
+
+    vm.isActive = true
+    vm.deactivatePanel()
+
+    #expect(vm.isActive == false)
+    try await Task.sleep(nanoseconds: 300_000_000)
+    #expect(probe.didFire == false, "close/deactivate 後に予約済み自動実行が残らない")
 }

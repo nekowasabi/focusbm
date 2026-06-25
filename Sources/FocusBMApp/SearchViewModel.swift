@@ -86,7 +86,9 @@ class SearchViewModel: ObservableObject {
                 self.floatingWindowCache = windowCache
                 self.tmuxPaneCache = tmuxPanes
                 self.aiProcessCache = aiProcesses
-                self.updateItems()
+                // Why: 非同期更新はユーザー入力そのものではないため、
+                //      autoExecuteOnSingleResult の副作用（外部アプリ activate）を発火させない。
+                self.updateItems(allowAutoExecute: false)
             }
         }
     }
@@ -101,8 +103,20 @@ class SearchViewModel: ObservableObject {
         aiProcessCache = aiProcesses
 
         if isActive {
-            updateItems()
+            // Why: タイマー/復帰通知由来のバックグラウンド更新で候補が1件になっても、
+            //      ユーザー操作なしに外部アプリへフォーカス移動させない。
+            updateItems(allowAutoExecute: false)
         }
+    }
+
+    /// パネル非アクティブ化時の状態リセット。
+    /// Why: isActive が true のまま残ると、バックグラウンド更新が表示中扱いになり
+    ///      updateItems 経由の自動実行予約が残留/再発火し得るため。
+    func deactivatePanel() {
+        isActive = false
+        autoExecuteWorkItem?.cancel()
+        autoExecuteWorkItem = nil
+        isAutoExecuteHighlighted = false
     }
 
     /// floatingWindows 型ブックマークの enumerate() をパネル表示時に1回だけ実行してキャッシュ
@@ -135,7 +149,7 @@ class SearchViewModel: ObservableObject {
         aiProcessCache = ProcessProvider.listNonTmuxAIProcesses()
     }
 
-    func updateItems() {
+    func updateItems(allowAutoExecute: Bool = true) {
         var items: [SearchItem] = []
 
         if query.isEmpty {
@@ -200,7 +214,8 @@ class SearchViewModel: ObservableObject {
         autoExecuteWorkItem?.cancel()
         autoExecuteWorkItem = nil
         isAutoExecuteHighlighted = false
-        if searchItems.count == 1,
+        if allowAutoExecute,
+           searchItems.count == 1,
            !query.isEmpty,
            appSettings?.autoExecuteOnSingleResult == true {
             let delay = appSettings?.autoExecuteDelay ?? 0.3
