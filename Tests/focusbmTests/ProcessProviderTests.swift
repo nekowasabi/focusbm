@@ -196,10 +196,6 @@ import AppKit
 
 // MARK: - Daemon Process Filtering Tests
 
-// Why: Red Phase — isDaemonCommandLine は常に false を返すスタブのため、
-//      test_isDaemonCommandLine_appServer_returnsTrue は意図的に失敗する。
-//      Green Phase で実装が完成すると全テストがパスする。
-
 @Test func test_isDaemonCommandLine_appServer_returnsTrue() {
     let result = ProcessProvider.isDaemonCommandLine("node /opt/homebrew/bin/codex app-server")
     #expect(result == true)
@@ -223,10 +219,18 @@ import AppKit
 @Test func test_daemonSubcommands_containsAppServer() {
     #expect(ProcessProvider.daemonSubcommands.contains("app-server"))
     #expect(ProcessProvider.daemonSubcommands.contains("mcp-server"))
+    #expect(ProcessProvider.daemonSubcommands.contains("--chrome-native-host"))
 }
 
 @Test func test_isDaemonCommandLine_mcpServer_returnsTrue() {
     let result = ProcessProvider.isDaemonCommandLine("node /opt/homebrew/bin/codex mcp-server")
+    #expect(result == true)
+}
+
+@Test func test_isDaemonCommandLine_chromeNativeHost_returnsTrue() {
+    let result = ProcessProvider.isDaemonCommandLine(
+        "/opt/homebrew/Caskroom/claude-code@latest/2.1.195/claude --chrome-native-host"
+    )
     #expect(result == true)
 }
 
