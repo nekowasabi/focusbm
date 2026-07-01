@@ -523,6 +523,29 @@ final class MockRunningApp: RunningAppProtocol {
     #expect(map["session2"]?.tty == "/dev/ttys008")
 }
 
+@Test func test_parseClientMapOutput_windowKeyAndSessionFallback() {
+    let output = "/dev/ttys005||main||2||editor||%10||12345"
+    let map = TmuxProvider.parseClientMapOutput(output)
+
+    #expect(map["main:2"]?.tty == "/dev/ttys005")
+    #expect(map["main:2"]?.windowIndex == 2)
+    #expect(map["main:2"]?.windowName == "editor")
+    #expect(map["main:2"]?.paneId == "%10")
+    #expect(map["main"]?.tty == "/dev/ttys005")
+}
+
+@Test func test_parseClientMapOutput_sameSessionWindowClientWinsBeforeSessionFallback() {
+    let output = """
+    /dev/ttys005||main||1||shell||%1||11111
+    /dev/ttys008||main||2||editor||%2||22222
+    """
+    let map = TmuxProvider.parseClientMapOutput(output)
+
+    #expect(map["main:1"]?.tty == "/dev/ttys005")
+    #expect(map["main:2"]?.tty == "/dev/ttys008")
+    #expect(map["main"]?.tty == "/dev/ttys005")
+}
+
 @Test func test_parseClientMapOutput_duplicateSession_firstWins() {
     let output = """
     /dev/ttys005||main||12345
@@ -680,26 +703,20 @@ final class MockRunningApp: RunningAppProtocol {
 
 // MARK: - focusPane attached/detached 分岐テスト（args レベル）
 
-@Test func test_focusPane_attached_doesNotUseSwitchClient() {
-    // attached セッション（clientTTY あり）では focusPaneArgs（switch-client）を呼ばないことを
-    // コマンド引数レベルで検証するために selectWindowArgs / selectPaneArgs の組み合わせを確認する
+@Test func test_focusPane_attached_switchClientWithClientTTYIsReachable() {
     var pane = TmuxPane(
         paneId: "%10", sessionName: "attached-session", windowIndex: 2,
         windowName: "editor", command: "claude", title: "Claude Code", currentPath: "/tmp"
     )
     pane.clientTTY = "/dev/ttys007"
 
-    // attached の場合に使われるコマンド群
+    let switchArgs = TmuxProvider.focusPaneArgs(pane)
     let windowArgs = TmuxProvider.selectWindowArgs(pane)
     let paneArgs   = TmuxProvider.selectPaneArgs(pane)
 
-    // select-window は -t session:windowIndex
+    #expect(switchArgs == ["tmux", "switch-client", "-c", "/dev/ttys007", "-t", "attached-session:2"])
     #expect(windowArgs == ["tmux", "select-window", "-t", "attached-session:2"])
-    // select-pane は -t paneId
     #expect(paneArgs == ["tmux", "select-pane", "-t", "%10"])
-    // switch-client を含まない
-    #expect(!windowArgs.contains("switch-client"))
-    #expect(!paneArgs.contains("switch-client"))
 }
 
 @Test func test_focusPane_detached_usesSwitchClient() {

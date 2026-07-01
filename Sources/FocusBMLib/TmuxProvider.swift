@@ -216,11 +216,26 @@ public struct TmuxProvider {
 
     // MARK: - Client Map (list-clients)
 
-    /// tmux list-clients で全クライアントを一括取得し、セッション→(tty, bundleId, appName) マッピングを構築
-    static func buildClientMap() -> [String: (tty: String, bundleId: String?, appName: String)] {
+    struct TmuxClientInfo {
+        let tty: String
+        let sessionName: String
+        let windowIndex: Int?
+        let windowName: String?
+        let paneId: String?
+        let clientPid: pid_t?
+        let bundleId: String?
+        let appName: String
+    }
+
+    static func clientMapKey(sessionName: String, windowIndex: Int) -> String {
+        "\(sessionName):\(windowIndex)"
+    }
+
+    /// tmux list-clients で全クライアントを一括取得し、window→client / session→fallback マッピングを構築
+    static func buildClientMap() -> [String: TmuxClientInfo] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: envPath)
-        process.arguments = ["tmux", "list-clients", "-F", "#{client_tty}||#{client_session}||#{client_pid}"]
+        process.arguments = ["tmux", "list-clients", "-F", "#{client_tty}||#{client_session}||#{window_index}||#{window_name}||#{pane_id}||#{client_pid}"]
 
         let outPipe = Pipe()
         process.standardOutput = outPipe
@@ -241,8 +256,8 @@ public struct TmuxProvider {
     }
 
     /// list-clients -a の出力をパースしてセッション→ターミナル情報の辞書を構築
-    static func parseClientMapOutput(_ output: String) -> [String: (tty: String, bundleId: String?, appName: String)] {
-        var result: [String: (tty: String, bundleId: String?, appName: String)] = [:]
+    static func parseClientMapOutput(_ output: String) -> [String: TmuxClientInfo] {
+        var result: [String: TmuxClientInfo] = [:]
 
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
         for line in lines {
@@ -250,34 +265,54 @@ public struct TmuxProvider {
             guard parts.count >= 3 else { continue }
             let tty = parts[0]
             let sessionName = parts[1]
-            let clientPid: pid_t? = Int32(parts[2])
+            let windowIndex: Int?
+            let windowName: String?
+            let paneId: String?
+            let clientPid: pid_t?
+
+            if parts.count >= 6 {
+                windowIndex = Int(parts[2])
+                windowName = parts[3].isEmpty ? nil : parts[3]
+                paneId = parts[4].isEmpty ? nil : parts[4]
+                clientPid = Int32(parts[5])
+            } else {
+                windowIndex = nil
+                windowName = nil
+                paneId = nil
+                clientPid = Int32(parts[2])
+            }
 
             guard !tty.isEmpty, !sessionName.isEmpty else { continue }
-            // 同一セッションに複数クライアントがある場合は先勝ち
-            if result[sessionName] != nil { continue }
 
-            // TTY からターミナルアプリを特定
             let ttyName = tty.hasPrefix("/dev/") ? String(tty.dropFirst(5)) : tty
-            if let app = findTerminalAppForTTY(ttyName) {
-                log("buildClientMap: session '\(sessionName)' -> tty=\(tty), app=\(app.appName)")
-                result[sessionName] = (tty: tty, bundleId: app.bundleId, appName: app.appName)
-                continue
+            let app = findTerminalAppForTTY(ttyName) ?? clientPid.flatMap { pid in
+                findTerminalByAncestorProcess(
+                    pid,
+                    runningApps: NSWorkspace.shared.runningApplications,
+                    getParentPID: { sysctlParentPID($0) })
             }
+            let info = TmuxClientInfo(
+                tty: tty,
+                sessionName: sessionName,
+                windowIndex: windowIndex,
+                windowName: windowName,
+                paneId: paneId,
+                clientPid: clientPid,
+                bundleId: app?.bundleId,
+                appName: app?.appName ?? "Terminal"
+            )
 
-            // TTY 失敗時: client_pid 祖先プロセス走査
-            if let pid = clientPid,
-               let app = findTerminalByAncestorProcess(
-                   pid,
-                   runningApps: NSWorkspace.shared.runningApplications,
-                   getParentPID: { sysctlParentPID($0) }) {
-                log("buildClientMap: session '\(sessionName)' -> tty=\(tty), ancestor=\(app.appName)")
-                result[sessionName] = (tty: tty, bundleId: app.bundleId, appName: app.appName)
-                continue
+            if let windowIndex {
+                let windowKey = clientMapKey(sessionName: sessionName, windowIndex: windowIndex)
+                if result[windowKey] == nil {
+                    // Why: Prefer window-level clients over session-level clients because different windows in one session can be shown in different terminals.
+                    result[windowKey] = info
+                }
             }
-
-            // フォールバック: tty は記録するが bundleId は未解決
-            log("buildClientMap: session '\(sessionName)' -> tty=\(tty), unresolved")
-            result[sessionName] = (tty: tty, bundleId: nil, appName: "Terminal")
+            if result[sessionName] == nil {
+                result[sessionName] = info
+            }
+            log("buildClientMap: session '\(sessionName)' window=\(windowIndex.map(String.init) ?? "nil") -> tty=\(tty), app=\(info.appName)")
         }
         return result
     }
@@ -322,28 +357,31 @@ public struct TmuxProvider {
             }
         }
 
-        // list-clients で全クライアントを一括取得（セッション→TTY/bundleId マッピング）
         let clientMap = buildClientMap()
-        log("clientMap: \(clientMap.mapValues { (tty: $0.tty, bundleId: $0.bundleId ?? "nil", appName: $0.appName) })")
+        log("clientMap: \(clientMap.mapValues { (tty: $0.tty, sessionName: $0.sessionName, windowIndex: $0.windowIndex.map(String.init) ?? "nil", bundleId: $0.bundleId ?? "nil", appName: $0.appName) })")
 
-        // セッションごとに1回だけターミナルを検出してキャッシュ
-        var sessionTerminalCache: [String: (bundleId: String?, appName: String?, emoji: String, tty: String?)] = [:]
+        var terminalCache: [String: (bundleId: String?, appName: String?, emoji: String, tty: String?)] = [:]
         for i in panes.indices {
-            let sessionName = panes[i].sessionName
-            if let cached = sessionTerminalCache[sessionName] {
+            let pane = panes[i]
+            let windowKey = clientMapKey(sessionName: pane.sessionName, windowIndex: pane.windowIndex)
+            let mappedClient = clientMap[windowKey] ?? clientMap[pane.sessionName]
+            let cacheKey = mappedClient.map { "client:\($0.tty)" } ?? "pane:\(windowKey)"
+
+            if let cached = terminalCache[cacheKey] {
                 panes[i].terminalEmoji = cached.emoji
                 panes[i].terminalBundleId = cached.bundleId
                 panes[i].terminalAppName = cached.appName
                 panes[i].clientTTY = cached.tty
             } else {
-                let info = detectTerminalApp(for: panes[i], settings: settings, clientMap: clientMap)
+                // Why: Prefer window-level clients over session-level clients because different windows in one session can be shown in different terminals.
+                let info = detectTerminalApp(for: pane, settings: settings, clientMap: clientMap)
                 let emoji = terminalBundleIdToEmoji(info?.bundleId)
-                let tty = clientMap[sessionName]?.tty
+                let tty = mappedClient?.tty
                 panes[i].terminalEmoji = emoji
                 panes[i].terminalBundleId = info?.bundleId
                 panes[i].terminalAppName = info?.appName
                 panes[i].clientTTY = tty
-                sessionTerminalCache[sessionName] = (info?.bundleId, info?.appName, emoji, tty)
+                terminalCache[cacheKey] = (info?.bundleId, info?.appName, emoji, tty)
             }
         }
         return panes
@@ -399,58 +437,46 @@ public struct TmuxProvider {
     //   switch-client → select-window → select-pane
     @discardableResult
     public static func focusPane(_ pane: TmuxPane, settings: AppSettings? = nil) throws -> ActivationTarget {
-        let isAttached = pane.clientTTY != nil
+        let hasClientTTY = pane.clientTTY != nil
         var activationTarget: ActivationTarget = .none
 
-        if isAttached {
-            // --- attached セッション ---
-            // 1. ActivationTarget を構築（asyncAfter は使わず呼び出し元に委譲）
-            let bundleId = pane.terminalBundleId ?? settings?.preferredTerminal
-            let appName = pane.terminalAppName ?? "Terminal"
-            if let bid = bundleId {
-                log("focusPane(attached): will return activation target for '\(appName)' (\(bid))")
-                activationTarget = .bundleId(bid, appName: appName)
-            } else {
-                let knownIds = ["com.googlecode.iterm2", "com.mitchellh.ghostty",
-                                "com.apple.Terminal", "com.github.wez.wezterm"]
-                for kid in knownIds {
-                    let apps = NSRunningApplication.runningApplications(withBundleIdentifier: kid)
-                    if let app = apps.first {
-                        activationTarget = .runningApp(app)
-                        break
-                    }
+        let bundleId = pane.terminalBundleId ?? settings?.preferredTerminal
+        let appName = pane.terminalAppName ?? "Terminal"
+        if let bid = bundleId {
+            log("focusPane: will return activation target for '\(appName)' (\(bid))")
+            activationTarget = .bundleId(bid, appName: appName)
+        } else if hasClientTTY {
+            let knownIds = ["com.googlecode.iterm2", "com.mitchellh.ghostty",
+                            "com.apple.Terminal", "com.github.wez.wezterm"]
+            for kid in knownIds {
+                let apps = NSRunningApplication.runningApplications(withBundleIdentifier: kid)
+                if let app = apps.first {
+                    activationTarget = .runningApp(app)
+                    break
                 }
             }
+        }
 
-            // 2. select-window
-            try runTmuxCommand(selectWindowArgs(pane),
-                               description: "select-window -t \(pane.sessionName):\(pane.windowIndex)",
+        if hasClientTTY {
+            // Why: Run switch-client -c even when clientTTY exists so the resolved tty is used as tmux's target client.
+            try runTmuxCommand(focusPaneArgs(pane),
+                               description: "switch-client -c \(pane.clientTTY ?? "") -t \(pane.sessionName):\(pane.windowIndex)",
                                fatalOnFailure: false)
-
-            // 3. select-pane
-            try runTmuxCommand(selectPaneArgs(pane),
-                               description: "select-pane -t \(pane.paneId)",
-                               fatalOnFailure: false)
-
         } else {
-            // --- detached セッション ---
-            // 1. switch-client でセッションにアタッチ
             let switchArgs = focusPaneArgs(pane)
             log("focusPane(detached): switch-client -t \(pane.sessionName):\(pane.windowIndex)")
             try runTmuxCommand(switchArgs,
                                description: "switch-client -t \(pane.sessionName):\(pane.windowIndex)",
                                fatalOnFailure: true)
-
-            // 2. select-window
-            try runTmuxCommand(selectWindowArgs(pane),
-                               description: "select-window -t \(pane.sessionName):\(pane.windowIndex)",
-                               fatalOnFailure: false)
-
-            // 3. select-pane
-            try runTmuxCommand(selectPaneArgs(pane),
-                               description: "select-pane -t \(pane.paneId)",
-                               fatalOnFailure: false)
         }
+
+        try runTmuxCommand(selectWindowArgs(pane),
+                           description: "select-window -t \(pane.sessionName):\(pane.windowIndex)",
+                           fatalOnFailure: false)
+
+        try runTmuxCommand(selectPaneArgs(pane),
+                           description: "select-pane -t \(pane.paneId)",
+                           fatalOnFailure: false)
 
         return activationTarget
     }
@@ -555,22 +581,22 @@ public struct TmuxProvider {
     static func detectTerminalApp(
         for pane: TmuxPane,
         settings: AppSettings? = nil,
-        clientMap: [String: (tty: String, bundleId: String?, appName: String)]? = nil
+        clientMap: [String: TmuxClientInfo]? = nil
     ) -> (bundleId: String?, appName: String)? {
         let sessionName = pane.sessionName
+        let windowKey = clientMapKey(sessionName: sessionName, windowIndex: pane.windowIndex)
 
-        // preferredTerminal が設定されていれば最優先で返す
+        if let mapped = clientMap?[windowKey] ?? clientMap?[sessionName], mapped.bundleId != nil {
+            log("detectTerminal for session '\(sessionName)': clientMap hit -> (\(mapped.bundleId!), \(mapped.appName))")
+            return (mapped.bundleId, mapped.appName)
+        }
+
+        // Treat preferredTerminal as a display and activation fallback when the client tty is unresolved.
         if let preferred = settings?.preferredTerminal {
             let appName = NSWorkspace.shared.runningApplications
                 .first(where: { $0.bundleIdentifier == preferred })?.localizedName ?? preferred
-            log("detectTerminal for session '\(sessionName)': preferred terminal override -> (\(preferred), \(appName))")
+            log("detectTerminal for session '\(sessionName)': preferred terminal fallback -> (\(preferred), \(appName))")
             return (preferred, appName)
-        }
-
-        // clientMap（list-clients ベース）にヒットすればそれを返す
-        if let mapped = clientMap?[sessionName], mapped.bundleId != nil {
-            log("detectTerminal for session '\(sessionName)': clientMap hit -> (\(mapped.bundleId!), \(mapped.appName))")
-            return (mapped.bundleId, mapped.appName)
         }
 
         // clientMap ミスの場合: per-session list-clients にフォールバック
