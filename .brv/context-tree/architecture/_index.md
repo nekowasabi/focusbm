@@ -1,42 +1,36 @@
 ---
-children_hash: af086825f961463875920f66cf520e4f9dede2edbde760852ee5f6e4dffa38da
-compression_ratio: 0.7617554858934169
+children_hash: d0101842f76b028b2a2d48cd9bff2f0ffa26541471518ec5668625fd5e4c94c4
+compression_ratio: 0.7693726937269373
 condensation_order: 2
-covers: [process_visibility/_index.md]
-covers_token_total: 638
+covers: [context.md, process_visibility/_index.md]
+covers_token_total: 542
 summary_level: d2
-token_count: 486
+token_count: 417
 type: summary
 ---
-## architecture/process_visibility
+# Architecture
 
-- **Sleep/Wake Agent Process Visibility Fix** — documents the fix for FocusBM’s process visibility across sleep/wake transitions, background refresh behavior, and AI agent detection. Drill down into `sleep_wake_agent_process_visibility_fix.md` for implementation details.
+This domain covers FocusBM architecture concerns around process detection, filtering, and visibility, including daemon/helper exclusion, AI agent process listing, tmux process detection, and working-directory resolution. Drill down into the child entries for implementation-specific detail.
 
-### Structural overview
-- `BackgroundRefreshService` now listens to both screen sleep/wake and system sleep/wake notifications.
-- Wake events trigger an immediate refresh path.
-- `SearchViewModel.applyBackgroundCache` only updates visible `searchItems` when the panel is active.
-- `ProcessProvider` now uses basename-aware regex matching to avoid launcher path misses.
+## Child entry overview
+
+### `process_visibility/_index.md`
+Structural summary for the sleep/wake process-visibility fix. It identifies `sleep_wake_agent_process_visibility_fix.md` as the canonical source and treats other variants as duplicates or condensed forms.
+
+Key behavior changes:
+- `BackgroundRefreshService` listens to both screen sleep/wake and system sleep/wake notifications.
+- Wake triggers an immediate refresh.
+- When the panel is active, background cache updates are limited to visible search items only.
+- AI process detection uses basename-aware regex matching so launcher-invoked binaries are matched correctly.
 - Daemon subcommands `app-server` and `mcp-server` are excluded from AI process detection.
-- Tests cover `processNamePattern` behavior and daemon filtering.
 
-### Key flow
-sleep/wake notification → update `isSleeping` → on wake `refreshAsync` → fetch tmux panes and AI processes → apply background cache only if active → update items
+Implementation pattern:
+- sleep/wake -> visibility evaluation -> agent filtering -> fix application
 
-### Rules and matching patterns
-- Use basename-aware matching: `(^|/)name([[:space:]]|$)` instead of path-sensitive `bin/name`.
-- Do not surface daemon subcommands as interactive AI agent processes.
-- Only apply background cache updates when the panel is active.
-- Regex anchors used in the fix:
-  - `(^|/)` for start-of-path or slash boundary
-  - `([[:space:]]|$)` for whitespace or end-of-string termination
+Preserved regex anchors:
+- `(^|/)`
+- `([[:space:]]|$)`
 
-### Related entities
-- `Sources/FocusBMApp/BackgroundRefreshService.swift`
-- `Sources/FocusBMApp/SearchViewModel.swift`
-- `Sources/FocusBMLib/ProcessProvider.swift`
-- `Tests/focusbmTests/ProcessProviderTests.swift`
+Validation coverage includes tests for `processNamePattern` and daemon filtering, with example process names such as `codex`, `foo.bar`, `node /opt/homebrew/bin/codex app-server`, `node /opt/homebrew/bin/codex --full-auto`, and `/Applications/Codex.app/Contents/Resources/codex app-server --analytics-default-enabled`.
 
-### Coverage notes
-- AI agent command set includes `claude`, `aider`, `gemini`, `copilot`, `codex`, and `hermes`.
-- Validated cases include launcher-installed binaries like `/opt/homebrew/bin/codex`, app-bundled Codex paths, and daemon-style invocations such as `node /opt/homebrew/bin/codex app-server`.
+Drill down to `sleep_wake_agent_process_visibility_fix.md` for the full canonical write-up, including front matter, Reason, Raw Concept, Narrative, and Facts.

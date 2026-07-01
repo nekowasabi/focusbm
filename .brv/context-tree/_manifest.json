@@ -3,35 +3,53 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 483,
+      "tokens": 415,
       "type": "summary"
     },
     {
       "order": 2,
       "path": "architecture/_index.md",
-      "tokens": 486,
+      "tokens": 417,
       "type": "summary"
     },
     {
       "order": 1,
       "path": "architecture/process_visibility/_index.md",
-      "tokens": 569,
+      "tokens": 389,
       "type": "summary"
     },
     {
       "importance": 50,
+      "path": "architecture/context.md",
+      "tokens": 84,
+      "type": "context"
+    },
+    {
+      "importance": 50,
+      "path": "architecture/process_provider/context.md",
+      "tokens": 146,
+      "type": "context"
+    },
+    {
+      "importance": 50,
+      "path": "architecture/process_provider/daemon_filtering.md",
+      "tokens": 827,
+      "type": "context"
+    },
+    {
+      "importance": 50,
       "path": "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md",
-      "tokens": 1652,
+      "tokens": 486,
       "type": "context"
     }
   ],
-  "generated_at": "2026-06-24T02:31:14.650Z",
+  "generated_at": "2026-07-01T01:51:22.701Z",
   "lane_tokens": {
-    "contexts": 1652,
+    "contexts": 1543,
     "stubs": 0,
-    "summaries": 1538
+    "summaries": 1221
   },
-  "source_fingerprint": "2ac9c0e8165d8988414fbcd4544facfee6039e1d74e81c737693d24041c4e4a2",
-  "total_tokens": 3190,
+  "source_fingerprint": "97c3e68399a88dcfc2ed491fbe3e90871c4600a680340bdc12b0fc62747c5b2f",
+  "total_tokens": 2764,
   "version": 1
 }

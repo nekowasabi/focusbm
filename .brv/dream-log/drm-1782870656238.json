@@ -1,0 +1,34 @@
+{
+  "completedAt": 1782870682702,
+  "id": "drm-1782870656238",
+  "operations": [
+    {
+      "action": "MERGE",
+      "inputFiles": [
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md",
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.abstract.md",
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.overview.md"
+      ],
+      "needsReview": true,
+      "outputFile": "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md",
+      "previousTexts": {
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md": "---\ntitle: Sleep/Wake Agent Process Visibility Fix\nsummary: Documents a process visibility fix involving sleep/wake behavior and agent process filtering within the architecture domain.\ntags: []\nrelated: [architecture/process_provider/context.md]\nkeywords: []\ncreatedAt: '2026-06-24T02:15:37.493Z'\nupdatedAt: '2026-07-01T01:35:46.373Z'\n---\n## Reason\nCurate process visibility behavior around sleep/wake and agent process filtering\n\n## Raw Concept\n**Task:**\nDocument the sleep/wake agent process visibility behavior and filtering fix\n\n**Changes:**\n- BackgroundRefreshService now listens for both screen and system sleep/wake notifications\n- Wake events trigger an immediate refresh\n- Background cache updates only apply to visible search items when the panel is active\n- pgrep matching was changed to basename-aware regex matching to avoid launcher path misses\n- Daemon subcommands are excluded from AI process detection\n- Tests were added for processNamePattern and daemon filtering behavior\n- Captured the process visibility issue and its fix path\n- Recorded agent process filtering behavior around sleep/wake events\n\n**Files:**\n- Sources/FocusBMApp/BackgroundRefreshService.swift\n- Sources/FocusBMApp/SearchViewModel.swift\n- Sources/FocusBMLib/ProcessProvider.swift\n- Tests/focusbmTests/ProcessProviderTests.swift\n\n**Flow:**\nsleep/wake event -> process visibility evaluation -> agent process filtering -> visibility fix applied\n\n**Timestamp:** 2026-07-01T01:35:36.292Z\n\n**Patterns:**\n- `(^|/)` - Matches command names at the start of a path or after a slash\n- `([[:space:]]|$)` - Requires whitespace or end-of-string after the command name\n\n## Narrative\n### Structure\nFocuses on process visibility under sleep/wake transitions and how agent processes are filtered in the architecture layer.\n\n### Dependencies\nRelates to process provider behavior and process visibility handling.\n\n### Highlights\nCaptures the interaction between sleep/wake state changes and agent process visibility filtering.\n\n### Rules\nUse the basename-aware process pattern (^|/)name([[:space:]]|$) instead of bin/name. Do not surface daemon subcommands app-server or mcp-server as AI agent processes. Only apply background cache updates to searchItems when the panel is active.\n\n### Examples\nExamples covered by tests include codex, foo.bar, node /opt/homebrew/bin/codex app-server, node /opt/homebrew/bin/codex --full-auto, and /Applications/Codex.app/Contents/Resources/codex app-server --analytics-default-enabled.\n\n## Facts\n- **context_size**: Context length is undefined chars across undefined lines with undefined messages [other]\n",
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.abstract.md": "Documents a sleep/wake visibility fix where background refresh now reacts to wake events, cache updates are limited to active search results, and agent process detection uses basename-aware matching with daemon filtering.",
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.overview.md": "- Describes a process visibility fix in the architecture domain centered on sleep/wake behavior and agent process filtering.\n- BackgroundRefreshService was updated to listen for both screen sleep/wake and system sleep/wake notifications, with wake events triggering an immediate refresh.\n- Background cache updates are now constrained to visible search items only when the panel is active.\n- Process matching changed from path-sensitive matching to a basename-aware regex to avoid missing launcher-invoked binaries.\n- AI process detection now excludes daemon subcommands such as `app-server` and `mcp-server`.\n- Tests were added for `processNamePattern` and daemon filtering behavior, covering examples like `codex`, `foo.bar`, and launcher/path variants.\n- The document ties the fix to a flow of sleep/wake event handling, visibility evaluation, agent filtering, and applied visibility correction.\n\nStructure / sections summary:\n- Front matter metadata: title, summary, tags, related doc, timestamps.\n- `Reason` section explaining the motivation for the change.\n- `Raw Concept` section with task, detailed changes, affected files, flow, timestamp, patterns, and examples.\n- `Narrative` section summarizing structure, dependencies, highlights, rules, and examples.\n- `Facts` section containing context metadata.\n\nNotable entities, patterns, or decisions:\n- Key files: `BackgroundRefreshService.swift`, `SearchViewModel.swift`, `ProcessProvider.swift`, and `ProcessProviderTests.swift`.\n- Regex pattern decision: `(^|/)name([[:space:]]|$)` for basename-aware matching.\n- Explicit filtering rule: do not surface daemon subcommands as AI agent processes.\n- Operational decision: update background cache only when the panel is active and search items are visible."
+      },
+      "reason": "These three files describe the same sleep/wake process visibility fix. The main markdown file already contains the richest content, while the abstract and overview are condensed duplicates that restate the same changes, rules, examples, structure, and affected files.",
+      "type": "CONSOLIDATE"
+    }
+  ],
+  "startedAt": 1782870656238,
+  "status": "completed",
+  "summary": {
+    "consolidated": 1,
+    "errors": 0,
+    "flaggedForReview": 1,
+    "pruned": 0,
+    "synthesized": 0
+  },
+  "taskId": "c1543625-8a99-4765-af3a-2c338e36bf2f",
+  "trigger": "agent-idle"
+}
