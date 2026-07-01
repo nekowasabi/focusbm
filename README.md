@@ -371,6 +371,16 @@ focusbm now supports discovering and focusing tmux panes running AI agents.
 
 ### Terminal detection
 
+When focusing a tmux pane, focusbm first prefers the tmux client that is
+currently showing the target session/window and runs `switch-client -c` for
+that client tty. If no window-level client is available, it falls back to the
+session-level client and then the existing terminal detection path.
+
+`settings.preferredTerminal` is only a fallback for display and activation; it
+does not replace a client tty already reported by tmux. Bringing the terminal
+app forward can still depend on macOS and terminal window behavior, so focusbm
+does not guarantee that a specific terminal window becomes frontmost.
+
 | Terminal | Emoji |
 |----------|-------|
 | Ghostty | 👻 |

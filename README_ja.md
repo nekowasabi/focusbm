@@ -345,6 +345,10 @@ Cmd+Tab に表示されない LSUIElement アプリの floating window をパネ
 
 focusbm は tmux ペイン内で実行中の AI エージェントを検出し、検索パネルからフォーカスできます。
 
+tmux ペインをフォーカスするときは、対象の session/window を表示中の tmux client を優先し、その client tty に対して `switch-client -c` を実行します。window 単位の client が見つからない場合は、session 単位の client、既存のターミナル検出の順にフォールバックします。
+
+`settings.preferredTerminal` は表示と起動先のフォールバックであり、tmux から取得済みの client tty を上書きしません。ターミナルアプリを前面化した後に特定のウィンドウが必ず最前面になるかは macOS と各ターミナルの挙動に依存します。
+
 ### サポート対象 AI エージェント
 
 - Claude Code (`claude`)
