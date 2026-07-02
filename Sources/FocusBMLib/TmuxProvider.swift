@@ -225,17 +225,20 @@ public struct TmuxProvider {
         let clientPid: pid_t?
         let bundleId: String?
         let appName: String
+        let activity: Int
     }
 
     static func clientMapKey(sessionName: String, windowIndex: Int) -> String {
         "\(sessionName):\(windowIndex)"
     }
 
+    static let fallbackClientKey = ":fallback:"
+
     /// tmux list-clients で全クライアントを一括取得し、window→client / session→fallback マッピングを構築
     static func buildClientMap() -> [String: TmuxClientInfo] {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: envPath)
-        process.arguments = ["tmux", "list-clients", "-F", "#{client_tty}||#{client_session}||#{window_index}||#{window_name}||#{pane_id}||#{client_pid}"]
+        process.arguments = ["tmux", "list-clients", "-F", "#{client_tty}||#{client_session}||#{window_index}||#{window_name}||#{pane_id}||#{client_pid}||#{client_activity}"]
 
         let outPipe = Pipe()
         process.standardOutput = outPipe
@@ -258,6 +261,7 @@ public struct TmuxProvider {
     /// list-clients -a の出力をパースしてセッション→ターミナル情報の辞書を構築
     static func parseClientMapOutput(_ output: String) -> [String: TmuxClientInfo] {
         var result: [String: TmuxClientInfo] = [:]
+        var fallbackClient: TmuxClientInfo?
 
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
         for line in lines {
@@ -269,6 +273,7 @@ public struct TmuxProvider {
             let windowName: String?
             let paneId: String?
             let clientPid: pid_t?
+            let activity: Int
 
             if parts.count >= 6 {
                 windowIndex = Int(parts[2])
@@ -280,6 +285,11 @@ public struct TmuxProvider {
                 windowName = nil
                 paneId = nil
                 clientPid = Int32(parts[2])
+            }
+            if parts.count >= 7 {
+                activity = Int(parts[6]) ?? 0
+            } else {
+                activity = 0
             }
 
             guard !tty.isEmpty, !sessionName.isEmpty else { continue }
@@ -299,7 +309,8 @@ public struct TmuxProvider {
                 paneId: paneId,
                 clientPid: clientPid,
                 bundleId: app?.bundleId,
-                appName: app?.appName ?? "Terminal"
+                appName: app?.appName ?? "Terminal",
+                activity: activity
             )
 
             if let windowIndex {
@@ -312,9 +323,24 @@ public struct TmuxProvider {
             if result[sessionName] == nil {
                 result[sessionName] = info
             }
-            log("buildClientMap: session '\(sessionName)' window=\(windowIndex.map(String.init) ?? "nil") -> tty=\(tty), app=\(info.appName)")
+            if fallbackClient == nil || activity > fallbackClient!.activity {
+                fallbackClient = info
+            }
+            log("buildClientMap: session '\(sessionName)' window=\(windowIndex.map(String.init) ?? "nil") -> tty=\(tty), app=\(info.appName), activity=\(activity)")
         }
+
+        if let fallbackClient {
+            log("buildClientMap: fallback client selected -> session=\(fallbackClient.sessionName), tty=\(fallbackClient.tty), activity=\(fallbackClient.activity)")
+            result[fallbackClientKey] = fallbackClient
+        }
+
         return result
+    }
+
+    // window キー → session キー → fallback クライアントを解決
+    static func resolveClient(sessionName: String, windowIndex: Int, clientMap: [String: TmuxClientInfo]) -> TmuxClientInfo? {
+        let windowKey = clientMapKey(sessionName: sessionName, windowIndex: windowIndex)
+        return clientMap[windowKey] ?? clientMap[sessionName] ?? clientMap[fallbackClientKey]
     }
 
     // 全ペインを取得
@@ -364,7 +390,7 @@ public struct TmuxProvider {
         for i in panes.indices {
             let pane = panes[i]
             let windowKey = clientMapKey(sessionName: pane.sessionName, windowIndex: pane.windowIndex)
-            let mappedClient = clientMap[windowKey] ?? clientMap[pane.sessionName]
+            let mappedClient = resolveClient(sessionName: pane.sessionName, windowIndex: pane.windowIndex, clientMap: clientMap)
             let cacheKey = mappedClient.map { "client:\($0.tty)" } ?? "pane:\(windowKey)"
 
             if let cached = terminalCache[cacheKey] {
@@ -584,9 +610,9 @@ public struct TmuxProvider {
         clientMap: [String: TmuxClientInfo]? = nil
     ) -> (bundleId: String?, appName: String)? {
         let sessionName = pane.sessionName
-        let windowKey = clientMapKey(sessionName: sessionName, windowIndex: pane.windowIndex)
 
-        if let mapped = clientMap?[windowKey] ?? clientMap?[sessionName], mapped.bundleId != nil {
+        if let mapped = resolveClient(sessionName: sessionName, windowIndex: pane.windowIndex, clientMap: clientMap ?? [:]),
+           mapped.bundleId != nil {
             log("detectTerminal for session '\(sessionName)': clientMap hit -> (\(mapped.bundleId!), \(mapped.appName))")
             return (mapped.bundleId, mapped.appName)
         }

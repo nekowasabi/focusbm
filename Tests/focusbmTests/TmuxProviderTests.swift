@@ -508,8 +508,9 @@ final class MockRunningApp: RunningAppProtocol {
 @Test func test_parseClientMapOutput_singleClient() {
     let output = "/dev/ttys005||main||12345"
     let map = TmuxProvider.parseClientMapOutput(output)
-    #expect(map.count == 1)
+    #expect(map.count == 2) // main + fallback
     #expect(map["main"]?.tty == "/dev/ttys005")
+    #expect(map[TmuxProvider.fallbackClientKey]?.tty == "/dev/ttys005")
 }
 
 @Test func test_parseClientMapOutput_multipleClients() {
@@ -518,9 +519,10 @@ final class MockRunningApp: RunningAppProtocol {
     /dev/ttys008||session2||67890
     """
     let map = TmuxProvider.parseClientMapOutput(output)
-    #expect(map.count == 2)
+    #expect(map.count == 3) // session1, session2 + fallback
     #expect(map["session1"]?.tty == "/dev/ttys005")
     #expect(map["session2"]?.tty == "/dev/ttys008")
+    #expect(map[TmuxProvider.fallbackClientKey]?.tty == "/dev/ttys005")
 }
 
 @Test func test_parseClientMapOutput_windowKeyAndSessionFallback() {
@@ -532,6 +534,9 @@ final class MockRunningApp: RunningAppProtocol {
     #expect(map["main:2"]?.windowName == "editor")
     #expect(map["main:2"]?.paneId == "%10")
     #expect(map["main"]?.tty == "/dev/ttys005")
+    #expect(map["main:2"]?.activity == 0)
+    #expect(map[TmuxProvider.fallbackClientKey]?.tty == "/dev/ttys005")
+    #expect(map.count == 3) // main:2, main, fallback
 }
 
 @Test func test_parseClientMapOutput_sameSessionWindowClientWinsBeforeSessionFallback() {
@@ -544,6 +549,8 @@ final class MockRunningApp: RunningAppProtocol {
     #expect(map["main:1"]?.tty == "/dev/ttys005")
     #expect(map["main:2"]?.tty == "/dev/ttys008")
     #expect(map["main"]?.tty == "/dev/ttys005")
+    #expect(map.count == 4) // main:1, main:2, main, fallback
+    #expect(map[TmuxProvider.fallbackClientKey]?.tty == "/dev/ttys005")
 }
 
 @Test func test_parseClientMapOutput_duplicateSession_firstWins() {
@@ -552,8 +559,9 @@ final class MockRunningApp: RunningAppProtocol {
     /dev/ttys008||main||67890
     """
     let map = TmuxProvider.parseClientMapOutput(output)
-    #expect(map.count == 1)
+    #expect(map.count == 2) // main, fallback
     #expect(map["main"]?.tty == "/dev/ttys005")
+    #expect(map[TmuxProvider.fallbackClientKey]?.tty == "/dev/ttys005")
 }
 
 @Test func test_parseClientMapOutput_emptyOutput() {
@@ -568,9 +576,10 @@ final class MockRunningApp: RunningAppProtocol {
     /dev/ttys008||work||67890
     """
     let map = TmuxProvider.parseClientMapOutput(output)
-    #expect(map.count == 2)
+    #expect(map.count == 3) // main, work, fallback
     #expect(map["main"]?.tty == "/dev/ttys005")
     #expect(map["work"]?.tty == "/dev/ttys008")
+    #expect(map[TmuxProvider.fallbackClientKey]?.tty == "/dev/ttys005")
 }
 
 @Test func test_parseClientMapOutput_emptyTTY_skipped() {
@@ -583,6 +592,111 @@ final class MockRunningApp: RunningAppProtocol {
     let output = "/dev/ttys005||||12345"
     let map = TmuxProvider.parseClientMapOutput(output)
     #expect(map.isEmpty)
+}
+
+@Test func test_parseClientMapOutput_activityParsedFromSevenFields() {
+    let output = "/dev/ttys005||main||2||editor||%10||12345||1700000000"
+    let map = TmuxProvider.parseClientMapOutput(output)
+    #expect(map["main:2"]?.activity == 1700000000)
+    #expect(map[TmuxProvider.fallbackClientKey]?.activity == 1700000000)
+}
+
+@Test func test_parseClientMapOutput_sixFields_activityDefaultsToZero() {
+    let output = "/dev/ttys005||main||12345"
+    let map = TmuxProvider.parseClientMapOutput(output)
+    #expect(map["main"]?.activity == 0)
+    #expect(map[TmuxProvider.fallbackClientKey]?.activity == 0)
+}
+
+@Test func test_parseClientMapOutput_invalidActivityDefaultsToZero() {
+    let output = "/dev/ttys005||main||2||editor||%10||12345||not-a-number"
+    let map = TmuxProvider.parseClientMapOutput(output)
+    #expect(map["main:2"]?.activity == 0)
+    #expect(map[TmuxProvider.fallbackClientKey]?.activity == 0)
+}
+
+@Test func test_parseClientMapOutput_fallbackClientUsesLatestActivity() {
+    let output = """
+    /dev/ttys005||main||2||editor||%10||12345||1700000001
+    /dev/ttys006||work||3||dev||%11||12346||1700001000
+    """
+    let map = TmuxProvider.parseClientMapOutput(output)
+    #expect(map[TmuxProvider.fallbackClientKey]?.tty == "/dev/ttys006")
+    #expect(map[TmuxProvider.fallbackClientKey]?.sessionName == "work")
+}
+
+@Test func test_parseClientMapOutput_fallbackClientTieKeepsFirst() {
+    let output = """
+    /dev/ttys005||main||2||editor||%10||12345||1700
+    /dev/ttys006||work||3||dev||%11||12346||1700
+    """
+    let map = TmuxProvider.parseClientMapOutput(output)
+    #expect(map[TmuxProvider.fallbackClientKey]?.tty == "/dev/ttys005")
+}
+
+@Test func test_resolveClient_usesWindowThenSessionThenFallback() {
+    let clientMap: [String: TmuxProvider.TmuxClientInfo] = [
+        "main:1": .init(
+            tty: "/dev/ttys001",
+            sessionName: "main",
+            windowIndex: 1,
+            windowName: "editor",
+            paneId: "%1",
+            clientPid: 111,
+            bundleId: "com.googlecode.iterm2",
+            appName: "iTerm2",
+            activity: 10
+        ),
+        "main": .init(
+            tty: "/dev/ttys002",
+            sessionName: "main",
+            windowIndex: nil,
+            windowName: nil,
+            paneId: nil,
+            clientPid: 112,
+            bundleId: "com.apple.Terminal",
+            appName: "Terminal",
+            activity: 5
+        ),
+        TmuxProvider.fallbackClientKey: .init(
+            tty: "/dev/ttys009",
+            sessionName: "other",
+            windowIndex: nil,
+            windowName: nil,
+            paneId: nil,
+            clientPid: 113,
+            bundleId: "com.mitchellh.ghostty",
+            appName: "Ghostty",
+            activity: 1
+        )
+    ]
+
+    #expect(TmuxProvider.resolveClient(sessionName: "main", windowIndex: 1, clientMap: clientMap)?.tty == "/dev/ttys001")
+    #expect(TmuxProvider.resolveClient(sessionName: "main", windowIndex: 9, clientMap: clientMap)?.tty == "/dev/ttys002")
+    #expect(TmuxProvider.resolveClient(sessionName: "work", windowIndex: 1, clientMap: clientMap)?.tty == "/dev/ttys009")
+}
+
+@Test func test_detectTerminalApp_prefersClientMapBeforePreferredTerminal() {
+    let clientMap: [String: TmuxProvider.TmuxClientInfo] = [
+        TmuxProvider.fallbackClientKey: .init(
+            tty: "/dev/ttys001",
+            sessionName: "main",
+            windowIndex: nil,
+            windowName: nil,
+            paneId: nil,
+            clientPid: 1,
+            bundleId: "com.googlecode.iterm2",
+            appName: "iTerm2",
+            activity: 1
+        )
+    ]
+    let pane = TmuxPane(
+        paneId: "%7", sessionName: "main", windowIndex: 3,
+        windowName: "shell", command: "claude", title: "Claude Code", currentPath: "/tmp"
+    )
+    let settings = AppSettings(preferredTerminal: "com.apple.Terminal")
+    let result = TmuxProvider.detectTerminalApp(for: pane, settings: settings, clientMap: clientMap)
+    #expect(result?.bundleId == "com.googlecode.iterm2")
 }
 
 // MARK: - TmuxProvider.selectWindowArgs Tests
