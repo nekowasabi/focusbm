@@ -279,3 +279,32 @@ import AppKit
     let shouldShowBar = vm.query.isEmpty && !vm.shortcutBarItems.isEmpty
     #expect(!shouldShowBar) // query 非空のため非表示
 }
+
+
+@Test func alphabetShortcutLabel_withCommandR_returnsNilForRefreshShortcut() {
+    let rKeyCode = UInt16(AppDelegate.keyCodeForCharacter("r"))
+    let label = SearchPanel.alphabetShortcutLabel(keyCode: rKeyCode, flags: .command)
+    #expect(label == nil)
+}
+
+@Test func alphabetShortcutLabel_withCommandShiftR_returnsNilForRefreshShortcut() {
+    let rKeyCode = UInt16(AppDelegate.keyCodeForCharacter("r"))
+    let label = SearchPanel.alphabetShortcutLabel(keyCode: rKeyCode, flags: [.command, .shift])
+    #expect(label == nil)
+}
+
+@Test func isManualRefreshShortcut_withCommandR_returnsTrue() {
+    let rKeyCode = UInt16(AppDelegate.keyCodeForCharacter("r"))
+    #expect(SearchPanel.isManualRefreshShortcut(keyCode: rKeyCode, flags: .command) == true)
+}
+
+@Test func isManualRefreshShortcut_withCommandShiftR_returnsTrue() {
+    let rKeyCode = UInt16(AppDelegate.keyCodeForCharacter("r"))
+    #expect(SearchPanel.isManualRefreshShortcut(keyCode: rKeyCode, flags: [.command, .shift]) == true)
+}
+
+@Test func isManualRefreshShortcut_withoutCommandR_returnsFalse() {
+    let rKeyCode = UInt16(AppDelegate.keyCodeForCharacter("r"))
+    #expect(SearchPanel.isManualRefreshShortcut(keyCode: rKeyCode, flags: []) == false)
+    #expect(SearchPanel.isManualRefreshShortcut(keyCode: rKeyCode, flags: .shift) == false)
+}

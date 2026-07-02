@@ -240,3 +240,36 @@ import AppKit
     )
     #expect(result == true)
 }
+
+
+@Test func test_isProcessAlive_invalidPid_returnsFalse() {
+    #expect(ProcessProvider.isProcessAlive(99999999) == false)
+}
+
+@Test func test_recoverableAIProcess_requiresTerminalBundleId() {
+    let proc = ProcessProvider.AIProcess(
+        pid: 1,
+        command: "claude",
+        workingDirectory: "/tmp",
+        terminalBundleId: nil,
+        terminalAppName: nil,
+        terminalEmoji: "❓",
+        title: "claude (pid: 1)"
+    )
+
+    #expect(ProcessProvider.isRecoverableAIProcess(proc) == false)
+}
+
+@Test func test_recoverableAIProcess_acceptsTerminalBundleId() {
+    let proc = ProcessProvider.AIProcess(
+        pid: 1,
+        command: "claude",
+        workingDirectory: "/tmp",
+        terminalBundleId: "com.apple.Terminal",
+        terminalAppName: "Terminal",
+        terminalEmoji: "🖥️",
+        title: "claude (pid: 1)"
+    )
+
+    #expect(ProcessProvider.isRecoverableAIProcess(proc) == true)
+}

@@ -117,6 +117,11 @@ class SearchPanel: NSPanel {
     static func alphabetShortcutLabel(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> String? {
         guard let baseLetter = alphabetKeyCodes[keyCode] else { return nil }
         let masked = flags.intersection(.deviceIndependentFlagsMask)
+        // Why: Command+R は手動リフレッシュ専用に予約する。
+        //      通常ショートカットとして扱うと、再取得したい場面で登録済み "r"/"R" が発火してしまうため。
+        if baseLetter == "r", masked.subtracting([.shift, .command]).isEmpty, masked.contains(.command) {
+            return nil
+        }
         // Why: Control 単独で Ctrl+アルファベット → "^g"（キャレット記法）。
         //      Shift/Command/Option との併用は今回非対応（Ctrl 単独のみ要件）のため、
         //      control 以外が混じる場合は nil。YAML 側も shortcut: "^g" と表記する。
@@ -127,6 +132,13 @@ class SearchPanel: NSPanel {
         // Option/Control 等が混じる場合は対象外（既存挙動: bare または Command のみを許容し、Shift を追加）
         guard masked.subtracting([.shift, .command]).isEmpty else { return nil }
         return masked.contains(.shift) ? baseLetter.uppercased() : baseLetter
+    }
+
+    /// Command+R による手動リフレッシュ用ショートカットかどうかを判定する。
+    static func isManualRefreshShortcut(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
+        guard alphabetKeyCodes[keyCode] == "r" else { return false }
+        let masked = flags.intersection(.deviceIndependentFlagsMask)
+        return masked.subtracting([.shift, .command]).isEmpty && masked.contains(.command)
     }
 
     // Why: SearchPanel に配置。理由: panel.close() が必要なためPanel層のメソッドが適切
@@ -142,6 +154,12 @@ class SearchPanel: NSPanel {
         guard localKeyMonitor == nil else { return }
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
+
+            // Command+R: 絞り込み画面を開いたまま動的な tmux/process 情報を再取得
+            if Self.isManualRefreshShortcut(keyCode: event.keyCode, flags: event.modifierFlags) {
+                self.viewModel.refreshForPanelAsync()
+                return nil
+            }
 
             // 数字キー 1〜9: query が空のときダイレクト復元
             // directNumberKeys=true(デフォルト): 修飾キー不要、Cmd併用も可

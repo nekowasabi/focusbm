@@ -71,6 +71,21 @@ public struct ProcessProvider {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
+    /// PID が存在し、かつゾンビ状態ではないことを判定する
+    static func isProcessAlive(_ pid: pid_t) -> Bool {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.size
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        let result = sysctl(&mib, 4, &info, &size, nil, 0)
+        guard result == 0, size > 0 else { return false }
+        return info.kp_proc.p_stat != SZOMB
+    }
+
+    /// 絞り込み画面から復元可能な AI プロセスかどうかを判定する
+    static func isRecoverableAIProcess(_ process: AIProcess) -> Bool {
+        return process.terminalBundleId != nil
+    }
+
     // MARK: - Debug Logging
 
     private static var debugLog: ((String) -> Void)? = nil
@@ -102,6 +117,13 @@ public struct ProcessProvider {
                     continue
                 }
 
+                // Why: pgrep の結果だけを採用すると終了済み/ゾンビ化した PID が残り、
+                //      復元不能な「❓」項目として絞り込み画面に表示されるため事前に除外する。
+                guard isProcessAlive(pid) else {
+                    log("  pid \(pid): skip (not alive or zombie)")
+                    continue
+                }
+
                 // Why: codex app-server 等のデーモンプロセスを AI エージェントリストから除外
                 let cmdLine = getCommandLineArgs(pid)
                 if isDaemonCommandLine(cmdLine) {
@@ -116,8 +138,7 @@ public struct ProcessProvider {
                 log("  pid \(pid): tty=\(tty ?? "nil"), cwd=\(cwd ?? "nil"), terminal=\(terminalInfo?.appName ?? "nil")")
 
                 let emoji = TmuxProvider.terminalBundleIdToEmoji(terminalInfo?.bundleId)
-
-                result.append(AIProcess(
+                let aiProcess = AIProcess(
                     pid: pid,
                     command: commandName,
                     workingDirectory: cwd ?? "~",
@@ -125,7 +146,16 @@ public struct ProcessProvider {
                     terminalAppName: terminalInfo?.appName,
                     terminalEmoji: emoji,
                     title: "\(commandName) (pid: \(pid))"
-                ))
+                )
+
+                // Why: terminalBundleId が無い AI プロセスは restoreSelected()/activationTarget(for:) が
+                //      nil になり、ユーザーが選んでもフォーカス切り替えできないため表示対象から外す。
+                guard isRecoverableAIProcess(aiProcess) else {
+                    log("  pid \(pid): skip (unrecoverable terminal)")
+                    continue
+                }
+
+                result.append(aiProcess)
             }
         }
 
