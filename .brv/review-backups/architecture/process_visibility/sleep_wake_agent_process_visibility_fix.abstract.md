@@ -1,0 +1,1 @@
+Process visibility and wake handling for detached tmux sessions are managed through launchd respawn, focus reattachment, and preserved SourceKit-LSP, dock, and menu bar continuity.

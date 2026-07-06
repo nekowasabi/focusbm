@@ -3,19 +3,13 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 415,
+      "tokens": 831,
       "type": "summary"
     },
     {
       "order": 2,
       "path": "architecture/_index.md",
-      "tokens": 417,
-      "type": "summary"
-    },
-    {
-      "order": 1,
-      "path": "architecture/process_visibility/_index.md",
-      "tokens": 389,
+      "tokens": 839,
       "type": "summary"
     },
     {
@@ -37,19 +31,21 @@
       "type": "context"
     },
     {
+      "abstractPath": "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.abstract.md",
+      "abstractTokens": 41,
       "importance": 50,
       "path": "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md",
-      "tokens": 486,
+      "tokens": 41,
       "type": "context"
     }
   ],
-  "generated_at": "2026-07-01T01:51:22.701Z",
+  "generated_at": "2026-07-06T02:45:44.289Z",
   "lane_tokens": {
-    "contexts": 1543,
+    "contexts": 1098,
     "stubs": 0,
-    "summaries": 1221
+    "summaries": 1670
   },
-  "source_fingerprint": "97c3e68399a88dcfc2ed491fbe3e90871c4600a680340bdc12b0fc62747c5b2f",
-  "total_tokens": 2764,
+  "source_fingerprint": "0b637db418c5a5654b4b36ef7a27ecf6e000f518c0e5ed19169175580d805ee3",
+  "total_tokens": 2768,
   "version": 1
 }

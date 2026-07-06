@@ -1,0 +1,1 @@
+- [sleep-wake-empty-process-list](docs/requirements/sleep-wake-empty-process-list.md): スリープ復帰後に AI エージェント一覧が空になる問題の層別分析と対策方針（信頼度付き）。

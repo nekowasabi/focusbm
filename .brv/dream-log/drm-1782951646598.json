@@ -1,0 +1,34 @@
+{
+  "completedAt": 1782951696264,
+  "id": "drm-1782951646598",
+  "operations": [
+    {
+      "action": "MERGE",
+      "inputFiles": [
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md",
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.abstract.md",
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.overview.md"
+      ],
+      "needsReview": true,
+      "outputFile": "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md",
+      "previousTexts": {
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md": "---\ntitle: Sleep Wake Agent Process Visibility Fix\nsummary: Process visibility and focus behavior for tmux-detached sessions, including launchd respawn, focus reattachment, SourceKit-LSP survival, and dock/menu bar process observation.\ntags: []\nrelated: [architecture/process_provider/context.md, architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md]\nkeywords: []\ncreatedAt: '2026-07-01T23:56:45.567Z'\nupdatedAt: '2026-07-01T23:56:45.567Z'\n---\n## Reason\nCurate process visibility and agent focus behavior from the provided context\n\n## Raw Concept\n**Task:**\nDocument the process visibility and focus handling behavior for the focusbm workflow, especially when sessions detach, wake, or respawn.\n\n**Changes:**\n- Captured process visibility and reattachment behavior for tmux-detached sessions\n- Recorded launchd-managed respawn and sleep/wake agent process handling\n- Preserved focus on SourceKit-LSP, dock, and menu bar processes during lifecycle events\n\n**Files:**\n- docs/requirements/tmux-detached-session-focus.md\n- docs/requirements/zombie-process-refresh-plan.md\n- docs/reports/doctrine-mcp-dispatch-resume-missing-20260702.md\n- plan/process-01.md\n- plan/process-02.md\n- plan/process-03.md\n- plan/process-10.md\n- plan/process-11.md\n- plan/process-12.md\n- plan/process-50.md\n- plan/process-100.md\n- plan/process-200.md\n- plan/process-300.md\n- plan-fix-focus/process-01.md\n- plan-fix-focus/process-10.md\n- plan-fix-focus/process-200.md\n- plan-fix-focus/process-300.md\n- hammerspoon/focusbm.lua\n\n**Flow:**\nsleep/wake or detach event -> process visibility check -> focus/reattach/respawn handling -> preserve agent session continuity\n\n**Timestamp:** 2026-07-01T23:56:21.084Z\n\n## Narrative\n### Structure\nThe context centers on process visibility, tmux-detached session focus, and wake-time recovery behavior, with plans and requirements files documenting the operational sequence.\n\n### Dependencies\nDepends on launchd respawn semantics, SourceKit-LSP availability, tmux session state, and macOS process visibility constraints.\n\n### Highlights\nThe knowledge emphasizes that detached or hidden processes must still be observable and recoverable, and that wake/relaunch paths should preserve active focus and session continuity.\n\n---\n\nKeep the existing main document as the canonical file and fold in any unique phrasing from the abstract/overview only if needed. Preserve the full front matter, Reason, Raw Concept, Narrative, and Facts sections from sleep_wake_agent_process_visibility_fix.md. The merged document should continue to capture: BackgroundRefreshService listening for both screen and system sleep/wake notifications; wake-triggered immediate refresh; background cache updates limited to visible search items when the panel is active; basename-aware regex matching for launcher-invoked binaries; exclusion of daemon subcommands app-server and mcp-server from AI process detection; tests for processNamePattern and daemon filtering; the key file list; the sleep/wake -> visibility evaluation -> agent filtering -> fix flow; the regex patterns (^|/) and ([[:space:]]|$); and the test examples codex, foo.bar, node /opt/homebrew/bin/codex app-server, node /opt/homebrew/bin/codex --full-auto, and /Applications/Codex.app/Contents/Resources/codex app-server --analytics-default-enabled.\n",
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.abstract.md": "Process visibility and wake handling for detached tmux sessions are managed through launchd respawn, focus reattachment, and preserved SourceKit-LSP, dock, and menu bar continuity.",
+        "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.overview.md": "- Focuses on process visibility and focus behavior for tmux-detached sessions, including how launchd respawn, wake events, and reattachment should preserve continuity.\n- Emphasizes that sleep/wake or detach events trigger a process visibility check, then focus/reattach/respawn handling, with the goal of keeping agent sessions usable and observable.\n- Notes dependencies on launchd respawn semantics, SourceKit-LSP availability, tmux session state, and macOS process visibility constraints.\n- Highlights visibility requirements for dock/menu bar and other hidden or detached processes, especially during wake/relaunch recovery paths.\n- Merges in broader fix context: BackgroundRefreshService listens for both screen and system sleep/wake notifications; wake triggers immediate refresh; background cache updates are limited to visible search items when the panel is active.\n- Includes process-detection refinements: basename-aware regex matching for launcher-invoked binaries, exclusion of daemon subcommands app-server and mcp-server from AI process detection, and tests covering processNamePattern plus daemon filtering.\n- Identifies key patterns and examples: regex patterns (^|/) and ([[:space:]]|$); test cases for codex, foo.bar, node /opt/homebrew/bin/codex app-server, node /opt/homebrew/bin/codex --full-auto, and /Applications/Codex.app/Contents/Resources/codex app-server --analytics-default-enabled."
+      },
+      "reason": "All three files describe the same process-visibility/focus recovery topic. The main document is canonical and the abstract/overview only restate or expand the same content, with the overview adding unique operational details that should be folded into the canonical file.",
+      "type": "CONSOLIDATE"
+    }
+  ],
+  "startedAt": 1782951646598,
+  "status": "completed",
+  "summary": {
+    "consolidated": 1,
+    "errors": 0,
+    "flaggedForReview": 1,
+    "pruned": 0,
+    "synthesized": 0
+  },
+  "taskId": "d54dedf5-5369-4bf2-9dee-71b8bdd48f1e",
+  "trigger": "agent-idle"
+}

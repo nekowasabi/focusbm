@@ -1,0 +1,9 @@
+- Documents a sleep/wake-related process visibility fix focused on empty AI agent process lists and detached tmux sessions.
+- Core behavior: process visibility is checked after sleep/wake transitions, with refresh/recovery used to restore accurate state.
+- BackgroundRefreshService listens for both screen and system sleep/wake notifications, skips refresh while sleeping, and triggers an immediate or delayed refresh on wake.
+- Wake handling is intentionally delayed by about 2 seconds because `NSWorkspace.runningApplications` may be incomplete immediately after wake.
+- The panel’s background cache updates are limited to visible search items when active, reducing unnecessary refresh scope.
+- Matching logic was refined with basename-aware regex handling for launcher-invoked binaries and daemon subcommand filtering.
+- Tests were added for `processNamePattern` and daemon filtering, and the document captures examples like `codex`, `foo.bar`, and `codex app-server`.
+- Mentions related implementation areas in `BackgroundRefreshService.swift`, tmux/process provider flows, and a requirement doc for the empty-process-list issue.
+- Notable entities and decisions include `ProcessProvider.listNonTmuxAIProcesses()`, `TmuxProvider.listAIAgentPanes(settings:)`, `NSWorkspace` sleep/wake notifications, `showTmuxAgents`, `tmuxPane`, and `aiProcess`.

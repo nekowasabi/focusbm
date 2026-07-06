@@ -1,0 +1,1 @@
+This document describes a sleep-wake process visibility fix for detached tmux and agent sessions, emphasizing wake-triggered refreshes to avoid empty process lists.

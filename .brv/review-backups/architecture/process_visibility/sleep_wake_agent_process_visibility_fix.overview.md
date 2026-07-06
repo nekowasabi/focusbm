@@ -1,0 +1,7 @@
+- Focuses on process visibility and focus behavior for tmux-detached sessions, including how launchd respawn, wake events, and reattachment should preserve continuity.
+- Emphasizes that sleep/wake or detach events trigger a process visibility check, then focus/reattach/respawn handling, with the goal of keeping agent sessions usable and observable.
+- Notes dependencies on launchd respawn semantics, SourceKit-LSP availability, tmux session state, and macOS process visibility constraints.
+- Highlights visibility requirements for dock/menu bar and other hidden or detached processes, especially during wake/relaunch recovery paths.
+- Merges in broader fix context: BackgroundRefreshService listens for both screen and system sleep/wake notifications; wake triggers immediate refresh; background cache updates are limited to visible search items when the panel is active.
+- Includes process-detection refinements: basename-aware regex matching for launcher-invoked binaries, exclusion of daemon subcommands app-server and mcp-server from AI process detection, and tests covering processNamePattern plus daemon filtering.
+- Identifies key patterns and examples: regex patterns (^|/) and ([[:space:]]|$); test cases for codex, foo.bar, node /opt/homebrew/bin/codex app-server, node /opt/homebrew/bin/codex --full-auto, and /Applications/Codex.app/Contents/Resources/codex app-server --analytics-default-enabled.
