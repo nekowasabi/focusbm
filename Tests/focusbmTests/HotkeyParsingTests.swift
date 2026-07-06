@@ -8,6 +8,13 @@ import Testing
     #expect(result.key == "b")
 }
 
+@Test func test_parseHotkey_cmdCtrlR() {
+    let result = HotkeyParser.parse("cmd+ctrl+r")
+    #expect(result.modifiers.contains(.command))
+    #expect(result.modifiers.contains(.control))
+    #expect(result.key == "r")
+}
+
 @Test func test_parseHotkey_optShiftSpace() {
     let result = HotkeyParser.parse("opt+shift+space")
     #expect(result.modifiers.contains(.option))

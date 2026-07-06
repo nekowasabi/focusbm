@@ -107,9 +107,23 @@ public struct BookmarkStore: Codable {
 
 public struct HotkeySettings: Codable, Equatable {
     public var togglePanel: String
+    /// AIエージェントプロセス一覧を強制的に再スキャンするホットキー（デフォルト: cmd+ctrl+r）
+    public var forceReloadAgents: String
 
-    public init(togglePanel: String = "cmd+ctrl+b") {
+    public init(togglePanel: String = "cmd+ctrl+b",
+                forceReloadAgents: String = "cmd+ctrl+r") {
         self.togglePanel = togglePanel
+        self.forceReloadAgents = forceReloadAgents
+    }
+
+    // Why: 合成 Decodable ではなくカスタム init(from:) を採用。
+    //      理由: 非Optional の forceReloadAgents を合成デコードのまま追加すると、
+    //      既存YAML（togglePanel のみ）が keyNotFound で失敗する。
+    //      AppSettings と同じ decodeIfPresent 方式で後方互換を確保する。
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        togglePanel = try container.decodeIfPresent(String.self, forKey: .togglePanel) ?? "cmd+ctrl+b"
+        forceReloadAgents = try container.decodeIfPresent(String.self, forKey: .forceReloadAgents) ?? "cmd+ctrl+r"
     }
 }
 

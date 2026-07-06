@@ -121,7 +121,8 @@ swift build
 
 ### Global Hotkey
 
-The default hotkey is **Cmd+Ctrl+B**.
+The default hotkey to open the search panel is **Cmd+Ctrl+B**.
+The default hotkey to force-refresh the AI agent process list is **Cmd+Ctrl+R**.
 
 You can change it in the `settings` section of your YAML (see below).
 
@@ -269,6 +270,7 @@ Add a `settings` section to `bookmarks.yml` to configure the menu bar app behavi
 settings:
   hotkey:
     togglePanel: "cmd+ctrl+b"
+    forceReloadAgents: "cmd+ctrl+r"
   displayNumber: 1
   listFontSize: 15.0   # Defaults to system .body size (≈13pt) if omitted
   panelWidth: 600         # 検索パネルの幅（デフォルト: 500）
@@ -285,6 +287,7 @@ bookmarks:
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `settings.hotkey.togglePanel` | string | `"cmd+ctrl+b"` | Global hotkey to invoke the search panel |
+| `settings.hotkey.forceReloadAgents` | string | `"cmd+ctrl+r"` | Global hotkey to force-refresh the AI agent process list |
 | `settings.displayNumber` | integer | `1` | Display number where the panel appears (1-based) |
 | `settings.listFontSize` | float | `nil` (≈13pt) | Font size (pt) for the candidate list. Uses system default if omitted |
 | `settings.panelWidth` | integer | `500` | 検索パネルの幅（px） |

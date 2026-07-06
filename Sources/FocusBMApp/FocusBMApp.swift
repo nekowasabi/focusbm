@@ -18,6 +18,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var targetKeyCode: CGKeyCode = 11  // 'b'
     private var targetFlags: CGEventFlags = [.maskCommand, .maskControl]
 
+    // 強制リロード用ホットキー（setupHotkey で更新）
+    private var reloadKeyCode: CGKeyCode = 15  // 'r'
+    private var reloadFlags: CGEventFlags = [.maskCommand, .maskControl]
+
     // YAML キャッシュ（setupSearchPanel で1回だけ読み込み）
     private var cachedPanelWidth: CGFloat = 500
     private var cachedPanelHeight: CGFloat = 400
@@ -36,25 +40,33 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupHotkey() {
         let store = BookmarkStore.loadYAML()
-        let hotkeyString = store.settings?.hotkey.togglePanel ?? "cmd+ctrl+b"
-        let parsed = HotkeyParser.parse(hotkeyString)
 
-        // HotkeyModifiers → CGEventFlags
-        var flags: CGEventFlags = []
-        if parsed.modifiers.contains(.command) { flags.insert(.maskCommand) }
-        if parsed.modifiers.contains(.control) { flags.insert(.maskControl) }
-        if parsed.modifiers.contains(.option) { flags.insert(.maskAlternate) }
-        if parsed.modifiers.contains(.shift) { flags.insert(.maskShift) }
-        targetFlags = flags
+        // トグル用ホットキー
+        let toggleParsed = HotkeyParser.parse(store.settings?.hotkey.togglePanel ?? "cmd+ctrl+b")
+        targetFlags = Self.cgFlags(toggleParsed.modifiers)
+        targetKeyCode = Self.keyCodeForCharacter(toggleParsed.key)
 
-        // キー文字 → CGKeyCode
-        targetKeyCode = Self.keyCodeForCharacter(parsed.key)
+        // 強制リロード用ホットキー
+        let reloadParsed = HotkeyParser.parse(store.settings?.hotkey.forceReloadAgents ?? "cmd+ctrl+r")
+        reloadFlags = Self.cgFlags(reloadParsed.modifiers)
+        reloadKeyCode = Self.keyCodeForCharacter(reloadParsed.key)
 
         if AXIsProcessTrusted() {
             startEventTap()
         } else {
             requestAccessibilityPermission()
         }
+    }
+
+    // Why: togglePanel と forceReloadAgents で同一の変換が2箇所に重複するため純関数に抽出。
+    /// HotkeyModifiers → CGEventFlags 変換
+    static func cgFlags(_ modifiers: HotkeyModifiers) -> CGEventFlags {
+        var flags: CGEventFlags = []
+        if modifiers.contains(.command) { flags.insert(.maskCommand) }
+        if modifiers.contains(.control) { flags.insert(.maskControl) }
+        if modifiers.contains(.option) { flags.insert(.maskAlternate) }
+        if modifiers.contains(.shift) { flags.insert(.maskShift) }
+        return flags
     }
 
     private func requestAccessibilityPermission() {
@@ -156,7 +168,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return nil  // イベントを消費（他アプリに渡さない）
         }
 
+        if keyCode == reloadKeyCode && flags == reloadFlags {
+            DispatchQueue.main.async { [weak self] in
+                self?.forceReloadAgents()
+            }
+            return nil  // イベントを消費（他アプリに渡さない）
+        }
+
         return Unmanaged.passUnretained(event)
+    }
+
+    /// AIエージェントプロセス一覧を強制的に再スキャンする。
+    /// Why: スリープ復帰直後は NSWorkspace.runningApplications が未整備で
+    ///      terminalBundleId が解決できず一覧が空になる。時間経過で回復するため、
+    ///      ユーザー操作で refreshForPanelAsync を再実行して復活させる。
+    ///      refreshForPanelAsync は BackgroundRefreshService と違い isSleeping ガードを
+    ///      見ないため、フラグが stuck でも確実に走る。
+    private func forceReloadAgents() {
+        if let panel = searchPanel, panel.isVisible {
+            // 開いている: その場で再スキャン
+            viewModel.refreshForPanelAsync()
+        } else {
+            // 閉じている: パネルを開く（toggleSearchPanel が末尾で refreshForPanelAsync を呼ぶ）
+            toggleSearchPanel()
+        }
     }
 
     // キー文字 → CGKeyCode 変換テーブル（internal: SearchPanel の alphabetKeyCodes 生成にも使用）

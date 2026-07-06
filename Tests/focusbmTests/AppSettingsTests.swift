@@ -7,11 +7,13 @@ import Yams
 @Test func test_hotkeySettings_defaultValues() {
     let settings = HotkeySettings()
     #expect(settings.togglePanel == "cmd+ctrl+b")
+    #expect(settings.forceReloadAgents == "cmd+ctrl+r")
 }
 
 @Test func test_appSettings_defaultValues() {
     let settings = AppSettings()
     #expect(settings.hotkey.togglePanel == "cmd+ctrl+b")
+    #expect(settings.hotkey.forceReloadAgents == "cmd+ctrl+r")
 }
 
 @Test func test_bookmarkStore_settingsIsOptional() throws {
@@ -50,6 +52,41 @@ import Yams
     let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
     #expect(store.settings?.hotkey.togglePanel == "cmd+shift+space")
     #expect(store.bookmarks.count == 1)
+}
+
+@Test func test_hotkeySettings_forceReloadAgents_fromYAML() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+        forceReloadAgents: "cmd+shift+r"
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.hotkey.forceReloadAgents == "cmd+shift+r")
+}
+
+@Test func test_hotkeySettings_forceReloadAgents_legacyYAML_usesDefault() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.hotkey.forceReloadAgents == "cmd+ctrl+r")
+}
+
+@Test func test_hotkeySettings_forceReloadAgents_roundTrip() throws {
+    var store = BookmarkStore()
+    store.settings = AppSettings(hotkey: HotkeySettings(
+        togglePanel: "cmd+ctrl+b",
+        forceReloadAgents: "cmd+shift+r"
+    ))
+
+    let text = try YAMLEncoder().encode(store)
+    let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
+    #expect(decoded.settings?.hotkey == store.settings?.hotkey)
 }
 
 @Test func test_appSettings_yamlRoundTrip() throws {

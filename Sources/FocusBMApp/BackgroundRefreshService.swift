@@ -62,6 +62,12 @@ class BackgroundRefreshService {
         }
     }
 
+    private func refreshAsyncAfterWakeDelay() {
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 2.0) { [weak self] in
+            self?.refresh()
+        }
+    }
+
     private func observePowerState() {
         let sleepNotifications: [Notification.Name] = [
             NSWorkspace.screensDidSleepNotification,
@@ -90,7 +96,9 @@ class BackgroundRefreshService {
                 queue: .main
             ) { [weak self] _ in
                 self?.isSleeping = false
-                self?.refreshAsync()
+                // Why: Instead of refreshing immediately on wake, adopted a short delay.
+                // Reason: NSWorkspace.runningApplications can still be incomplete right after wake.
+                self?.refreshAsyncAfterWakeDelay()
             }
             powerObservers.append(observer)
         }
