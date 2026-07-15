@@ -61,7 +61,7 @@ public struct TmuxPane {
         }
         // コマンド名で直接判定できるエージェント（終了すればコマンドがシェルに戻る）
         if command == "claude" || command == "aider" || command == "gemini" ||
-           command == "copilot" || command == "agent" || command == "hermes" {
+           command == "copilot" || command == "codex" || command == "agent" || command == "hermes" {
             return true
         }
         // タイトル含有で判定する場合、コマンドがシェルなら終了済みと判断
@@ -88,7 +88,7 @@ public struct TmuxPane {
     var aiAgentReason: String {
         let t = title.lowercased()
         if command == "claude" || command == "aider" || command == "gemini" ||
-           command == "copilot" || command == "agent" || command == "hermes" {
+           command == "copilot" || command == "codex" || command == "agent" || command == "hermes" {
             return "command_match(\(command))"
         }
         if isShellCommand { return "ghost_shell" }

@@ -10,6 +10,13 @@ import AppKit
     #expect(pane.isAIAgent == true)
 }
 
+@Test func test_isAIAgent_codexCommandWithNonCodexTitle() {
+    let pane = TmuxPane(paneId: "%codex", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "codex", title: "focusbm", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+    #expect(pane.aiAgentReason == "command_match(codex)")
+}
+
 @Test func test_isAIAgent_claudeCodeInTitle() {
     let pane = TmuxPane(paneId: "%2", sessionName: "main", windowIndex: 0,
                         windowName: "editor", command: "node", title: "Claude Code", currentPath: "/tmp")
