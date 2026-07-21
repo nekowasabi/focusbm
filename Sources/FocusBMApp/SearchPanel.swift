@@ -49,8 +49,8 @@ class SearchPanel: NSPanel {
         // 候補が1件になったとき自動実行
         viewModel.onAutoExecute = { [weak self] in
             guard let self else { return }
-            if let target = self.viewModel.restoreSelected() {
-                self.activateItem(target: target)
+            if let item = self.viewModel.selectedItem() {
+                self.executeItem(item)
             }
         }
 
@@ -142,11 +142,18 @@ class SearchPanel: NSPanel {
     }
 
     // Why: SearchPanel に配置。理由: panel.close() が必要なためPanel層のメソッドが適切
-    // Why: target を受け取る設計。理由: restoreSelected() は既に ActivationTarget? を返すため変換不要
-    private func activateItem(target: ActivationTarget) {
-        self.close()
-        DispatchQueue.main.async {
-            target.activate()
+    // Why: 先に close() してから restore をバックグラウンド実行する。
+    //      理由: browser restore は osascript の同期待ちを含み、対象ブラウザが Apple Event に
+    //      応答しない場合メインスレッドが凍結し、パネルが閉じないままアプリ全体が固まるため。
+    //      SearchItem はメインスレッドでスナップショット済みのため、close() 後の VM 状態変化と競合しない。
+    func executeItem(_ item: SearchItem) {
+        let viewModel = self.viewModel
+        close()
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let target = viewModel.activationTarget(for: item) else { return }
+            DispatchQueue.main.async {
+                target.activate()
+            }
         }
     }
 
@@ -170,8 +177,8 @@ class SearchPanel: NSPanel {
                 let isBareOrCmd = direct ? (flags.isEmpty || flags == .command) : flags == .command
                 if isBareOrCmd, self.viewModel.query.isEmpty {
                     if self.viewModel.selectByDigit(number) {
-                        if let target = self.viewModel.restoreSelected() {
-                            self.activateItem(target: target)
+                        if let item = self.viewModel.selectedItem() {
+                            self.executeItem(item)
                         }
                     }
                     return nil
@@ -185,9 +192,7 @@ class SearchPanel: NSPanel {
             if let label = Self.alphabetShortcutLabel(keyCode: event.keyCode, flags: event.modifierFlags) {
                 if self.viewModel.query.isEmpty,
                    let pair = self.viewModel.shortcutBarItems.first(where: { $0.label == label }) {
-                    if let target = self.viewModel.activationTarget(for: pair.item) {
-                        self.activateItem(target: target)
-                    }
+                    self.executeItem(pair.item)
                     return nil
                 }
             }

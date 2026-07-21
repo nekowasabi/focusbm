@@ -4,11 +4,13 @@ import AppKit
 public enum AppleScriptError: Error, LocalizedError {
     case executionFailed(String)
     case noResult
+    case timedOut
 
     public var errorDescription: String? {
         switch self {
         case .executionFailed(let msg): return "AppleScript error: \(msg)"
         case .noResult: return "AppleScript returned no result"
+        case .timedOut: return "AppleScript execution timed out"
         }
     }
 }
@@ -24,7 +26,12 @@ public struct AppleScriptBridge {
         browserBundleIds.contains(bundleId)
     }
 
-    public static func run(_ script: String) throws -> String {
+    /// osascript を同期実行する。timeout 秒以内に終了しない場合はプロセスを強制終了して
+    /// AppleScriptError.timedOut を投げる。
+    /// Why: waitUntilExit() 単独では、対象アプリ（Chrome 等）が Apple Event に応答しない場合に
+    ///      無期限ブロックし、残留 osascript が Apple Event トランザクションを掴んだまま
+    ///      対象アプリの終了・再起動まで阻害するため。
+    public static func run(_ script: String, timeout: TimeInterval = 5.0) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
         process.arguments = ["-e", script]
@@ -34,12 +41,39 @@ public struct AppleScriptBridge {
         process.standardOutput = outPipe
         process.standardError = errPipe
 
-        try process.run()
-        process.waitUntilExit()
+        let done = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in done.signal() }
 
-        let output = String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+        // Why: パイプ読み取りを終了待ちの前に開始する。一括タブ取得の出力が
+        //      パイプバッファ（64KB）を超えると、読み手不在では osascript 側が書き込みでブロックするため
+        var outData = Data()
+        var errData = Data()
+        let readGroup = DispatchGroup()
+        readGroup.enter()
+        DispatchQueue.global(qos: .utility).async {
+            outData = outPipe.fileHandleForReading.readDataToEndOfFile()
+            readGroup.leave()
+        }
+        readGroup.enter()
+        DispatchQueue.global(qos: .utility).async {
+            errData = errPipe.fileHandleForReading.readDataToEndOfFile()
+            readGroup.leave()
+        }
+
+        try process.run()
+
+        if done.wait(timeout: .now() + timeout) == .timedOut {
+            process.terminate()
+            if done.wait(timeout: .now() + 1.0) == .timedOut {
+                kill(process.processIdentifier, SIGKILL)
+            }
+            throw AppleScriptError.timedOut
+        }
+        readGroup.wait()
+
+        let output = String(data: outData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let errOutput = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+        let errOutput = String(data: errData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
         if process.terminationStatus != 0 && !errOutput.isEmpty {
@@ -169,106 +203,119 @@ public struct AppleScriptBridge {
     }
 
     // ブラウザ: URL でタブを検索してフォーカス（tabIndex があれば優先）
+    // Why: 旧実装はタブ1枚ごとに AppleScript ループ内で URL を問い合わせており、
+    //      Apple Event がタブ数×ウィンドウ数だけ往復した。Chrome が1回でも応答しないと
+    //      osascript ごとハングするため、「一括取得 → Swift 側で照合 → 1回でフォーカス」に変更。
     public static func restoreBrowserTab(bundleId: String, url: String, tabIndex: Int?, urlPrefix: String? = nil) throws {
-        let escapedBundleId = escapeForAppleScript(bundleId)
-
-        // urlPrefix が指定されていれば begins with で先にスキャン
-        if let prefix = urlPrefix, !prefix.isEmpty {
-            let escapedPrefix = escapeForAppleScript(prefix)
-            let script = """
-            tell application id "\(escapedBundleId)"
-                repeat with w in windows
-                    set tabList to tabs of w
-                    repeat with i from 1 to count of tabList
-                        if URL of item i of tabList begins with "\(escapedPrefix)" then
-                            set active tab index of w to i
-                            activate
-                            return "true"
-                        end if
-                    end repeat
-                end repeat
-                return "false"
-            end tell
-            """
-            let result = (try? run(script)) ?? "false"
-            if result == "true" { return }
-        }
-
-        // tabIndex のみ指定（URL 空）: 直接タブ切り替え
-        if let idx = tabIndex, url.isEmpty {
-            let script = """
-            tell application id "\(escapedBundleId)"
-                repeat with w in windows
-                    if (count of tabs of w) >= \(idx) then
-                        set active tab index of w to \(idx)
-                        activate
-                        return "true"
-                    end if
-                end repeat
-                return "false"
-            end tell
-            """
-            let result = (try? run(script)) ?? "false"
-            if result == "true" { return }
-            // Chrome 系失敗 or Firefox → Cmd+N ショートカットで代替
-            try switchToTabByShortcut(bundleId: bundleId, index: idx)
-            return
-        }
-
-        // tabIndex + URL: tabIndex を優先しつつ URL で検証
-        if let idx = tabIndex {
-            let escapedUrl = escapeForAppleScript(url)
-            let script = """
-            tell application id "\(escapedBundleId)"
-                repeat with w in windows
-                    if (count of tabs of w) >= \(idx) then
-                        if URL of tab \(idx) of w contains "\(escapedUrl)" then
-                            set active tab index of w to \(idx)
-                            activate
-                            return "true"
-                        end if
-                    end if
-                end repeat
-                return "false"
-            end tell
-            """
-            let result = (try? run(script)) ?? "false"
-            if result == "true" { return }
-            // URL 不一致 or Firefox → Cmd+N ショートカットで代替
-            try switchToTabByShortcut(bundleId: bundleId, index: idx)
-            return
-        }
-
-        // URL のみでフォールバック検索（tabIndex なし）
-        let escapedUrl = escapeForAppleScript(url)
-        let script = """
-        tell application id "\(escapedBundleId)"
-            set found to false
-            repeat with w in windows
-                set tabList to tabs of w
-                repeat with i from 1 to count of tabList
-                    if URL of item i of tabList contains "\(escapedUrl)" then
-                        set active tab index of w to i
-                        set found to true
-                        exit repeat
-                    end if
-                end repeat
-                if found then exit repeat
-            end repeat
-            if found then activate
-            return found as text
-        end tell
-        """
-        // Firefox など AppleScript tabs 非対応ブラウザはここで例外が発生する。
-        // タブが見つからない場合も含め、urlPattern があれば URL を開き、なければアクティブ化のみ。
-        let result = (try? run(script)) ?? "false"
-        if result != "true" {
-            if !url.isEmpty {
+        let tabURLs: [[String]]
+        do {
+            tabURLs = try fetchAllTabURLs(bundleId: bundleId)
+        } catch {
+            // Firefox 等 AppleScript tabs 非対応、または対象ブラウザ無応答（timedOut）。
+            // 旧実装のフォールバック順序を踏襲: tabIndex があればショートカット切替、
+            // なければ URL オープン、それも無ければアクティブ化のみ。
+            if let idx = tabIndex {
+                try switchToTabByShortcut(bundleId: bundleId, index: idx)
+            } else if !url.isEmpty {
                 try openURL(bundleId: bundleId, urlPattern: url)
             } else {
                 try activateApp(bundleId: bundleId)
             }
+            return
         }
+
+        // urlPrefix が指定されていれば begins with 相当で先に照合
+        if let prefix = urlPrefix, !prefix.isEmpty,
+           let loc = findTab(in: tabURLs, where: { $0.hasPrefix(prefix) }) {
+            try focusTab(bundleId: bundleId, windowIndex: loc.window, tabIndex: loc.tab)
+            return
+        }
+
+        if let idx = tabIndex {
+            if url.isEmpty {
+                // tabIndex のみ指定: タブ数が足りる最初のウィンドウで直接タブ切り替え
+                if let w = tabURLs.firstIndex(where: { $0.count >= idx }) {
+                    try focusTab(bundleId: bundleId, windowIndex: w + 1, tabIndex: idx)
+                    return
+                }
+            } else if let w = tabURLs.firstIndex(where: { $0.count >= idx && $0[idx - 1].contains(url) }) {
+                // tabIndex + URL: tabIndex を優先しつつ URL で検証
+                try focusTab(bundleId: bundleId, windowIndex: w + 1, tabIndex: idx)
+                return
+            }
+            // 該当なし → Cmd+N ショートカットで代替（旧実装と同じ）
+            try switchToTabByShortcut(bundleId: bundleId, index: idx)
+            return
+        }
+
+        // URL のみでフォールバック検索
+        if !url.isEmpty {
+            if let loc = findTab(in: tabURLs, where: { $0.contains(url) }) {
+                try focusTab(bundleId: bundleId, windowIndex: loc.window, tabIndex: loc.tab)
+                return
+            }
+            try openURL(bundleId: bundleId, urlPattern: url)
+            return
+        }
+        try activateApp(bundleId: bundleId)
+    }
+
+    /// 全ウィンドウのタブ URL を一括取得する。戻り値はウィンドウごとの URL 配列（前面順）。
+    /// Why: `URL of tabs of every window` は少数の Apple Event 往復でまとめて返るため、
+    ///      タブごとの逐次問い合わせと比べてハング確率が桁で下がる。
+    static func fetchAllTabURLs(bundleId: String) throws -> [[String]] {
+        let escapedBundleId = escapeForAppleScript(bundleId)
+        let script = """
+        tell application id "\(escapedBundleId)" to set urlLists to URL of tabs of every window
+        set out to ""
+        repeat with wURLs in urlLists
+            set lineText to ""
+            repeat with u in wURLs
+                try
+                    set lineText to lineText & (u as text)
+                end try
+                set lineText to lineText & tab
+            end repeat
+            set out to out & lineText & linefeed
+        end repeat
+        return out
+        """
+        return parseTabURLOutput(try run(script))
+    }
+
+    /// fetchAllTabURLs の出力（行=ウィンドウ、タブ文字区切り=URL）をパースする。
+    /// run() が末尾の空白類を trim するため、最終行の末尾タブ・末尾改行は既に除去されている。
+    static func parseTabURLOutput(_ output: String) -> [[String]] {
+        guard !output.isEmpty else { return [] }
+        var lines = output.components(separatedBy: "\n")
+        if lines.last == "" { lines.removeLast() }
+        return lines.map { line in
+            var urls = line.components(separatedBy: "\t")
+            if urls.last == "" { urls.removeLast() }
+            return urls
+        }
+    }
+
+    /// 条件に一致する最初のタブ位置を返す（window / tab とも 1-based）
+    static func findTab(in tabURLs: [[String]], where predicate: (String) -> Bool) -> (window: Int, tab: Int)? {
+        for (w, urls) in tabURLs.enumerated() {
+            for (t, url) in urls.enumerated() where predicate(url) {
+                return (window: w + 1, tab: t + 1)
+            }
+        }
+        return nil
+    }
+
+    /// 指定ウィンドウの指定タブをアクティブ化する（いずれも 1-based）
+    private static func focusTab(bundleId: String, windowIndex: Int, tabIndex: Int) throws {
+        let escapedBundleId = escapeForAppleScript(bundleId)
+        let script = """
+        tell application id "\(escapedBundleId)"
+            set active tab index of window \(windowIndex) to \(tabIndex)
+            activate
+        end tell
+        """
+        _ = try run(script)
     }
 
     /// urlPattern を補完して `open location` で URL を開く（Firefox・Chrome 共通）。

@@ -148,7 +148,7 @@ public struct ProcessProvider {
                     title: "\(commandName) (pid: \(pid))"
                 )
 
-                // Why: terminalBundleId が無い AI プロセスは restoreSelected()/activationTarget(for:) が
+                // Why: terminalBundleId が無い AI プロセスは activationTarget(for:) が
                 //      nil になり、ユーザーが選んでもフォーカス切り替えできないため表示対象から外す。
                 guard isRecoverableAIProcess(aiProcess) else {
                     log("  pid \(pid): skip (unrecoverable terminal)")

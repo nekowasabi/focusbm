@@ -22,11 +22,8 @@ struct SearchView: View {
                     .font(.title3)
                     .focused($isSearchFieldFocused)
                     .onSubmit {
-                        if let target = viewModel.restoreSelected() {
-                            panel?.close()
-                            DispatchQueue.main.async {
-                                target.activate()
-                            }
+                        if let item = viewModel.selectedItem() {
+                            panel?.executeItem(item)
                         }
                     }
             }
@@ -71,12 +68,7 @@ struct SearchView: View {
                                     .contentShape(Rectangle())
                                     .onTapGesture {
                                         viewModel.selectedIndex = index
-                                        if let target = viewModel.restoreSelected() {
-                                            panel?.close()
-                                            DispatchQueue.main.async {
-                                                target.activate()
-                                            }
-                                        }
+                                        panel?.executeItem(pair.item)
                                     }
                                 }
                             }
@@ -108,12 +100,7 @@ struct SearchView: View {
                                     .contentShape(Rectangle())
                                     .onTapGesture {
                                         viewModel.selectedIndex = index
-                                        if let target = viewModel.restoreSelected() {
-                                            panel?.close()
-                                            DispatchQueue.main.async {
-                                                target.activate()
-                                            }
-                                        }
+                                        panel?.executeItem(pair.item)
                                     }
                                 }
                             }
@@ -154,12 +141,7 @@ struct SearchView: View {
                     fontSize: viewModel.listFontSize,
                     fontName: viewModel.fontName,
                     onActivate: { item in
-                        if let target = viewModel.activationTarget(for: item) {
-                            panel?.close()
-                            DispatchQueue.main.async {
-                                target.activate()
-                            }
-                        }
+                        panel?.executeItem(item)
                     }
                 )
             }

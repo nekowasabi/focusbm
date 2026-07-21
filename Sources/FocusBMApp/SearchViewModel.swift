@@ -387,40 +387,16 @@ class SearchViewModel: ObservableObject {
         return max(0, min(index, count - 1))
     }
 
-    func restoreSelected() -> ActivationTarget? {
-        // Why: mainListAssignments[selectedIndex].item を参照。理由: selectedIndex はメインリストのみを追跡する新契約
+    /// 選択中の SearchItem を返す（メインスレッドでのスナップショット取得用）。
+    /// Why: restore はバックグラウンドで実行するため、VM 状態への参照は
+    ///      パネル close 前にメインスレッドで確定させる必要がある。
+    func selectedItem() -> SearchItem? {
         guard selectedIndex >= 0, selectedIndex < mainListAssignments.count else { return nil }
-        let item = mainListAssignments[selectedIndex].item
-        switch item {
-        case .bookmark(let bookmark):
-            do {
-                let target = try BookmarkRestorer.restoreAndGetTarget(bookmark)
-                return target
-            } catch {
-                print("Restore failed: \(error)")
-                return nil
-            }
-        case .floatingWindow(let entry):
-            FloatingWindowProvider.focus(entry: entry)
-            // AXRaise + activate は focus() 内で完了済み。
-            // ただし close 後の再 activate のため PID を返す
-            return .pid(entry.pid)
-        case .tmuxPane(let pane):
-            do {
-                let target = try TmuxProvider.focusPane(pane, settings: appSettings)
-                return target
-            } catch {
-                print("TmuxProvider.focusPane failed: \(error)")
-                return nil
-            }
-        case .aiProcess(let proc):
-            guard let bundleId = proc.terminalBundleId else { return nil }
-            return .bundleId(bundleId, appName: proc.terminalAppName ?? "Terminal")
-        }
+        return mainListAssignments[selectedIndex].item
     }
 
     // Why: SearchItem から直接 ActivationTarget を取得するメソッド。
-    // restoreSelected() は selectedIndex 経由だが、shortcutBarItems はメインリスト外のため
+    // selectedItem() は selectedIndex 経由だが、shortcutBarItems はメインリスト外のため
     // selectedIndex を使えない。ShortcutBarView と P6 のアルファベットキーハンドラが使用する。
     func activationTarget(for item: SearchItem) -> ActivationTarget? {
         switch item {
