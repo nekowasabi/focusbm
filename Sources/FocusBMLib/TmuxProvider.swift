@@ -171,6 +171,30 @@ public struct TmuxPane {
 
 public struct TmuxProvider {
     static let envPath = "/usr/bin/env"
+
+    // Why: /usr/bin/env 経由の PATH 解決ではなく候補パスの明示解決を採用。
+    //      理由: ログイン項目として launchd から起動されると PATH に Homebrew が含まれず、
+    //      env tmux が失敗し続けて tmux 内の AI エージェントが永久に空表示になるため。
+    static let tmuxCandidatePaths = [
+        "/opt/homebrew/bin/tmux",
+        "/usr/local/bin/tmux",
+        "/usr/bin/tmux",
+    ]
+
+    /// tmux コマンド実行用の Process を生成する
+    /// - Parameter tmuxArgs: tmux に渡す引数配列（"tmux" 自体は含めない）
+    static func makeTmuxProcess(_ tmuxArgs: [String]) -> Process {
+        let process = Process()
+        if let path = tmuxCandidatePaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) {
+            process.executableURL = URL(fileURLWithPath: path)
+            process.arguments = tmuxArgs
+        } else {
+            // フォールバック: 候補が存在しない環境では従来どおり PATH 解決に委ねる
+            process.executableURL = URL(fileURLWithPath: envPath)
+            process.arguments = ["tmux"] + tmuxArgs
+        }
+        return process
+    }
     static let separator = "||"
     static let formatString = "#{pane_id}||#{session_name}||#{window_index}||#{window_name}||#{pane_current_command}||#{pane_title}||#{pane_current_path}||#{pane_pid}"
 
@@ -200,9 +224,7 @@ public struct TmuxProvider {
 
     // tmuxが起動しているか確認
     public static func isTmuxAvailable() -> Bool {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: envPath)
-        process.arguments = ["tmux", "info"]
+        let process = makeTmuxProcess(["info"])
         process.standardOutput = Pipe()
         process.standardError = Pipe()
         do {
@@ -236,9 +258,7 @@ public struct TmuxProvider {
 
     /// tmux list-clients で全クライアントを一括取得し、window→client / session→fallback マッピングを構築
     static func buildClientMap() -> [String: TmuxClientInfo] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: envPath)
-        process.arguments = ["tmux", "list-clients", "-F", "#{client_tty}||#{client_session}||#{window_index}||#{window_name}||#{pane_id}||#{client_pid}||#{client_activity}"]
+        let process = makeTmuxProcess(["list-clients", "-F", "#{client_tty}||#{client_session}||#{window_index}||#{window_name}||#{pane_id}||#{client_pid}||#{client_activity}"])
 
         let outPipe = Pipe()
         process.standardOutput = outPipe
@@ -345,9 +365,7 @@ public struct TmuxProvider {
 
     // 全ペインを取得
     public static func listAllPanes(settings: AppSettings? = nil) throws -> [TmuxPane] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: envPath)
-        process.arguments = ["tmux", "list-panes", "-a", "-F", formatString]
+        let process = makeTmuxProcess(["list-panes", "-a", "-F", formatString])
 
         let outPipe = Pipe()
         let errPipe = Pipe()
@@ -514,9 +532,7 @@ public struct TmuxProvider {
     ///   - fatalOnFailure: true の場合、終了コード != 0 で TmuxError をスロー
     private static func runTmuxCommand(_ arguments: [String], description: String, fatalOnFailure: Bool) throws {
         log("focusPane: \(description)")
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: envPath)
-        process.arguments = arguments
+        let process = makeTmuxProcess(arguments.first == "tmux" ? Array(arguments.dropFirst()) : arguments)
         process.standardOutput = Pipe()
         let errPipe = Pipe()
         process.standardError = errPipe
@@ -583,9 +599,7 @@ public struct TmuxProvider {
 
     /// tmux show-environment でセッション作成時の TERM_PROGRAM を取得してターミナルを識別
     private static func terminalAppFromTmuxEnv(session: String) -> (bundleId: String?, appName: String)? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: envPath)
-        process.arguments = ["tmux", "show-environment", "-t", session, "TERM_PROGRAM"]
+        let process = makeTmuxProcess(["show-environment", "-t", session, "TERM_PROGRAM"])
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = Pipe()
@@ -626,14 +640,12 @@ public struct TmuxProvider {
         }
 
         // clientMap ミスの場合: per-session list-clients にフォールバック
-        let clientProcess = Process()
-        clientProcess.executableURL = URL(fileURLWithPath: envPath)
+        let clientProcess = makeTmuxProcess(["list-clients",
+            "-t", "\(sessionName):\(pane.windowIndex)",
+            "-F", "#{client_tty}||#{client_pid}"])
         let pipe = Pipe()
         clientProcess.standardOutput = pipe
         clientProcess.standardError = Pipe()
-        clientProcess.arguments = ["tmux", "list-clients",
-            "-t", "\(sessionName):\(pane.windowIndex)",
-            "-F", "#{client_tty}||#{client_pid}"]
         try? clientProcess.run()
         clientProcess.waitUntilExit()
 
