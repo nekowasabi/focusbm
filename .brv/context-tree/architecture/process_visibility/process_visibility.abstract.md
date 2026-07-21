@@ -1,0 +1,1 @@
+Process visibility for focus management covers detached tmux sessions and sleep-wake edge cases where process lists may be empty or stale.

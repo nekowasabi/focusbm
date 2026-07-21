@@ -31,6 +31,20 @@
       "type": "context"
     },
     {
+      "importance": 50,
+      "path": "architecture/process_visibility/context.md",
+      "tokens": 61,
+      "type": "context"
+    },
+    {
+      "abstractPath": "architecture/process_visibility/process_visibility.abstract.md",
+      "abstractTokens": 35,
+      "importance": 50,
+      "path": "architecture/process_visibility/process_visibility.md",
+      "tokens": 35,
+      "type": "context"
+    },
+    {
       "abstractPath": "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.abstract.md",
       "abstractTokens": 41,
       "importance": 50,
@@ -39,13 +53,13 @@
       "type": "context"
     }
   ],
-  "generated_at": "2026-07-06T02:45:44.289Z",
+  "generated_at": "2026-07-15T05:01:26.548Z",
   "lane_tokens": {
-    "contexts": 1098,
+    "contexts": 1194,
     "stubs": 0,
     "summaries": 1670
   },
-  "source_fingerprint": "0b637db418c5a5654b4b36ef7a27ecf6e000f518c0e5ed19169175580d805ee3",
-  "total_tokens": 2768,
+  "source_fingerprint": "80be35062dae72be441c1c0f202a25d9f31854dcf911b1d773a61a0d84f02e60",
+  "total_tokens": 2864,
   "version": 1
 }

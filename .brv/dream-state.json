@@ -1,9 +1,18 @@
 {
-  "curationsSinceDream": 0,
+  "curationsSinceDream": 1,
   "lastDreamAt": "2026-07-06T02:45:44.290Z",
   "lastDreamLogId": "drm-1783305904219",
   "pendingMerges": [],
-  "staleSummaryPaths": [],
+  "staleSummaryPaths": [
+    {
+      "enqueuedAt": 1784090960747,
+      "path": "architecture/process_visibility/context.md"
+    },
+    {
+      "enqueuedAt": 1784090960747,
+      "path": "architecture/process_visibility/process_visibility.md"
+    }
+  ],
   "totalDreams": 4,
   "version": 1
 }

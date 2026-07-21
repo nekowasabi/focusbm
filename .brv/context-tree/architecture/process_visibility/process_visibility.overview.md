@@ -1,0 +1,7 @@
+- Documents process visibility behavior for focus management, with emphasis on tmux-related provider reliability.
+- Highlights two main edge cases: detached tmux sessions and sleep-wake transitions that can produce empty or stale process lists.
+- Describes the flow as: focus check -> process provider query -> process list inspection -> handling detached or stale results.
+- Notes that the document is centered on how process enumeration affects focus logic and provider correctness.
+- Indicates dependencies on tmux session state and system sleep-wake timing/freshness of process data.
+- References source and test files: `Sources/FocusBMLib/TmuxProvider.swift` and `Tests/focusbmTests/TmuxProviderTests.swift`.
+- Organized into reason, raw concept, and narrative sections, with the narrative summarizing structure, dependencies, and key edge-case handling.
