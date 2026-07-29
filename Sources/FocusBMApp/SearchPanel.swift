@@ -5,6 +5,7 @@ import FocusBMLib
 
 class SearchPanel: NSPanel {
     private let viewModel: SearchViewModel
+    private let openURL: (URL) -> Bool
     private var localKeyMonitor: Any?
     // Why: close()一点で全close pathのフォーカス復元をカバーするため、
     //      パネル表示時の前アプリ参照を保持する。各close pathに個別にactivate()を
@@ -12,8 +13,14 @@ class SearchPanel: NSPanel {
     //      将来のclose path追加でも自動的にフォーカス復元が保証されるため
     private var previousApp: NSRunningApplication?
 
-    init(viewModel: SearchViewModel, width: CGFloat = 500, height: CGFloat = 400) {
+    init(
+        viewModel: SearchViewModel,
+        width: CGFloat = 500,
+        height: CGFloat = 400,
+        openURL: @escaping (URL) -> Bool = { NSWorkspace.shared.open($0) }
+    ) {
         self.viewModel = viewModel
+        self.openURL = openURL
 
         let contentRect = NSRect(x: 0, y: 0, width: width, height: height)
         super.init(
@@ -134,11 +141,54 @@ class SearchPanel: NSPanel {
         return masked.contains(.shift) ? baseLetter.uppercased() : baseLetter
     }
 
+    static func matchesSessionPullRequestHotkey(
+        keyCode: UInt16,
+        flags: NSEvent.ModifierFlags,
+        hotkey: String
+    ) -> Bool {
+        let parsed = HotkeyParser.parse(hotkey)
+        let eventKey = alphabetKeyCodes[keyCode].map { $0 }
+            ?? digitKeyCodes[keyCode].map(String.init)
+        guard eventKey == parsed.key else { return false }
+
+        var expectedFlags: NSEvent.ModifierFlags = []
+        if parsed.modifiers.contains(.command) { expectedFlags.insert(.command) }
+        if parsed.modifiers.contains(.control) { expectedFlags.insert(.control) }
+        if parsed.modifiers.contains(.option) { expectedFlags.insert(.option) }
+        if parsed.modifiers.contains(.shift) { expectedFlags.insert(.shift) }
+
+        return flags.intersection(.deviceIndependentFlagsMask) == expectedFlags
+    }
+
     /// Command+R による手動リフレッシュ用ショートカットかどうかを判定する。
     static func isManualRefreshShortcut(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
         guard alphabetKeyCodes[keyCode] == "r" else { return false }
         let masked = flags.intersection(.deviceIndependentFlagsMask)
         return masked.subtracting([.shift, .command]).isEmpty && masked.contains(.command)
+    }
+
+    // Why: Resolve off the main thread and close only after a validated URL exists;
+    //      missing or conflicting session data must leave the panel open.
+    static func performSessionPullRequestAction(
+        url: URL,
+        close: () -> Void,
+        openURL: (URL) -> Bool
+    ) {
+        close()
+        _ = openURL(url)
+    }
+
+    func openSessionPullRequest(for item: SearchItem) {
+        guard viewModel.canResolveSessionPullRequest(for: item) else { return }
+        let viewModel = self.viewModel
+        let openURL = self.openURL
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let url = viewModel.sessionPullRequestURL(for: item) else { return }
+            DispatchQueue.main.async {
+                guard let self, self.isVisible else { return }
+                Self.performSessionPullRequestAction(url: url, close: self.close, openURL: openURL)
+            }
+        }
     }
 
     // Why: SearchPanel に配置。理由: panel.close() が必要なためPanel層のメソッドが適切
@@ -161,6 +211,16 @@ class SearchPanel: NSPanel {
         guard localKeyMonitor == nil else { return }
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
+
+            if Self.matchesSessionPullRequestHotkey(
+                keyCode: event.keyCode,
+                flags: event.modifierFlags,
+                hotkey: self.viewModel.openSessionPullRequestHotkey
+            ), let item = self.viewModel.selectedItem(),
+               self.viewModel.canResolveSessionPullRequest(for: item) {
+                self.openSessionPullRequest(for: item)
+                return nil
+            }
 
             // Command+R: 絞り込み画面を開いたまま動的な tmux/process 情報を再取得
             if Self.isManualRefreshShortcut(keyCode: event.keyCode, flags: event.modifierFlags) {

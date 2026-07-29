@@ -23,6 +23,7 @@ class SearchViewModel: ObservableObject {
     // Why: private(set) ではなく var を採用。理由: テストから appSettings を注入するため（同モジュール内の書き込みを許容）。
     // 外部からの書き込みは load() 経由が正規経路だが、テスト専用注入を許容する。internal がデフォルトのため明示修飾子は付けない。
     var appSettings: AppSettings? = nil
+    var sessionPullRequestResolver = SessionPullRequestResolver()
     private var refreshGeneration: Int = 0
     /// 自動実行ハイライト中かどうか（実行直前の視覚フィードバック用）
     @Published var isAutoExecuteHighlighted: Bool = false
@@ -393,6 +394,37 @@ class SearchViewModel: ObservableObject {
     func selectedItem() -> SearchItem? {
         guard selectedIndex >= 0, selectedIndex < mainListAssignments.count else { return nil }
         return mainListAssignments[selectedIndex].item
+    }
+
+    var openSessionPullRequestHotkey: String {
+        appSettings?.hotkey.openSessionPullRequest ?? DEFAULT_OPEN_PR_HOTKEY
+    }
+
+    func canResolveSessionPullRequest(for item: SearchItem) -> Bool {
+        switch item {
+        case .aiProcess(let process):
+            return sessionPullRequestResolver.supports(command: process.command)
+        case .tmuxPane(let pane):
+            let command = pane.resolvedNodeCommand ?? pane.command
+            return sessionPullRequestResolver.supports(command: command)
+        default:
+            return false
+        }
+    }
+
+    func sessionPullRequestURL(for item: SearchItem) -> URL? {
+        switch item {
+        case .aiProcess(let process):
+            return sessionPullRequestResolver.resolveURL(for: process)
+        case .tmuxPane(let pane):
+            let command = pane.resolvedNodeCommand ?? pane.command
+            return sessionPullRequestResolver.resolveURL(
+                for: command,
+                workingDirectory: pane.currentPath
+            )
+        default:
+            return nil
+        }
     }
 
     // Why: SearchItem から直接 ActivationTarget を取得するメソッド。

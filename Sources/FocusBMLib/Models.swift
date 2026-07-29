@@ -109,21 +109,53 @@ public struct HotkeySettings: Codable, Equatable {
     public var togglePanel: String
     /// AIエージェントプロセス一覧を強制的に再スキャンするホットキー（デフォルト: cmd+ctrl+r）
     public var forceReloadAgents: String
+    /// Panel hotkey for opening the selected session's pull request (default: cmd+p).
+    public var openSessionPullRequest: String
 
     public init(togglePanel: String = "cmd+ctrl+b",
-                forceReloadAgents: String = "cmd+ctrl+r") {
+                forceReloadAgents: String = "cmd+ctrl+r",
+                openSessionPullRequest: String = DEFAULT_OPEN_PR_HOTKEY) {
         self.togglePanel = togglePanel
         self.forceReloadAgents = forceReloadAgents
+        self.openSessionPullRequest = Self.normalizedOpenSessionPullRequestHotkey(openSessionPullRequest)
     }
 
-    // Why: 合成 Decodable ではなくカスタム init(from:) を採用。
-    //      理由: 非Optional の forceReloadAgents を合成デコードのまま追加すると、
-    //      既存YAML（togglePanel のみ）が keyNotFound で失敗する。
-    //      AppSettings と同じ decodeIfPresent 方式で後方互換を確保する。
+    // Why: Keep custom decoding instead of synthesized Decodable so legacy YAML
+    //      without the new non-optional field continues to decode.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         togglePanel = try container.decodeIfPresent(String.self, forKey: .togglePanel) ?? "cmd+ctrl+b"
         forceReloadAgents = try container.decodeIfPresent(String.self, forKey: .forceReloadAgents) ?? "cmd+ctrl+r"
+        let configured = try container.decodeIfPresent(String.self, forKey: .openSessionPullRequest)
+            ?? DEFAULT_OPEN_PR_HOTKEY
+        openSessionPullRequest = Self.normalizedOpenSessionPullRequestHotkey(configured)
+        if configured != DEFAULT_OPEN_PR_HOTKEY && openSessionPullRequest == DEFAULT_OPEN_PR_HOTKEY {
+            print("[FocusBM] Invalid openSessionPullRequest; using " + DEFAULT_OPEN_PR_HOTKEY + ".")
+        }
+    }
+
+    public static func normalizedOpenSessionPullRequestHotkey(_ value: String) -> String {
+        let parsed = HotkeyParser.parse(value)
+        guard isSupportedOpenSessionPullRequestHotkey(parsed),
+              !isReservedOpenSessionPullRequestHotkey(parsed) else {
+            return DEFAULT_OPEN_PR_HOTKEY
+        }
+        return value
+    }
+
+    private static func isSupportedOpenSessionPullRequestHotkey(_ hotkey: ParsedHotkey) -> Bool {
+        hotkey.key.count == 1
+            || ["escape", "esc", "up", "down", "left", "right"].contains(hotkey.key)
+    }
+
+    private static func isReservedOpenSessionPullRequestHotkey(_ hotkey: ParsedHotkey) -> Bool {
+        if ["escape", "esc", "up", "down", "left", "right"].contains(hotkey.key) {
+            return true
+        }
+        if hotkey.key.count == 1, hotkey.key.first?.isNumber == true {
+            return true
+        }
+        return hotkey.key == "r" && hotkey.modifiers.contains(.command)
     }
 }
 

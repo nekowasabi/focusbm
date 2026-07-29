@@ -10,6 +10,29 @@ import Yams
     #expect(settings.forceReloadAgents == "cmd+ctrl+r")
 }
 
+@Test func test_hotkeySettings_openSessionPullRequest_defaultsAndAcceptsCustomValue() {
+    #expect(HotkeySettings().openSessionPullRequest == DEFAULT_OPEN_PR_HOTKEY)
+    #expect(HotkeySettings(openSessionPullRequest: "cmd+shift+p").openSessionPullRequest == "cmd+shift+p")
+    #expect(HotkeySettings(openSessionPullRequest: "ctrl+p").openSessionPullRequest == "ctrl+p")
+}
+
+@Test func test_hotkeySettings_openSessionPullRequest_legacyYAMLAndRoundTrip() throws {
+    let legacy = try YAMLDecoder().decode(HotkeySettings.self, from: "togglePanel: cmd+ctrl+b")
+    #expect(legacy.openSessionPullRequest == DEFAULT_OPEN_PR_HOTKEY)
+
+    let configured = HotkeySettings(openSessionPullRequest: "cmd+shift+p")
+    let encoded = try YAMLEncoder().encode(configured)
+    let decoded = try YAMLDecoder().decode(HotkeySettings.self, from: encoded)
+    #expect(decoded.openSessionPullRequest == "cmd+shift+p")
+}
+
+@Test func test_hotkeySettings_openSessionPullRequest_invalidOrReserved_fallsBack() {
+    #expect(HotkeySettings(openSessionPullRequest: "cmd+r").openSessionPullRequest == DEFAULT_OPEN_PR_HOTKEY)
+    #expect(HotkeySettings(openSessionPullRequest: "cmd+1").openSessionPullRequest == DEFAULT_OPEN_PR_HOTKEY)
+    #expect(HotkeySettings(openSessionPullRequest: "escape").openSessionPullRequest == DEFAULT_OPEN_PR_HOTKEY)
+    #expect(HotkeySettings(openSessionPullRequest: "unknown-hotkey").openSessionPullRequest == DEFAULT_OPEN_PR_HOTKEY)
+}
+
 @Test func test_appSettings_defaultValues() {
     let settings = AppSettings()
     #expect(settings.hotkey.togglePanel == "cmd+ctrl+b")

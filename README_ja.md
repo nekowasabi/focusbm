@@ -122,8 +122,10 @@ swift build
 ### グローバルホットキー
 
 デフォルトのホットキーは **Cmd+Ctrl+B** です。
+AIエージェントプロセス一覧の強制再取得は **Cmd+Ctrl+R**、選択中のClaude Codeセッションに記録されたGitHubプルリクエストを開く画面内キーは **Cmd+P** です。
 
 YAML の `settings` セクションで変更できます（後述）。
+プルリクエスト操作は、選択中のClaude Codeプロセスまたはtmuxペインの作業ディレクトリで `gh pr view --json url --jq .url` を実行して解決します。実行できない場合は、セッション索引にある構造化済みの `prUrl` へフォールバックします。PRが見つからない場合、データが不正な場合、URLが競合する場合は何も開きません。Codexは、PIDとセッションおよびセッションとプルリクエストを結ぶ安定契約を確認するまで無効です。
 
 ### 必要な権限
 
@@ -154,6 +156,7 @@ YAML の `settings` セクションで変更できます（後述）。
 - Swift 6.0 以上
 - Xcode（テスト実行時）
 - fzf（CLI の `switch` コマンド使用時）
+- GitHub CLI（`gh`、PRの解決に使用）
 
 ---
 
@@ -269,6 +272,8 @@ bookmarks:
 settings:
   hotkey:
     togglePanel: "cmd+ctrl+b"
+    forceReloadAgents: "cmd+ctrl+r"
+    openSessionPullRequest: "cmd+p"
   displayNumber: 1
   listFontSize: 15.0   # 省略時はシステム標準 .body (≈13pt)
   directNumberKeys: true  # 数字キー単体でブックマークにフォーカス（false: Cmd+数字のみ）
@@ -281,6 +286,8 @@ bookmarks:
 | キー | 型 | デフォルト | 説明 |
 |---|---|---|---|
 | `settings.hotkey.togglePanel` | 文字列 | `"cmd+ctrl+b"` | 検索パネルを呼び出すグローバルホットキー |
+| `settings.hotkey.forceReloadAgents` | 文字列 | `"cmd+ctrl+r"` | AIエージェントプロセス一覧を強制再取得するグローバルホットキー |
+| `settings.hotkey.openSessionPullRequest` | 文字列 | `"cmd+p"` | 選択中Claude Codeセッションの構造化済みGitHubプルリクエストURLを開く画面内キー。不正値・予約キーは既定値へ戻る |
 | `settings.displayNumber` | 整数 | `1` | パネルを表示するディスプレイ番号（1始まり） |
 | `settings.listFontSize` | 小数 | `nil`（≈13pt）| 候補リストのフォントサイズ（pt）。省略時はシステム標準サイズ |
 | `settings.directNumberKeys` | 真偽値 | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |

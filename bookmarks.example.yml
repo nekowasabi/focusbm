@@ -5,6 +5,10 @@
 # `bookmarks` 配列を自分の用途に合わせて編集してください。
 
 settings:
+  hotkey:
+    # 選択中のClaude Codeセッションに記録されたGitHubプルリクエストを開く
+    openSessionPullRequest: "cmd+p"
+
   # パネル幅（pixel）。bookmarkListColumns: 2 で未指定の場合 800 が自動適用される
   panelWidth: 800
 
