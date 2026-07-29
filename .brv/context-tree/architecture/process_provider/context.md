@@ -1,3 +1,6 @@
+---
+related: [architecture/process_visibility/process_visibility.md, architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md, architecture]
+---
 # Topic: process_provider
 
 ## Overview

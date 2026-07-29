@@ -1,60 +1,66 @@
 ---
-children_hash: 886423059331dc3bada7a1ad1de894581ff0ec3cd314d945a4e9853f80b1bfd4
-compression_ratio: 0.9162072767364939
+children_hash: 305104f95f709f92600c2bff7ee6a88d301a60c7a24a91719827a3087a2991f5
+compression_ratio: 0.8811881188118812
 condensation_order: 3
 covers: [architecture/_index.md]
-covers_token_total: 907
+covers_token_total: 1010
 summary_level: d3
-token_count: 831
+token_count: 890
 type: summary
 ---
-# Architecture Domain Overview
+## architecture
 
-The **architecture** domain documents FocusBM’s process-detection and visibility stack: how the app identifies AI agent processes, filters daemon/helper noise, resolves working directories and tmux state, and keeps visibility accurate across sleep/wake transitions.
+FocusBM’s architecture is organized around two tightly related concerns: **process provider filtering** and **process visibility correctness**. The core problem is distinguishing interactive AI agent sessions from helper/daemon processes while also handling tmux ancestry, working-directory resolution, and stale or incomplete process state after sleep/wake transitions.
 
-## Primary cluster: `process_visibility`
-Drill down into **`process_visibility/sleep_wake_agent_process_visibility_fix.md`** for the canonical fix.
+### process_provider
+Defines how AI agent processes are discovered and filtered so that only interactive sessions are surfaced.
 
-This cluster centers on a sleep/wake visibility bug: after wake, `NSWorkspace.runningApplications` can briefly return incomplete or empty data, which affects both **tmux-backed agents** and general process discovery.
+- Discovery starts with `pgrep` against agent commands such as `claude`, `aider`, `gemini`, `copilot`, `codex`, and `hermes`.
+- Filtering is **command-line based**, not executable-name based, so the same binary may be included or excluded depending on launch context.
+- Exclusion rules cover tmux pane processes and command-line markers like `app-server`, `mcp-server`, and `--chrome-native-host`.
+- Tmux ancestry checks use `sysctl` with a 20-ancestor cap and cycle detection.
+- Working-directory resolution prefers `proc_pidinfo`, with `lsof` as a slower fallback.
+- `tmuxCheckCache` memoizes tmux checks during a refresh cycle and is cleared by `clearTmuxCheckCache()`.
 
-### Runtime behavior and refresh flow
-- **`BackgroundRefreshService`** subscribes to:
-  - `NSWorkspace.screensDidSleepNotification`
-  - `NSWorkspace.willSleepNotification`
-  - `NSWorkspace.screensDidWakeNotification`
-  - `NSWorkspace.didWakeNotification`
-- Sleep sets `isSleeping = true`.
-- Wake sets `isSleeping = false` and delays refresh by **2.0 seconds** to avoid caching incomplete state too early.
-- Background refresh runs on a default **15-second** interval.
-- When the panel is active, cache updates are limited to **visible search items**.
-- Main-queue cache application happens through **`applyBackgroundCache(tmuxPanes:aiProcesses:)`**.
+Drill down:
+- `context.md` — overview of the provider and its relation to visibility
+- `daemon_filtering.md` — exact filtering rules, implementation flow, patterns, and tests
 
-### Process detection and filtering
-- AI detection distinguishes between:
-  - `tmuxPane(TmuxPane)`
-  - `aiProcess(ProcessProvider.AIProcess)`
-- `tmuxPane` classification delegates to `p.isAIAgent`.
-- `aiProcess` is always treated as AI-related.
-- tmux command resolution uses **`resolvedNodeCommand ?? command`**.
-- **`TmuxProvider.agentCommandToEmoji`** maps agent labels.
-- Basename-aware regex matching supports launcher-invoked binaries.
-- Daemon subcommands **`app-server`** and **`mcp-server`** are excluded from AI process detection.
+### process_visibility
+Describes how FocusBM handles process enumeration when provider results are stale, empty, or incomplete, especially around detached tmux sessions and wake-time transitions.
 
-### Architectural relationship
-The fix connects three layers:
-1. **Process discovery** via `ProcessProvider.listNonTmuxAIProcesses()`
-2. **Tmux resolution** via `TmuxProvider.listAIAgentPanes(settings:)` and terminal matching
-3. **Wake recovery** via delayed background refresh after sleep/wake events
+#### process_visibility.md
+Covers the baseline visibility model and provider correctness.
 
-### Core design pattern
-The system prefers **reusing existing scan paths** instead of introducing a separate force-reload mechanism. The delayed wake refresh exists because process and terminal resolution may be incomplete immediately after wake.
+- Flow: `focus check -> process provider query -> process list inspection -> handle detached or stale results`
+- Detached tmux sessions remain relevant even when not attached normally.
+- Sleep-wake transitions can produce empty or stale process lists.
+- The model depends on tmux session state and the freshness of system process data.
+- Source/test anchors: `Sources/FocusBMLib/TmuxProvider.swift` and `Tests/focusbmTests/TmuxProviderTests.swift`.
 
-## Drill-down references
-- **`process_visibility/sleep_wake_agent_process_visibility_fix.md`** — canonical fix summary
-- **`docs/requirements/sleep-wake-empty-process-list.md`** — empty-process-list analysis
-- **`docs/requirements/tmux-detached-session-focus.md`** — detached tmux visibility requirements
-- **`docs/requirements/zombie-process-refresh-plan.md`** — refresh-oriented recovery plan
-- **`docs/reports/doctrine-mcp-dispatch-resume-missing-20260702.md`** — related resume/missing-dispatch findings
-- **`plan/process-01.md`, `process-02.md`, `process-03.md`, `process-10.md`, `process-11.md`, `process-12.md`, `process-50.md`, `process-100.md`, `process-200.md`, `process-300.md`** — staged process evolution
-- **`plan-fix-focus/process-01.md`, `process-10.md`, `process-200.md`, `process-300.md`** — fix-focused planning
-- **`hammerspoon/focusbm.lua`** — Hammerspoon-side visibility and refresh behavior
+#### sleep_wake_agent_process_visibility_fix.md
+Records the operational fix for wake-related visibility issues.
+
+- `BackgroundRefreshService` listens to both screen and system sleep/wake notifications.
+- On sleep, `isSleeping = true`; on wake, `isSleeping = false` and refresh is delayed by `2.0` seconds.
+- The delay compensates for `NSWorkspace.runningApplications` being incomplete immediately after wake.
+- Background cache updates are limited to visible search items when the panel is active.
+- Basename-aware regex matching is used for launcher-invoked binaries.
+- Daemon subcommands `app-server` and `mcp-server` are excluded from AI process detection.
+- Tests cover `processNamePattern` and daemon filtering.
+
+Documented flow:
+- `sleep/wake event -> process visibility check -> detached tmux handling -> refresh/recovery`
+
+### Shared patterns
+- Process visibility is treated as a correctness problem, not just a UI concern.
+- Detached tmux sessions and wake-time enumeration are the main edge cases.
+- Delayed refresh plus re-querying is the recovery strategy after wake.
+- The process-provider layer reconciles tmux panes, non-tmux AI processes, and terminal-app resolution.
+
+### Related references
+- `docs/requirements/tmux-detached-session-focus.md`
+- `docs/requirements/zombie-process-refresh-plan.md`
+- `docs/reports/doctrine-mcp-dispatch-resume-missing-20260702.md`
+- `plan/` and `plan-fix-focus/` process notes
+- `hammerspoon/focusbm.lua`

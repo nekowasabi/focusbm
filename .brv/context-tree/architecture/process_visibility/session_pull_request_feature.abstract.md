@@ -1,0 +1,1 @@
+FocusBM opens the selected session’s GitHub PR by resolving a PID-scoped Claude session registry entry and validated structured prUrl data, failing closed on invalid or conflicting candidates.

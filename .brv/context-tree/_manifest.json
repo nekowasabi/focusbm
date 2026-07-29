@@ -3,13 +3,13 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 831,
+      "tokens": 890,
       "type": "summary"
     },
     {
       "order": 2,
       "path": "architecture/_index.md",
-      "tokens": 839,
+      "tokens": 935,
       "type": "summary"
     },
     {
@@ -21,7 +21,7 @@
     {
       "importance": 50,
       "path": "architecture/process_provider/context.md",
-      "tokens": 146,
+      "tokens": 187,
       "type": "context"
     },
     {
@@ -32,34 +32,24 @@
     },
     {
       "importance": 50,
-      "path": "architecture/process_visibility/context.md",
-      "tokens": 61,
-      "type": "context"
-    },
-    {
-      "abstractPath": "architecture/process_visibility/process_visibility.abstract.md",
-      "abstractTokens": 35,
-      "importance": 50,
       "path": "architecture/process_visibility/process_visibility.md",
-      "tokens": 35,
+      "tokens": 1018,
       "type": "context"
     },
     {
-      "abstractPath": "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.abstract.md",
-      "abstractTokens": 41,
       "importance": 50,
-      "path": "architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md",
-      "tokens": 41,
+      "path": "architecture/process_visibility/session_pull_request_feature.md",
+      "tokens": 937,
       "type": "context"
     }
   ],
-  "generated_at": "2026-07-15T05:01:26.548Z",
+  "generated_at": "2026-07-29T02:44:26.778Z",
   "lane_tokens": {
-    "contexts": 1194,
+    "contexts": 3053,
     "stubs": 0,
-    "summaries": 1670
+    "summaries": 1825
   },
-  "source_fingerprint": "80be35062dae72be441c1c0f202a25d9f31854dcf911b1d773a61a0d84f02e60",
-  "total_tokens": 2864,
+  "source_fingerprint": "bc64b034185dc80295a69be1a746b1207eae012696c58d76e5926f4d304d37ec",
+  "total_tokens": 4878,
   "version": 1
 }
