@@ -123,10 +123,10 @@ swift build
 
 The default hotkey to open the search panel is **Cmd+Ctrl+B**.
 The default hotkey to force-refresh the AI agent process list is **Cmd+Ctrl+R**.
-The default panel hotkey to open the GitHub pull request recorded for the selected Claude Code session is **Cmd+P**.
+The default panel hotkey to open the GitHub pull request recorded for the selected Claude Code or Codex session is **Cmd+P**.
 
 You can change it in the `settings` section of your YAML (see below).
-The pull-request action first runs `gh pr view --json url --jq .url` in the selected Claude Code process or tmux pane's working directory. If that cannot resolve a pull request, it falls back to a structured `prUrl` in the session index. It does nothing when no pull request is found, the data is invalid, or multiple pull requests conflict. Codex remains disabled until a stable PID-to-session and session-to-pull-request contract is verified.
+The pull-request action first runs `gh pr view --json url --jq .url` in the selected Claude Code or Codex process or tmux pane's working directory. Claude Code falls back to a structured `prUrl` in its session index; Codex intentionally does not use that Claude-specific fallback. It does nothing when no pull request is found, the data is invalid, or multiple pull requests conflict. The search panel refreshes pull-request results in the background and shows a `#<number>` label for a resolved working directory.
 
 ### Required Permissions
 
@@ -292,7 +292,7 @@ bookmarks:
 |---|---|---|---|
 | `settings.hotkey.togglePanel` | string | `"cmd+ctrl+b"` | Global hotkey to invoke the search panel |
 | `settings.hotkey.forceReloadAgents` | string | `"cmd+ctrl+r"` | Global hotkey to force-refresh the AI agent process list |
-| `settings.hotkey.openSessionPullRequest` | string | `"cmd+p"` | Panel hotkey to open the selected Claude Code session's structured GitHub pull request URL. Invalid and reserved shortcuts fall back to the default |
+| `settings.hotkey.openSessionPullRequest` | string | `"cmd+p"` | Panel hotkey to open the selected Claude Code or Codex session's GitHub pull request URL. Invalid and reserved shortcuts fall back to the default |
 | `settings.displayNumber` | integer | `1` | Display number where the panel appears (1-based) |
 | `settings.listFontSize` | float | `nil` (≈13pt) | Font size (pt) for the candidate list. Uses system default if omitted |
 | `settings.panelWidth` | integer | `500` | 検索パネルの幅（px） |
