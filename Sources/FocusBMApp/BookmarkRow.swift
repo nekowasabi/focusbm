@@ -8,6 +8,25 @@ struct BookmarkRow: View {
     let directNumberKeys: Bool
     let fontSize: Double?
     let fontName: String?
+    let prLabel: String?
+
+    init(
+        searchItem: SearchItem,
+        isSelected: Bool,
+        shortcutLabel: String?,
+        directNumberKeys: Bool,
+        fontSize: Double?,
+        fontName: String?,
+        prLabel: String? = nil
+    ) {
+        self.searchItem = searchItem
+        self.isSelected = isSelected
+        self.shortcutLabel = shortcutLabel
+        self.directNumberKeys = directNumberKeys
+        self.fontSize = fontSize
+        self.fontName = fontName
+        self.prLabel = prLabel
+    }
 
     private var resolvedBodyFont: Font {
         if let name = fontName {
@@ -92,6 +111,12 @@ struct BookmarkRow: View {
                             .font(resolvedCaptionFont)
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
+                    }
+
+                    if let prLabel {
+                        Text(prLabel)
+                            .font(resolvedCaptionFont)
+                            .foregroundColor(.accentColor)
                     }
                 }
             }

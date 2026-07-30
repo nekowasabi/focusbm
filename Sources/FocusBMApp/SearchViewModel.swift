@@ -19,6 +19,9 @@ class SearchViewModel: ObservableObject {
     private var floatingWindowCache: [String: [FloatingWindowEntry]] = [:]
     private var tmuxPaneCache: [TmuxPane] = []
     private var aiProcessCache: [ProcessProvider.AIProcess] = []
+    var prURLCache: [String: (url: URL, fetchedAt: Date)] = [:]
+    var prFailureCache: [String: Date] = [:]
+    static let PR_CACHE_TTL_SEC: TimeInterval = 300
     private(set) var showTmuxAgents: Bool = true
     // Why: private(set) ではなく var を採用。理由: テストから appSettings を注入するため（同モジュール内の書き込みを許容）。
     // 外部からの書き込みは load() 経由が正規経路だが、テスト専用注入を許容する。internal がデフォルトのため明示修飾子は付けない。
@@ -99,15 +102,56 @@ class SearchViewModel: ObservableObject {
     var currentShowTmuxAgents: Bool { showTmuxAgents }
 
     /// バックグラウンドサービスからキャッシュを更新（パネル非表示時はプリウォーム、表示中は即時反映）
-    func applyBackgroundCache(tmuxPanes: [TmuxPane], aiProcesses: [ProcessProvider.AIProcess]) {
+    func applyBackgroundCache(
+        tmuxPanes: [TmuxPane],
+        aiProcesses: [ProcessProvider.AIProcess],
+        prURLs: [String: (url: URL, fetchedAt: Date)]? = nil,
+        failedPRCwds: [String: Date]? = nil
+    ) {
         tmuxPaneCache = tmuxPanes
         aiProcessCache = aiProcesses
+        if let prURLs {
+            prURLCache = prURLs
+        }
+        if let failedPRCwds {
+            prFailureCache = failedPRCwds
+        }
 
         if isActive {
             // Why: タイマー/復帰通知由来のバックグラウンド更新で候補が1件になっても、
             //      ユーザー操作なしに外部アプリへフォーカス移動させない。
             updateItems(allowAutoExecute: false)
         }
+    }
+
+    func prLabel(for item: SearchItem, now: Date = Date()) -> String? {
+        let workingDirectory: String
+        switch item {
+        case .aiProcess(let process):
+            workingDirectory = process.workingDirectory
+        case .tmuxPane(let pane):
+            workingDirectory = pane.currentPath
+        case .bookmark, .floatingWindow:
+            return nil
+        }
+
+        guard let entry = prURLCache[workingDirectory],
+              now.timeIntervalSince(entry.fetchedAt) < Self.PR_CACHE_TTL_SEC else {
+            return nil
+        }
+        return entry.url.lastPathComponent.isEmpty ? nil : "#\(entry.url.lastPathComponent)"
+    }
+
+    func isPRCacheFresh(for workingDirectory: String, now: Date = Date()) -> Bool {
+        if let entry = prURLCache[workingDirectory],
+           now.timeIntervalSince(entry.fetchedAt) < Self.PR_CACHE_TTL_SEC {
+            return true
+        }
+        if let fetchedAt = prFailureCache[workingDirectory],
+           now.timeIntervalSince(fetchedAt) < Self.PR_CACHE_TTL_SEC {
+            return true
+        }
+        return false
     }
 
     /// パネル非アクティブ化時の状態リセット。

@@ -10,6 +10,38 @@ struct SearchView: View {
     //      列数判定は VM に集約することで View は描画選択のみを担う
     private static let twoColumnGrid = [GridItem(.flexible()), GridItem(.flexible())]
 
+    private func bookmarkRow(
+        index: Int,
+        pair: (item: SearchItem, label: String?)
+    ) -> some View {
+        BookmarkRow(
+            searchItem: pair.item,
+            isSelected: index == viewModel.selectedIndex,
+            shortcutLabel: pair.label,
+            directNumberKeys: viewModel.appSettings?.directNumberKeys ?? true,
+            fontSize: viewModel.listFontSize,
+            fontName: viewModel.fontName,
+            prLabel: viewModel.prLabel(for: pair.item)
+        )
+        .id(pair.item.id)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(index == viewModel.selectedIndex
+                    ? Color.accentColor.opacity(
+                        viewModel.isAutoExecuteHighlighted && viewModel.mainListAssignments.count == 1
+                            ? 0.5 : 0.2)
+                    : Color.clear)
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            viewModel.selectedIndex = index
+            panel?.executeItem(pair.item)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Search field
@@ -45,31 +77,7 @@ struct SearchView: View {
                         if viewModel.columns == 2 {
                             LazyVGrid(columns: Self.twoColumnGrid, spacing: 2) {
                                 ForEach(Array(viewModel.mainListAssignments.enumerated()), id: \.element.item.id) { index, pair in
-                                    BookmarkRow(
-                                        searchItem: pair.item,
-                                        isSelected: index == viewModel.selectedIndex,
-                                        shortcutLabel: pair.label,
-                                        directNumberKeys: viewModel.appSettings?.directNumberKeys ?? true,
-                                        fontSize: viewModel.listFontSize,
-                                        fontName: viewModel.fontName
-                                    )
-                                    .id(pair.item.id)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .fill(index == viewModel.selectedIndex
-                                                ? Color.accentColor.opacity(
-                                                    viewModel.isAutoExecuteHighlighted && viewModel.mainListAssignments.count == 1
-                                                        ? 0.5 : 0.2)
-                                                : Color.clear)
-                                    )
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        viewModel.selectedIndex = index
-                                        panel?.executeItem(pair.item)
-                                    }
+                                    bookmarkRow(index: index, pair: pair)
                                 }
                             }
                             .padding(.horizontal, 4)
@@ -77,31 +85,7 @@ struct SearchView: View {
                         } else {
                             LazyVStack(spacing: 2) {
                                 ForEach(Array(viewModel.mainListAssignments.enumerated()), id: \.element.item.id) { index, pair in
-                                    BookmarkRow(
-                                        searchItem: pair.item,
-                                        isSelected: index == viewModel.selectedIndex,
-                                        shortcutLabel: pair.label,
-                                        directNumberKeys: viewModel.appSettings?.directNumberKeys ?? true,
-                                        fontSize: viewModel.listFontSize,
-                                        fontName: viewModel.fontName
-                                    )
-                                    .id(pair.item.id)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .fill(index == viewModel.selectedIndex
-                                                ? Color.accentColor.opacity(
-                                                    viewModel.isAutoExecuteHighlighted && viewModel.mainListAssignments.count == 1
-                                                        ? 0.5 : 0.2)
-                                                : Color.clear)
-                                    )
-                                    .contentShape(Rectangle())
-                                    .onTapGesture {
-                                        viewModel.selectedIndex = index
-                                        panel?.executeItem(pair.item)
-                                    }
+                                    bookmarkRow(index: index, pair: pair)
                                 }
                             }
                             .padding(.horizontal, 4)
