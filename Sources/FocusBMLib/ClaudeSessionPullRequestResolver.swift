@@ -1,28 +1,37 @@
 import Foundation
 
 public struct ClaudeSessionPullRequestResolver: SessionPullRequestAgentResolver {
-    public let command = "claude"
+    public let command: String
 
     private let homeDirectory: URL
     private let fileManager: FileManager
     private let pullRequestURLProvider: (String) -> String?
 
     public init(
+        command: String = "claude",
         homeDirectory: URL = FileManager.default.homeDirectoryForCurrentUser,
         fileManager: FileManager = .default
     ) {
         self.init(
+            command: command,
             homeDirectory: homeDirectory,
             fileManager: fileManager,
-            pullRequestURLProvider: Self.pullRequestURLFromGitHubCLI
+            pullRequestURLProvider: {
+                GitHubPullRequestCLI.resolveURLString(
+                    workingDirectory: $0,
+                    timeout: GitHubPullRequestCLI.timeoutSeconds
+                )
+            }
         )
     }
 
     init(
+        command: String = "claude",
         homeDirectory: URL,
         fileManager: FileManager,
         pullRequestURLProvider: @escaping (String) -> String?
     ) {
+        self.command = command
         self.homeDirectory = homeDirectory
         self.fileManager = fileManager
         self.pullRequestURLProvider = pullRequestURLProvider
@@ -33,6 +42,7 @@ public struct ClaudeSessionPullRequestResolver: SessionPullRequestAgentResolver 
            let url = workingDirectoryPullRequestURL(in: workingDirectory) {
             return url
         }
+        guard command.lowercased() == "claude" else { return nil }
         return sessionIndexPullRequestURL(for: pid)
     }
 
@@ -47,33 +57,7 @@ public struct ClaudeSessionPullRequestResolver: SessionPullRequestAgentResolver 
         )
     }
 
-    // Why: Ask gh for the branch's current PR instead of relying only on Claude's session index.
-    //      Active Claude sessions can be absent from that index while their worktree has a PR.
-    private static func pullRequestURLFromGitHubCLI(in workingDirectory: String) -> String? {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["gh", "pr", "view", "--json", "url", "--jq", ".url"]
-        process.currentDirectoryURL = URL(fileURLWithPath: workingDirectory, isDirectory: true)
-
-        let outputPipe = Pipe()
-        process.standardInput = FileHandle.nullDevice
-        process.standardOutput = outputPipe
-        process.standardError = FileHandle.nullDevice
-
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else { return nil }
-        return String(data: outputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    // Why: Use the PID-specific registry path instead of scanning all registrations,
-    //      so stale entries and another live session cannot be selected accidentally.
+    // Why: Codex has no compatible Claude session index, so only Claude may use this fallback.
     private func sessionIndexPullRequestURL(for pid: pid_t?) -> URL? {
         guard let sessionID = sessionID(for: pid) else { return nil }
         let projectsDirectory = homeDirectory.appendingPathComponent(CLAUDE_PROJECTS_DIR)

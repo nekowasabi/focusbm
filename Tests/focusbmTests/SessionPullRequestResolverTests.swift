@@ -99,8 +99,27 @@ private func write(_ text: String, to url: URL) throws {
     #expect(SessionPullRequestResolver.uniquePullRequestURL(from: ["not-a-url"]) == nil)
 }
 
-@Test func sessionPullRequestResolver_doesNotGuessUnsupportedAgents() {
+@Test func sessionPullRequestResolver_supportsClaudeAndCodexOnly() {
     let resolver = SessionPullRequestResolver()
     #expect(resolver.supports(command: "claude"))
-    #expect(!resolver.supports(command: "codex"))
+    #expect(resolver.supports(command: "codex"))
+    #expect(!resolver.supports(command: "aider"))
+}
+
+/// Verifies that Codex resolves only the working-directory PR source.
+@Test func codexResolver_resolvesFromWorkingDirectoryWithoutSessionIndex() throws {
+    let home = try temporaryClaudeHome()
+    defer { try? FileManager.default.removeItem(at: home) }
+    let checkout = home.appendingPathComponent("checkout")
+    try FileManager.default.createDirectory(at: checkout, withIntermediateDirectories: true)
+
+    let resolver = ClaudeSessionPullRequestResolver(
+        command: "codex",
+        homeDirectory: home,
+        fileManager: .default,
+        pullRequestURLProvider: { _ in "https://github.com/acme/focusbm/pull/42" }
+    )
+    let url = resolver.resolveURL(for: 999, workingDirectory: checkout.path)
+    #expect(url?.absoluteString == "https://github.com/acme/focusbm/pull/42")
+    #expect(resolver.resolveURL(for: 999) == nil)
 }

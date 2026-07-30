@@ -15,8 +15,12 @@ public struct SessionPullRequestResolver {
     private let resolvers: [String: SessionPullRequestAgentResolver]
 
     public init() {
-        let resolver = ClaudeSessionPullRequestResolver()
-        self.resolvers = [resolver.command: resolver]
+        let claudeResolver = ClaudeSessionPullRequestResolver()
+        let codexResolver = ClaudeSessionPullRequestResolver(command: "codex")
+        self.resolvers = [
+            claudeResolver.command: claudeResolver,
+            codexResolver.command: codexResolver,
+        ]
     }
 
     public init(resolvers: [SessionPullRequestAgentResolver]) {
