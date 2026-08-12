@@ -2,7 +2,7 @@
 title: Sleep-Wake Agent Process Visibility Fix
 summary: Documents the sleep-wake agent process visibility issue, including detached tmux session handling, empty process list symptoms, refresh-oriented mitigation steps, and the related process visibility topic.
 tags: []
-related: [architecture/process_provider/context.md, architecture/process_visibility/process_visibility.md, architecture]
+related: [architecture/process_provider/context.md, architecture/process_visibility/process_visibility.md, architecture, architecture/process_visibility/session_pull_request_feature.md]
 keywords: []
 createdAt: '2026-07-01T23:56:45.567Z'
 updatedAt: '2026-07-06T02:28:51.939Z'

@@ -2,7 +2,7 @@
 title: Process Visibility
 summary: Process visibility knowledge covering detached tmux session visibility, sleep-wake cases where the process list may be empty or stale, and focus-management impact.
 tags: []
-related: [architecture/process_provider/context.md, architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md, architecture]
+related: [architecture/process_provider/context.md, architecture/process_visibility/sleep_wake_agent_process_visibility_fix.md, architecture, architecture/process_visibility/session_pull_request_feature.md]
 keywords: []
 createdAt: '2026-07-15T04:49:20.740Z'
 updatedAt: '2026-07-15T04:49:20.740Z'

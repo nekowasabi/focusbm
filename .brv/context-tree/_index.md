@@ -1,66 +1,42 @@
 ---
-children_hash: 305104f95f709f92600c2bff7ee6a88d301a60c7a24a91719827a3087a2991f5
-compression_ratio: 0.8811881188118812
+children_hash: 88619a92f27701c170c222223cafe44f56ad2a4e01301ccd65d05c7092ed81fa
+compression_ratio: 0.871875
 condensation_order: 3
 covers: [architecture/_index.md]
-covers_token_total: 1010
+covers_token_total: 640
 summary_level: d3
-token_count: 890
+token_count: 558
 type: summary
 ---
-## architecture
+# Architecture
 
-FocusBM’s architecture is organized around two tightly related concerns: **process provider filtering** and **process visibility correctness**. The core problem is distinguishing interactive AI agent sessions from helper/daemon processes while also handling tmux ancestry, working-directory resolution, and stale or incomplete process state after sleep/wake transitions.
+FocusBM’s architecture is organized around two core concerns: **process provider filtering** and **process visibility correctness**. The overall pattern is to prefer authoritative process state, filter aggressively but accurately, and recover safely from lifecycle transitions like sleep/wake.
 
-### process_provider
-Defines how AI agent processes are discovered and filtered so that only interactive sessions are surfaced.
+## Process Provider
+See **process_provider/_index.md** for the filtering subsystem behind AI agent listings.
 
-- Discovery starts with `pgrep` against agent commands such as `claude`, `aider`, `gemini`, `copilot`, `codex`, and `hermes`.
-- Filtering is **command-line based**, not executable-name based, so the same binary may be included or excluded depending on launch context.
-- Exclusion rules cover tmux pane processes and command-line markers like `app-server`, `mcp-server`, and `--chrome-native-host`.
-- Tmux ancestry checks use `sysctl` with a 20-ancestor cap and cycle detection.
-- Working-directory resolution prefers `proc_pidinfo`, with `lsof` as a slower fallback.
-- `tmuxCheckCache` memoizes tmux checks during a refresh cycle and is cleared by `clearTmuxCheckCache()`.
+- `ProcessProvider` distinguishes interactive agent sessions from helper/daemon processes.
+- Filtering is **command-line based**, not binary-name based, so the same executable may be included or excluded depending on launch arguments.
+- Candidate discovery starts with `pgrep` for agent commands such as `claude`, `aider`, `gemini`, `copilot`, `codex`, and `hermes`.
+- The pipeline then checks tmux ancestry, daemon markers, and other helper-process signals.
+- Daemon markers include `app-server`, `mcp-server`, and `--chrome-native-host`.
+- Tmux pane processes are excluded from AI agent listings.
+- Working-directory resolution prefers `proc_pidinfo` and falls back to `lsof`.
+- `sysctl` supports tmux parent-chain inspection, with caching via `tmuxCheckCache`.
 
-Drill down:
-- `context.md` — overview of the provider and its relation to visibility
-- `daemon_filtering.md` — exact filtering rules, implementation flow, patterns, and tests
+## Process Visibility
+See **process_visibility/_index.md** for stale lists, detached sessions, and lifecycle-boundary handling.
 
-### process_visibility
-Describes how FocusBM handles process enumeration when provider results are stale, empty, or incomplete, especially around detached tmux sessions and wake-time transitions.
+- Correct focus detection depends on a fresh, correct process list.
+- Detached tmux sessions may be invisible or misclassified.
+- Sleep/wake transitions can yield empty or stale process lists.
+- The canonical visibility behavior is documented in **Process Visibility**.
+- The operational recovery path is documented in **Sleep-Wake Agent Process Visibility Fix**.
+- **Session Pull Request Feature** is related but separate: it uses PID-scoped Claude session data and structured `prUrl` resolution with fail-closed behavior.
 
-#### process_visibility.md
-Covers the baseline visibility model and provider correctness.
-
-- Flow: `focus check -> process provider query -> process list inspection -> handle detached or stale results`
-- Detached tmux sessions remain relevant even when not attached normally.
-- Sleep-wake transitions can produce empty or stale process lists.
-- The model depends on tmux session state and the freshness of system process data.
-- Source/test anchors: `Sources/FocusBMLib/TmuxProvider.swift` and `Tests/focusbmTests/TmuxProviderTests.swift`.
-
-#### sleep_wake_agent_process_visibility_fix.md
-Records the operational fix for wake-related visibility issues.
-
-- `BackgroundRefreshService` listens to both screen and system sleep/wake notifications.
-- On sleep, `isSleeping = true`; on wake, `isSleeping = false` and refresh is delayed by `2.0` seconds.
-- The delay compensates for `NSWorkspace.runningApplications` being incomplete immediately after wake.
-- Background cache updates are limited to visible search items when the panel is active.
-- Basename-aware regex matching is used for launcher-invoked binaries.
-- Daemon subcommands `app-server` and `mcp-server` are excluded from AI process detection.
-- Tests cover `processNamePattern` and daemon filtering.
-
-Documented flow:
-- `sleep/wake event -> process visibility check -> detached tmux handling -> refresh/recovery`
-
-### Shared patterns
-- Process visibility is treated as a correctness problem, not just a UI concern.
-- Detached tmux sessions and wake-time enumeration are the main edge cases.
-- Delayed refresh plus re-querying is the recovery strategy after wake.
-- The process-provider layer reconciles tmux panes, non-tmux AI processes, and terminal-app resolution.
-
-### Related references
-- `docs/requirements/tmux-detached-session-focus.md`
-- `docs/requirements/zombie-process-refresh-plan.md`
-- `docs/reports/doctrine-mcp-dispatch-resume-missing-20260702.md`
-- `plan/` and `plan-fix-focus/` process notes
-- `hammerspoon/focusbm.lua`
+## Shared Architectural Patterns
+- Prefer source-of-truth process data over inference.
+- Treat stale or conflicting state as failure, not partial success.
+- Use refresh-oriented recovery after empty or incomplete results.
+- Keep background discovery separate from main-thread UI updates.
+- Preserve correctness across lifecycle transitions, especially sleep/wake and detached-terminal states.

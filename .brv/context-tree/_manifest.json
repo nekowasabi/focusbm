@@ -3,13 +3,19 @@
     {
       "order": 3,
       "path": "_index.md",
-      "tokens": 890,
+      "tokens": 558,
       "type": "summary"
     },
     {
       "order": 2,
       "path": "architecture/_index.md",
-      "tokens": 935,
+      "tokens": 564,
+      "type": "summary"
+    },
+    {
+      "order": 1,
+      "path": "architecture/process_provider/_index.md",
+      "tokens": 711,
       "type": "summary"
     },
     {
@@ -33,23 +39,25 @@
     {
       "importance": 50,
       "path": "architecture/process_visibility/process_visibility.md",
-      "tokens": 1018,
+      "tokens": 1034,
       "type": "context"
     },
     {
+      "abstractPath": "architecture/process_visibility/session_pull_request_feature.abstract.md",
+      "abstractTokens": 48,
       "importance": 50,
       "path": "architecture/process_visibility/session_pull_request_feature.md",
-      "tokens": 937,
+      "tokens": 48,
       "type": "context"
     }
   ],
-  "generated_at": "2026-07-29T02:44:26.778Z",
+  "generated_at": "2026-07-30T03:57:26.381Z",
   "lane_tokens": {
-    "contexts": 3053,
+    "contexts": 2180,
     "stubs": 0,
-    "summaries": 1825
+    "summaries": 1833
   },
-  "source_fingerprint": "bc64b034185dc80295a69be1a746b1207eae012696c58d76e5926f4d304d37ec",
-  "total_tokens": 4878,
+  "source_fingerprint": "0f885882d0eb1c13c493bf4273d4b2bbd7b5334b45de68ce166fdbf41ff36cb1",
+  "total_tokens": 4013,
   "version": 1
 }
