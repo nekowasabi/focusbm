@@ -270,6 +270,51 @@ import AppKit
     #expect(pane.statusEmoji == "○")
 }
 
+@Test func test_agentStatus_runningMarker_isRecognized_forAllRequestedAgents() {
+    for command in ["claude", "codex", "copilot"] {
+        let pane = TmuxPane(
+            paneId: "%marker-\(command)",
+            sessionName: "status",
+            windowIndex: 0,
+            windowName: "agent",
+            command: command,
+            title: "✳ \(command)",
+            currentPath: "/tmp"
+        )
+        #expect(pane.agentStatus == .running)
+    }
+}
+
+@Test func test_agentStatus_prompt_isInputWaiting_forAllRequestedAgents() {
+    for command in ["claude", "codex", "copilot"] {
+        var pane = TmuxPane(
+            paneId: "%prompt-\(command)",
+            sessionName: "status",
+            windowIndex: 0,
+            windowName: "agent",
+            command: command,
+            title: command,
+            currentPath: "/tmp"
+        )
+        pane.statusContent = "previous response\n❯ "
+        #expect(pane.agentStatus == .idle)
+    }
+}
+
+@Test func test_agentStatus_running_takesPriority_overOlderPrompt_forCodex() {
+    var pane = TmuxPane(
+        paneId: "%codex-working",
+        sessionName: "status",
+        windowIndex: 0,
+        windowName: "agent",
+        command: "codex",
+        title: "codex",
+        currentPath: "/tmp"
+    )
+    pane.statusContent = "› Previous prompt\n• Working (6s • esc to interrupt)\n› Current task"
+    #expect(pane.agentStatus == .running)
+}
+
 @Test func test_agentStatus_idle_emptyTitle() {
     let pane = TmuxPane(paneId: "%6", sessionName: "s", windowIndex: 0,
                         windowName: "w", command: "zsh", title: "", currentPath: "")

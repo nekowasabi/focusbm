@@ -50,6 +50,18 @@ struct BookmarkRow: View {
         return .caption
     }
 
+    private func statusColor(for status: TmuxAgentStatus) -> Color {
+        // Why: Map the preserved agent state directly instead of deriving color from a running boolean.
+        switch status {
+        case .running:
+            return Color(red: 0.30, green: 0.95, blue: 0.45)
+        case .planMode, .acceptEdits:
+            return Color(red: 1.00, green: 0.80, blue: 0.20)
+        case .idle:
+            return Color(red: 1.00, green: 0.45, blue: 0.45)
+        }
+    }
+
     var body: some View {
         HStack {
             // Selection indicator
@@ -88,9 +100,7 @@ struct BookmarkRow: View {
                 HStack {
                     if let agent = searchItem.agentDisplay {
                         Text("\(agent.emoji) \(agent.nameWithoutEmoji)")
-                            .foregroundColor(agent.isRunning
-                                ? Color(red: 0.30, green: 0.95, blue: 0.45)
-                                : Color(red: 1.00, green: 0.45, blue: 0.45))
+                            .foregroundColor(statusColor(for: agent.status))
                             .font(resolvedBodyFont)
                             .fontWeight(isSelected ? .bold : .semibold)
                     } else {

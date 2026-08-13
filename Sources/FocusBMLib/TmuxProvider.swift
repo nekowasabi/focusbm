@@ -51,6 +51,9 @@ public struct TmuxPane {
     //      isAIAgent の判定で外部プロセス呼び出しを避け、ストア済みデータのみで判定する設計
     public var resolvedNodeCommand: String? = nil
 
+    // Why: Capture the recent pane output so status detection can distinguish active work from input prompts.
+    public var statusContent: String? = nil
+
     public var isAIAgent: Bool {
         let t = title.lowercased()
         // Why: Node.jsベースCLIは pane_current_command が "node" になるため、
@@ -107,13 +110,89 @@ public struct TmuxPane {
     var terminalApp: String? { terminalAppName }
 
     public var agentStatus: TmuxAgentStatus {
+        if let statusContent, let capturedStatus = capturedContentStatus(statusContent) {
+            return capturedStatus
+        }
+
         if title.contains("⏸") { return .planMode }
         if title.contains("⏵") { return .acceptEdits }
         if let scalar = title.unicodeScalars.first,
            scalar.value >= 0x2800 && scalar.value <= 0x28FF {
             return .running
         }
+
+        let runningTitleMarkers = ["✳", "✢", "✽", "✶", "✻", "✷", "✸", "✹", "✺", "✵"]
+        if runningTitleMarkers.contains(where: title.contains) {
+            return .running
+        }
+
+        let lowercasedTitle = title.lowercased()
+        if lowercasedTitle.contains("working") ||
+            lowercasedTitle.contains("generating") ||
+            lowercasedTitle.contains("thinking") ||
+            lowercasedTitle.contains("streaming") {
+            return .running
+        }
+
         return .idle
+    }
+
+    private func capturedContentStatus(_ content: String) -> TmuxAgentStatus? {
+        let lines = content.split(whereSeparator: \.isNewline).map(String.init)
+        guard !lines.isEmpty else { return nil }
+
+        let lowercasedContent = content.lowercased()
+        let normalizedContent = lowercasedContent.replacingOccurrences(of: "⏵⏵", with: "⏵")
+        let mode: TmuxAgentStatus?
+        if normalizedContent.contains("plan mode on") {
+            mode = .planMode
+        } else if normalizedContent.contains("accept edits on") {
+            mode = .acceptEdits
+        } else {
+            mode = nil
+        }
+
+        // Why: Running markers must win over older prompts retained in the 30-line capture window.
+        let runningMarkerPattern = #"^[[:space:]]*[•✢✽✶✻·][[:space:]]+(working|generating|thinking|streaming)"#
+        if lines.contains(where: { line in
+            let lowercasedLine = line.lowercased()
+            return lowercasedLine.contains("esc to interrupt") ||
+                lowercasedLine.contains("ctrl+c to interrupt") ||
+                lowercasedLine.range(of: runningMarkerPattern, options: .regularExpression) != nil
+        }) {
+            return .running
+        }
+
+        for line in lines.reversed() {
+            let lowercasedLine = line.lowercased()
+            let trimmedLine = line.trimmingCharacters(in: .whitespaces)
+
+            if lowercasedLine.contains("allow once") ||
+                lowercasedLine.contains("allow always") ||
+                lowercasedLine.contains("deny") ||
+                lowercasedLine.contains("continue?") ||
+                lowercasedLine.contains("proceed?") ||
+                lowercasedLine.contains("approval") ||
+                lowercasedLine.contains("approve") ||
+                lowercasedLine.contains("permission") ||
+                lowercasedLine.contains("y/n") ||
+                lowercasedLine.contains("yes/no") ||
+                lowercasedLine.contains("to navigate") ||
+                lowercasedLine.contains("enter to select") ||
+                lowercasedLine.contains("press enter") ||
+                lowercasedLine.contains("select an option") ||
+                trimmedLine.range(of: #"❯\s+\d+\."#, options: .regularExpression) != nil {
+                return mode ?? .planMode
+            }
+
+            if trimmedLine.hasPrefix("❯") ||
+                trimmedLine.hasPrefix("›") ||
+                trimmedLine == ">" {
+                return mode ?? .idle
+            }
+        }
+
+        return mode
     }
 
     public var statusEmoji: String {
@@ -434,17 +513,42 @@ public struct TmuxProvider {
     // AIエージェントのペインのみ取得
     public static func listAIAgentPanes(settings: AppSettings? = nil) throws -> [TmuxPane] {
         let allPanes = try listAllPanes(settings: settings)
-        let aiPanes = allPanes.filter { pane in
+        var aiPanes = allPanes.filter { pane in
             let result = pane.isAIAgent
             log("pane \(pane.paneId): command='\(pane.command)', title='\(pane.title)', isShell=\(pane.isShellCommandPublic)")
             log("pane \(pane.paneId): isAIAgent=\(result) reason=\(pane.aiAgentReason)")
             return result
         }
+
+        for index in aiPanes.indices {
+            aiPanes[index].statusContent = capturePaneContent(paneId: aiPanes[index].paneId)
+        }
+
         log("listAIAgentPanes: total=\(allPanes.count), ai=\(aiPanes.count)")
         for pane in aiPanes {
             log("  AI pane: \(pane.paneId) cmd='\(pane.command)' terminal='\(pane.terminalApp ?? "nil")'")
         }
         return aiPanes
+    }
+
+    private static func capturePaneContent(paneId: String) -> String? {
+        let process = makeTmuxProcess(["capture-pane", "-p", "-t", paneId, "-S", "-30"])
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+        } catch {
+            return nil
+        }
+
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { return nil }
+        return String(
+            data: outputPipe.fileHandleForReading.readDataToEndOfFile(),
+            encoding: .utf8
+        )
     }
 
     // focusPane の select-window 引数を構築（テスト可能にするため分離）

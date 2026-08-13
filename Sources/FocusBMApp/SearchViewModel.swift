@@ -12,6 +12,10 @@ class SearchViewModel: ObservableObject {
     @Published var searchItems: [SearchItem] = []
     @Published var selectedIndex: Int = 0
     @Published var isActive: Bool = false
+
+    private static let AGENT_STATUS_REFRESH_INTERVAL_SEC: TimeInterval = 3
+    private var agentStatusTimer: DispatchSourceTimer?
+    private var agentStatusRefreshGeneration = 0
     @Published var listFontSize: Double? = nil
     @Published var fontName: String? = nil
 
@@ -52,6 +56,56 @@ class SearchViewModel: ObservableObject {
         loadTmuxPanes()
         loadAIProcesses()
         updateItems()
+    }
+
+    func startAgentStatusMonitoring() {
+        guard agentStatusTimer == nil else { return }
+
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+        timer.schedule(
+            deadline: .now() + Self.AGENT_STATUS_REFRESH_INTERVAL_SEC,
+            repeating: Self.AGENT_STATUS_REFRESH_INTERVAL_SEC
+        )
+        timer.setEventHandler { [weak self] in
+            self?.refreshAgentStatusesAsync()
+        }
+        timer.resume()
+        agentStatusTimer = timer
+    }
+
+    func stopAgentStatusMonitoring() {
+        agentStatusRefreshGeneration += 1
+        agentStatusTimer?.cancel()
+        agentStatusTimer = nil
+    }
+
+    private func refreshAgentStatusesAsync() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isActive else { return }
+
+            self.agentStatusRefreshGeneration += 1
+            let generation = self.agentStatusRefreshGeneration
+            let settings = self.appSettings
+
+            guard self.showTmuxAgents else {
+                self.tmuxPaneCache = []
+                self.updateItems(allowAutoExecute: false)
+                return
+            }
+
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                let panes = (try? TmuxProvider.listAIAgentPanes(settings: settings)) ?? []
+                DispatchQueue.main.async {
+                    guard let self,
+                          self.isActive,
+                          self.agentStatusRefreshGeneration == generation else {
+                        return
+                    }
+                    self.tmuxPaneCache = panes
+                    self.updateItems(allowAutoExecute: false)
+                }
+            }
+        }
     }
 
     /// パネル表示後にバックグラウンドでデータを更新する非同期版
@@ -159,6 +213,7 @@ class SearchViewModel: ObservableObject {
     ///      updateItems 経由の自動実行予約が残留/再発火し得るため。
     func deactivatePanel() {
         isActive = false
+        stopAgentStatusMonitoring()
         autoExecuteWorkItem?.cancel()
         autoExecuteWorkItem = nil
         isAutoExecuteHighlighted = false
@@ -499,5 +554,9 @@ class SearchViewModel: ObservableObject {
             guard let bundleId = proc.terminalBundleId else { return nil }
             return .bundleId(bundleId, appName: proc.terminalAppName ?? "Terminal")
         }
+    }
+
+    deinit {
+        agentStatusTimer?.cancel()
     }
 }

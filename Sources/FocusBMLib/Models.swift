@@ -335,13 +335,26 @@ public struct BookmarkSearcher {
 /// Color を含まず Bool で状態を表現するため、App 層で Color マッピングする責務とする
 public struct AgentDisplay {
     public let emoji: String
-    public let isRunning: Bool
+    public let status: TmuxAgentStatus
     public let nameWithoutEmoji: String
 
-    public init(emoji: String, isRunning: Bool, nameWithoutEmoji: String) {
+    public var isRunning: Bool {
+        status == .running
+    }
+
+    public init(emoji: String, status: TmuxAgentStatus, nameWithoutEmoji: String) {
         self.emoji = emoji
-        self.isRunning = isRunning
+        self.status = status
         self.nameWithoutEmoji = nameWithoutEmoji
+    }
+
+    // Why: Keep the old initializer source-compatible while preserving the richer status internally.
+    public init(emoji: String, isRunning: Bool, nameWithoutEmoji: String) {
+        self.init(
+            emoji: emoji,
+            status: isRunning ? .running : .idle,
+            nameWithoutEmoji: nameWithoutEmoji
+        )
     }
 }
 
@@ -429,7 +442,7 @@ public enum SearchItem: Identifiable {
         case .tmuxPane(let pane):
             return AgentDisplay(
                 emoji: pane.statusEmoji,
-                isRunning: pane.agentStatus == .running,
+                status: pane.agentStatus,
                 nameWithoutEmoji: pane.displayNameWithoutEmoji
             )
         case .bookmark, .floatingWindow, .aiProcess:

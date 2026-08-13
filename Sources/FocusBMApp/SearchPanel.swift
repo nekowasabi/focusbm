@@ -74,13 +74,12 @@ class SearchPanel: NSPanel {
     }
 
     override func makeKeyAndOrderFront(_ sender: Any?) {
-        // Why: toggleSearchPanel()内ではなくここでキャプチャする理由:
-        //      将来のパネル表示経路追加でも自動的にキャプチャされるため。
-        //      NSApp.activate()の前に取得必須 — activate()後はfocusbm自身が返される
+        // Why: Capture the frontmost app before activation so it can be restored safely on close.
         previousApp = NSWorkspace.shared.frontmostApplication
         switchToASCIIInput()
         super.makeKeyAndOrderFront(sender)
         startLocalKeyMonitor()
+        viewModel.startAgentStatusMonitoring()
     }
 
     override func close() {

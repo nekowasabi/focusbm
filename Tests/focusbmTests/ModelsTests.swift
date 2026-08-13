@@ -265,6 +265,48 @@ import Yams
     #expect(display?.isRunning == false)
 }
 
+@Test func test_agentDisplay_preserves_nonBinary_statuses() {
+    let cases: [(String, String, TmuxAgentStatus)] = [
+        ("claude", "⏸ plan mode on", .planMode),
+        ("codex", "⏵⏵ accept edits on", .acceptEdits),
+        ("copilot", "❯ 1. Allow once", .planMode)
+    ]
+
+    for (command, content, expectedStatus) in cases {
+        var pane = TmuxPane(
+            paneId: "%status-\(command)",
+            sessionName: "status",
+            windowIndex: 0,
+            windowName: "agent",
+            command: command,
+            title: command,
+            currentPath: "/tmp"
+        )
+        pane.statusContent = content
+        let display = SearchItem.tmuxPane(pane).agentDisplay
+        #expect(display?.status == expectedStatus)
+        #expect(display?.isRunning == false)
+    }
+}
+
+@Test func test_agentDisplay_running_status_isPreserved_forClaudeCodexCopilot() {
+    for command in ["claude", "codex", "copilot"] {
+        var pane = TmuxPane(
+            paneId: "%running-\(command)",
+            sessionName: "running",
+            windowIndex: 0,
+            windowName: "agent",
+            command: command,
+            title: command,
+            currentPath: "/tmp"
+        )
+        pane.statusContent = "✢ Working… (task · 10s)"
+        let display = SearchItem.tmuxPane(pane).agentDisplay
+        #expect(display?.status == .running)
+        #expect(display?.isRunning == true)
+    }
+}
+
 @Test func test_agentDisplay_bookmark_nil() {
     let bm = Bookmark(id: "test", appName: "Terminal", bundleIdPattern: "com.apple.Terminal",
                       context: "work", state: .app(windowTitle: "zsh"),
