@@ -15,12 +15,29 @@ public enum AppleScriptError: Error, LocalizedError {
     }
 }
 
+public enum ITermNvimScriptError: Error, LocalizedError, Equatable {
+    case emptyTTY
+    case ambiguousTTY
+    case emptyExCommand
+
+    public var errorDescription: String? {
+        switch self {
+        case .emptyTTY: return "iTerm2 TTY is empty"
+        case .ambiguousTTY: return "iTerm2 TTY session is not unique"
+        case .emptyExCommand: return "Ex command is empty"
+        }
+    }
+}
+
 public struct AppleScriptBridge {
     // ブラウザ判定用 bundleId リスト
     public static let browserBundleIds = [
         "com.microsoft.edgemac", "com.google.Chrome",
         "com.brave.Browser", "com.apple.Safari", "org.mozilla.firefox",
     ]
+
+    public static let iTerm2BundleId = "com.googlecode.iterm2"
+    public static let appleScriptTimeoutSeconds: TimeInterval = 5.0
 
     public static func isBrowser(bundleId: String) -> Bool {
         browserBundleIds.contains(bundleId)
@@ -80,6 +97,64 @@ public struct AppleScriptBridge {
             throw AppleScriptError.executionFailed(errOutput)
         }
         return output
+    }
+
+    /// Build the AppleScript that selects the unique iTerm2 session whose TTY
+    /// matches exactly, then sends Esc once and `:`+exCommand+Enter once.
+    /// Throws emptyTTY if tty is empty (no script / no write text produced).
+    public static func makeITermNvimSendScript(tty: String, exCommand: String) throws -> String {
+        if tty.isEmpty {
+            throw ITermNvimScriptError.emptyTTY
+        }
+        if exCommand.isEmpty {
+            throw ITermNvimScriptError.emptyExCommand
+        }
+        let escapedBundleId = escapeForAppleScript(iTerm2BundleId)
+        let escapedTTY = escapeForAppleScript(tty)
+        let escapedEx = escapeForAppleScript(exCommand)
+        // Why: current window/session へ送らず TTY 完全一致が1件のときだけ write text する。誤送信を防ぐため
+        return """
+        tell application id "\(escapedBundleId)"
+            set matchCount to 0
+            set targetWindow to missing value
+            set targetTab to missing value
+            set targetSession to missing value
+            repeat with w in windows
+                repeat with t in tabs of w
+                    repeat with s in sessions of t
+                        if tty of s is "\(escapedTTY)" then
+                            set matchCount to matchCount + 1
+                            set targetWindow to w
+                            set targetTab to t
+                            set targetSession to s
+                        end if
+                    end repeat
+                end repeat
+            end repeat
+            if matchCount is not 1 then
+                error "iTerm2 TTY session is not unique"
+            end if
+            select targetWindow
+            select targetTab
+            select targetSession
+            tell targetSession
+                write text (ASCII character 27) without newline
+                write text ":" & "\(escapedEx)"
+            end tell
+        end tell
+        """
+    }
+
+    /// Send using the script. Injectable execute for tests (do not require live osascript).
+    public static func sendExCommandToITerm2(
+        tty: String,
+        exCommand: String,
+        execute: (String, TimeInterval) throws -> String = { script, timeout in
+            try AppleScriptBridge.run(script, timeout: timeout)
+        }
+    ) throws {
+        let script = try makeITermNvimSendScript(tty: tty, exCommand: exCommand)
+        _ = try execute(script, appleScriptTimeoutSeconds)
     }
 
     // 現在フォーカスされているアプリ名・バンドルID・ウィンドウタイトルを一括取得

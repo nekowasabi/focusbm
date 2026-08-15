@@ -26,6 +26,52 @@ public enum TmuxError: Error, LocalizedError {
     }
 }
 
+/// Verified iTerm2/tmux/nvim target that is safe to send input to.
+public struct ITermNvimPaneTarget: Equatable {
+    public let paneId: String
+    public let sessionName: String
+    public let windowIndex: Int
+    public let currentPath: String
+    public let clientTTY: String
+
+    public init(
+        paneId: String,
+        sessionName: String,
+        windowIndex: Int,
+        currentPath: String,
+        clientTTY: String
+    ) {
+        self.paneId = paneId
+        self.sessionName = sessionName
+        self.windowIndex = windowIndex
+        self.currentPath = currentPath
+        self.clientTTY = clientTTY
+    }
+}
+
+public enum TmuxInputError: Error, LocalizedError, Equatable {
+    case noEligiblePane
+    case noStrictClient
+    case missingClientTTY
+    case paneVerificationFailed(expected: String, actual: String)
+    case executionFailed(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .noEligiblePane:
+            return "No eligible iTerm2 nvim pane"
+        case .noStrictClient:
+            return "No strict tmux client for input"
+        case .missingClientTTY:
+            return "Missing tmux client TTY"
+        case .paneVerificationFailed(let expected, let actual):
+            return "tmux pane verification failed: expected \(expected), got \(actual)"
+        case .executionFailed(let msg):
+            return "tmux command failed: \(msg)"
+        }
+    }
+}
+
 public enum TmuxAgentStatus {
     case running, planMode, acceptEdits, idle
 }
@@ -352,6 +398,28 @@ public struct TmuxProvider {
         let bundleId: String?
         let appName: String
         let activity: Int
+
+        init(
+            tty: String,
+            sessionName: String,
+            windowIndex: Int?,
+            windowName: String?,
+            paneId: String?,
+            clientPid: pid_t?,
+            bundleId: String?,
+            appName: String,
+            activity: Int
+        ) {
+            self.tty = tty
+            self.sessionName = sessionName
+            self.windowIndex = windowIndex
+            self.windowName = windowName
+            self.paneId = paneId
+            self.clientPid = clientPid
+            self.bundleId = bundleId
+            self.appName = appName
+            self.activity = activity
+        }
     }
 
     static func clientMapKey(sessionName: String, windowIndex: Int) -> String {
@@ -465,6 +533,170 @@ public struct TmuxProvider {
     static func resolveClient(sessionName: String, windowIndex: Int, clientMap: [String: TmuxClientInfo]) -> TmuxClientInfo? {
         let windowKey = clientMapKey(sessionName: sessionName, windowIndex: windowIndex)
         return clientMap[windowKey] ?? clientMap[sessionName] ?? clientMap[fallbackClientKey]
+    }
+
+    // MARK: - Input-only iTerm2/nvim selection
+
+    public static let ITERM2_BUNDLE_ID = "com.googlecode.iterm2"
+    public static let NVIM_PANE_COMMAND = "nvim"
+
+    /// First eligible nvim pane in the given array order. No sort. Path uses `==` only.
+    public static func findNvimPane(in panes: [TmuxPane], workingDirectory: String) throws -> TmuxPane {
+        if let pane = panes.first(where: { isEligibleNvimPane($0, workingDirectory: workingDirectory) }) {
+            return pane
+        }
+        throw TmuxInputError.noEligiblePane
+    }
+
+    /// Focus helper: prefer exact path, otherwise the first iTerm2 `nvim` pane.
+    /// TTY is not required because this path only switches focus (no keystrokes).
+    public static func findNvimPaneForFocus(in panes: [TmuxPane], workingDirectory: String? = nil) throws -> TmuxPane {
+        let itermNvim = panes.filter { isITermNvimPane($0) }
+        if let workingDirectory, let exact = itermNvim.first(where: { $0.currentPath == workingDirectory }) {
+            return exact
+        }
+        if let first = itermNvim.first {
+            return first
+        }
+        throw TmuxInputError.noEligiblePane
+    }
+
+    // Why: Path must stay an exact string match so trailing-slash / relative forms cannot
+    //      silently retarget a different working directory.
+    private static func isEligibleNvimPane(_ pane: TmuxPane, workingDirectory: String) -> Bool {
+        guard isITermNvimPane(pane) else { return false }
+        guard pane.currentPath == workingDirectory else { return false }
+        guard let tty = pane.clientTTY, !tty.isEmpty else { return false }
+        return true
+    }
+
+    private static func isITermNvimPane(_ pane: TmuxPane) -> Bool {
+        pane.command == NVIM_PANE_COMMAND && pane.terminalBundleId == ITERM2_BUNDLE_ID
+    }
+
+    /// Strict client: window-exact key or same-session key only. Never fallbackClientKey.
+    static func resolveClientForInput(
+        sessionName: String,
+        windowIndex: Int,
+        clientMap: [String: TmuxClientInfo]
+    ) throws -> TmuxClientInfo {
+        let windowKey = clientMapKey(sessionName: sessionName, windowIndex: windowIndex)
+        if let client = clientMap[windowKey] {
+            return client
+        }
+        if let client = clientMap[sessionName] {
+            return client
+        }
+        throw TmuxInputError.noStrictClient
+    }
+
+    /// Restamp panes for input: keep TTY/bundle only when resolveClientForInput succeeds.
+    /// Why: listAllPanes uses display resolveClient, which stamps fallbackClientKey onto
+    ///      detached panes and would otherwise make another session's iTerm2 TTY sendable.
+    static func attachClientsForInput(
+        _ panes: [TmuxPane],
+        clientMap: [String: TmuxClientInfo]
+    ) -> [TmuxPane] {
+        panes.map { pane in
+            var copy = pane
+            do {
+                let client = try resolveClientForInput(
+                    sessionName: pane.sessionName,
+                    windowIndex: pane.windowIndex,
+                    clientMap: clientMap
+                )
+                copy.clientTTY = client.tty.isEmpty ? nil : client.tty
+                copy.terminalBundleId = client.bundleId
+                copy.terminalAppName = client.appName
+            } catch {
+                copy.clientTTY = nil
+                copy.terminalBundleId = nil
+                copy.terminalAppName = nil
+            }
+            return copy
+        }
+    }
+
+    /// Live list for itermNvim: display enumeration, then strict client restamp.
+    public static func listPanesForInput(settings: AppSettings? = nil) throws -> [TmuxPane] {
+        let panes = try listAllPanes(settings: settings)
+        return attachClientsForInput(panes, clientMap: buildClientMap())
+    }
+
+    static func switchClientForInputArgs(tty: String, paneId: String) -> [String] {
+        ["tmux", "switch-client", "-c", tty, "-t", paneId]
+    }
+
+    static func verifyActivePaneArgs(tty: String) -> [String] {
+        ["tmux", "display-message", "-p", "-c", tty, "#{pane_id}"]
+    }
+
+    /// Production executor for input-only tmux commands. Throws on non-zero exit.
+    public static func runTmuxForInput(_ arguments: [String]) throws -> String {
+        let tmuxArgs = arguments.first == "tmux" ? Array(arguments.dropFirst()) : arguments
+        let process = makeTmuxProcess(tmuxArgs)
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        process.standardOutput = outPipe
+        process.standardError = errPipe
+
+        do {
+            try process.run()
+        } catch {
+            throw TmuxInputError.executionFailed(error.localizedDescription)
+        }
+        process.waitUntilExit()
+
+        if process.terminationStatus != 0 {
+            let errOutput = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            throw TmuxInputError.executionFailed(
+                errOutput.isEmpty ? "exit code \(process.terminationStatus)" : errOutput
+            )
+        }
+
+        return String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    }
+
+    public static func focusPaneForInput(_ pane: TmuxPane) throws -> ITermNvimPaneTarget {
+        try focusPaneForInput(pane, clientMap: buildClientMap(), runTmux: runTmuxForInput)
+    }
+
+    /// Input switch/verify. Resolves the client with resolveClientForInput before any tmux call.
+    static func focusPaneForInput(
+        _ pane: TmuxPane,
+        clientMap: [String: TmuxClientInfo],
+        runTmux: ([String]) throws -> String
+    ) throws -> ITermNvimPaneTarget {
+        let client = try resolveClientForInput(
+            sessionName: pane.sessionName,
+            windowIndex: pane.windowIndex,
+            clientMap: clientMap
+        )
+        let tty = client.tty
+        guard !tty.isEmpty else {
+            throw TmuxInputError.missingClientTTY
+        }
+        guard client.bundleId == ITERM2_BUNDLE_ID else {
+            throw TmuxInputError.noEligiblePane
+        }
+
+        // Why: switch-client failure must stay fatal so an unverified pane is never send-ready.
+        _ = try runTmux(switchClientForInputArgs(tty: tty, paneId: pane.paneId))
+
+        let actual = try runTmux(verifyActivePaneArgs(tty: tty))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if actual != pane.paneId {
+            throw TmuxInputError.paneVerificationFailed(expected: pane.paneId, actual: actual)
+        }
+
+        return ITermNvimPaneTarget(
+            paneId: pane.paneId,
+            sessionName: pane.sessionName,
+            windowIndex: pane.windowIndex,
+            currentPath: pane.currentPath,
+            clientTTY: tty
+        )
     }
 
     // 全ペインを取得

@@ -14,9 +14,11 @@ public enum AppState: Codable {
     case browser(urlPattern: String, title: String, tabIndex: Int?, urlPrefix: String?)
     case app(windowTitle: String)
     case floatingWindows  // 実行時に CGWindowList + AXUIElement で動的列挙
+    case iTermNvim(workingDirectory: String? = nil, exCommand: String = "")
 
     private enum CodingKeys: String, CodingKey {
         case type, urlPattern, title, tabIndex, windowTitle, urlPrefix
+        case workingDirectory, exCommand
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -33,6 +35,12 @@ public enum AppState: Codable {
             try container.encode(windowTitle, forKey: .windowTitle)
         case .floatingWindows:
             try container.encode("floatingWindows", forKey: .type)
+        case .iTermNvim(let workingDirectory, let exCommand):
+            try container.encode("itermNvim", forKey: .type)
+            try container.encodeIfPresent(workingDirectory, forKey: .workingDirectory)
+            if !exCommand.isEmpty {
+                try container.encode(exCommand, forKey: .exCommand)
+            }
         }
     }
 
@@ -48,9 +56,45 @@ public enum AppState: Codable {
             self = .browser(urlPattern: urlPattern, title: title, tabIndex: tabIndex, urlPrefix: urlPrefix)
         case "floatingWindows":
             self = .floatingWindows
+        case "itermNvim":
+            let rawDirectory = try container.decodeIfPresent(String.self, forKey: .workingDirectory)
+            let workingDirectory = Self.normalizedITermWorkingDirectory(rawDirectory)
+            let exCommand = try container.decodeIfPresent(String.self, forKey: .exCommand) ?? ""
+            try Self.validateITermNvim(exCommand: exCommand, container: container)
+            self = .iTermNvim(workingDirectory: workingDirectory, exCommand: exCommand)
         default:
             let windowTitle = try container.decode(String.self, forKey: .windowTitle)
             self = .app(windowTitle: windowTitle)
+        }
+    }
+
+    // Why: Machine-specific absolute paths make the same bookmark unusable on another Mac.
+    //      Missing, empty, or non-absolute values mean "any iTerm2 nvim".
+    static func normalizedITermWorkingDirectory(_ value: String?) -> String? {
+        guard let value, !value.isEmpty, value.hasPrefix("/") else { return nil }
+        return value
+    }
+
+    // Why: Reject at decode so invalid Ex text never becomes a send string.
+    //      Empty/omitted exCommand is allowed (focus-only). Messages omit the body.
+    private static func validateITermNvim(
+        exCommand: String,
+        container: KeyedDecodingContainer<CodingKeys>
+    ) throws {
+        guard !exCommand.isEmpty else { return }
+        if exCommand.hasPrefix(":") {
+            throw DecodingError.dataCorruptedError(
+                forKey: .exCommand,
+                in: container,
+                debugDescription: "exCommand must not start with ':'"
+            )
+        }
+        if exCommand.contains(where: { $0 == "\r" || $0 == "\n" || $0 == "\0" }) {
+            throw DecodingError.dataCorruptedError(
+                forKey: .exCommand,
+                in: container,
+                debugDescription: "exCommand must not contain CR, LF, or NUL"
+            )
         }
     }
 }
@@ -84,6 +128,11 @@ public struct Bookmark: Codable, Identifiable {
             return "\(appName): \(windowTitle)"
         case .floatingWindows:
             return "\(appName): [floating windows]"
+        case .iTermNvim(let workingDirectory, _):
+            if let workingDirectory {
+                return "\(appName): \(workingDirectory)"
+            }
+            return "\(appName): nvim"
         }
     }
 }

@@ -3,7 +3,10 @@ import Foundation
 public struct BookmarkRestorer {
     /// activate を実行せずに ActivationTarget を返す。
     /// browser パスは AppleScript 内で activate が行われるため .bundleId を返す。
-    public static func restoreAndGetTarget(_ bookmark: Bookmark) throws -> ActivationTarget {
+    public static func restoreAndGetTarget(
+        _ bookmark: Bookmark,
+        nvimRestorer: NvimTmuxRestorer = .live
+    ) throws -> ActivationTarget {
         switch bookmark.state {
         case .browser(let urlPattern, _, let tabIndex, let urlPrefix):
             // browser: AppleScript がタブ切替+activate を一括実行（分離不可）
@@ -39,6 +42,8 @@ public struct BookmarkRestorer {
             return .none
         case .floatingWindows:
             return .none
+        case .iTermNvim(let workingDirectory, let exCommand):
+            return try nvimRestorer.restore(workingDirectory: workingDirectory, exCommand: exCommand)
         }
     }
 }

@@ -26,7 +26,8 @@ extension BookmarkStore {
             let decoder = YAMLDecoder()
             if let text = try? String(contentsOf: storePath, encoding: .utf8) {
                 let migrated = (try? migrateV1YAML(text)) ?? text
-                if let store = try? decoder.decode(BookmarkStore.self, from: migrated) {
+                do {
+                    let store = try decoder.decode(BookmarkStore.self, from: migrated)
                     // マイグレーションで変更があれば .bak を作成して保存し直す
                     if migrated != text {
                         let bakPath = storePath.appendingPathExtension("bak")
@@ -34,6 +35,11 @@ extension BookmarkStore {
                         try? store.saveYAML()
                     }
                     return store
+                } catch {
+                    // Why: Keep the empty-store fallback so a bad file does not prevent launch,
+                    //      but record path + reason so config accidents are visible.
+                    let message = "[FocusBM] Failed to decode \(storePath.path): \(error)\n"
+                    FileHandle.standardError.write(Data(message.utf8))
                 }
             }
         }
