@@ -383,7 +383,14 @@ public enum SearchItem: Identifiable {
         case .tmuxPane(let p): return p.displayName
         case .aiProcess(let p):
             let dir = URL(fileURLWithPath: p.workingDirectory).lastPathComponent
-            let name = p.command == "hermes" ? "Hermes" : p.command
+            let name: String
+            switch p.command {
+            case "hermes": name = "Hermes"
+            case "opencode": name = "OpenCode"
+            case "pi": name = "Pi"
+            case "grok": name = "Grok Build"
+            default: name = p.command
+            }
             return "\(p.terminalEmoji) \(name) — \(dir)"
         }
     }

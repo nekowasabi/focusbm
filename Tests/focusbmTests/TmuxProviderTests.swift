@@ -65,6 +65,75 @@ import AppKit
     #expect(pane.isAIAgent == true)
 }
 
+@Test func test_isAIAgent_opencodeCommand() {
+    let pane = TmuxPane(paneId: "%30", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "opencode", title: "", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+    #expect(pane.aiAgentReason == "command_match(opencode)")
+}
+
+@Test func test_isAIAgent_piCommand() {
+    let pane = TmuxPane(paneId: "%31", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "pi", title: "", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+    #expect(pane.aiAgentReason == "command_match(pi)")
+}
+
+@Test func test_isAIAgent_opencodeInTitle() {
+    let pane = TmuxPane(paneId: "%32", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "nvim", title: "opencode session", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+    #expect(pane.aiAgentReason == "title_match(opencode)")
+}
+
+@Test func test_isAIAgent_piInTitle() {
+    let pane = TmuxPane(paneId: "%33", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "nvim", title: "pi", currentPath: "/tmp")
+    #expect(pane.isAIAgent == false)
+}
+
+@Test func test_isAIAgent_opencodeExited_shellCommand() {
+    let pane = TmuxPane(paneId: "%34", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "zsh", title: "opencode", currentPath: "/tmp")
+    #expect(pane.isAIAgent == false)
+    #expect(pane.aiAgentReason == "ghost_shell")
+}
+
+@Test func test_isAIAgent_piExited_shellCommand() {
+    let pane = TmuxPane(paneId: "%35", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "zsh", title: "pi", currentPath: "/tmp")
+    #expect(pane.isAIAgent == false)
+    #expect(pane.aiAgentReason == "ghost_shell")
+}
+
+@Test func test_isAIAgent_grokCommand() {
+    let pane = TmuxPane(paneId: "%36", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "grok", title: "", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+    #expect(pane.aiAgentReason == "command_match(grok)")
+}
+
+@Test func test_isAIAgent_grokVersionedCommand() {
+    let pane = TmuxPane(paneId: "%37", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "grok-1.0.4-maco", title: "", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+    #expect(pane.aiAgentReason == "command_match(grok-1.0.4-maco)")
+}
+
+@Test func test_isAIAgent_grokInTitle() {
+    let pane = TmuxPane(paneId: "%38", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "nvim", title: "Implement plan - grok", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+    #expect(pane.aiAgentReason == "title_match(grok)")
+}
+
+@Test func test_isAIAgent_grokExited_shellCommand() {
+    let pane = TmuxPane(paneId: "%39", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "zsh", title: "Implement plan - grok", currentPath: "/tmp")
+    #expect(pane.isAIAgent == false)
+    #expect(pane.aiAgentReason == "ghost_shell")
+}
+
 @Test func test_isAIAgent_nonAICommand() {
     let pane = TmuxPane(paneId: "%8", sessionName: "main", windowIndex: 0,
                         windowName: "editor", command: "vim", title: "README.md", currentPath: "/tmp")
@@ -1118,6 +1187,125 @@ final class MockRunningApp: RunningAppProtocol {
                         windowName: "w", command: "node", title: "", currentPath: "")
     pane.resolvedNodeCommand = "hermes"
     #expect(pane.agentName == "Hermes")
+}
+
+@Test func test_agentName_opencodeCommand() {
+    let pane = TmuxPane(paneId: "%40", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "opencode", title: "", currentPath: "/tmp")
+    #expect(pane.agentName == "OpenCode")
+}
+
+@Test func test_agentName_piCommand() {
+    let pane = TmuxPane(paneId: "%41", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "pi", title: "", currentPath: "/tmp")
+    #expect(pane.agentName == "Pi")
+}
+
+@Test func test_agentName_nodeCommand_resolvedOpencode() {
+    var pane = TmuxPane(paneId: "%42", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "node", title: "", currentPath: "")
+    pane.resolvedNodeCommand = "opencode"
+    #expect(pane.agentName == "OpenCode")
+}
+
+@Test func test_agentName_nodeCommand_resolvedPi() {
+    var pane = TmuxPane(paneId: "%43", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "node", title: "", currentPath: "")
+    pane.resolvedNodeCommand = "pi"
+    #expect(pane.agentName == "Pi")
+}
+
+@Test func test_agentCommandToEmoji_opencode() {
+    #expect(TmuxProvider.agentCommandToEmoji("opencode") == "🤖")
+}
+
+@Test func test_agentCommandToEmoji_pi() {
+    #expect(TmuxProvider.agentCommandToEmoji("pi") == "🤖")
+}
+
+@Test func test_isAIAgent_nodeCommand_withResolvedOpencode() {
+    var pane = TmuxPane(paneId: "%44", sessionName: "main", windowIndex: 0,
+                        windowName: "dev", command: "node",
+                        title: "", currentPath: "/tmp")
+    pane.resolvedNodeCommand = "opencode"
+    #expect(pane.isAIAgent == true)
+}
+
+@Test func test_isAIAgent_nodeCommand_withResolvedPi() {
+    var pane = TmuxPane(paneId: "%45", sessionName: "main", windowIndex: 0,
+                        windowName: "dev", command: "node",
+                        title: "", currentPath: "/tmp")
+    pane.resolvedNodeCommand = "pi"
+    #expect(pane.isAIAgent == true)
+}
+
+@Test func test_matchNodeAgentCommand_binOpencode() {
+    #expect(TmuxProvider.matchNodeAgentCommand(in: "/opt/homebrew/bin/opencode --help") == "opencode")
+}
+
+@Test func test_matchNodeAgentCommand_binPi() {
+    #expect(TmuxProvider.matchNodeAgentCommand(in: "/opt/homebrew/bin/pi --help") == "pi")
+}
+
+@Test func test_matchNodeAgentCommand_piCodingAgentMarker() {
+    #expect(TmuxProvider.matchNodeAgentCommand(in: "node /usr/lib/node_modules/pi-coding-agent/cli.js") == "pi")
+}
+
+@Test func test_matchNodeAgentCommand_earendilMarker() {
+    #expect(TmuxProvider.matchNodeAgentCommand(in: "node /usr/lib/node_modules/@earendil-works/cli.js") == "pi")
+}
+
+@Test func test_matchNodeAgentCommand_mariozechnerMarker() {
+    #expect(TmuxProvider.matchNodeAgentCommand(in: "node /usr/lib/node_modules/@mariozechner/cli.js") == "pi")
+}
+
+@Test func test_matchNodeAgentCommand_slashPiAloneDoesNotResolve() {
+    #expect(TmuxProvider.matchNodeAgentCommand(in: "/foo/pi args") == nil)
+}
+
+@Test func test_agentName_grokCommand() {
+    let pane = TmuxPane(paneId: "%52", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "grok", title: "", currentPath: "/tmp")
+    #expect(pane.agentName == "Grok Build")
+}
+
+@Test func test_agentName_grokVersionedCommand() {
+    let pane = TmuxPane(paneId: "%53", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "grok-1.0.4-maco", title: "", currentPath: "/tmp")
+    #expect(pane.agentName == "Grok Build")
+}
+
+@Test func test_agentName_nodeCommand_resolvedGrok() {
+    var pane = TmuxPane(paneId: "%54", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "node", title: "", currentPath: "")
+    pane.resolvedNodeCommand = "grok"
+    #expect(pane.agentName == "Grok Build")
+}
+
+@Test func test_agentCommandToEmoji_grok() {
+    #expect(TmuxProvider.agentCommandToEmoji("grok") == "🔫")
+}
+
+@Test func test_agentCommandToEmoji_grokVersioned() {
+    #expect(TmuxProvider.agentCommandToEmoji("grok-1.0.4-maco") == "🔫")
+}
+
+@Test func test_isAIAgent_nodeCommand_withResolvedGrok() {
+    var pane = TmuxPane(paneId: "%55", sessionName: "main", windowIndex: 0,
+                        windowName: "dev", command: "node",
+                        title: "", currentPath: "/tmp")
+    pane.resolvedNodeCommand = "grok"
+    #expect(pane.isAIAgent == true)
+}
+
+@Test func test_matchNodeAgentCommand_binGrok() {
+    #expect(TmuxProvider.matchNodeAgentCommand(in: "/opt/homebrew/bin/grok --help") == "grok")
+}
+
+@Test func test_matchNodeAgentCommand_versionedGrokBinary() {
+    #expect(TmuxProvider.matchNodeAgentCommand(
+        in: "/opt/homebrew/Caskroom/grok-build/1.0.4/grok-1.0.4-macos-aarch64"
+    ) == "grok")
 }
 
 @Test func test_panePid_defaultNil() {
