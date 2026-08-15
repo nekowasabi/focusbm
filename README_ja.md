@@ -147,6 +147,7 @@ YAML の `settings` セクションで変更できます（後述）。
   - Firefox — **`tabIndex` 指定時のみ** Cmd+N ショートカット経由でタブ切り替え（後述）
 - **その他のアプリ** — ウィンドウタイトルを保存し、bundleIdPattern（正規表現対応）でアプリを前面に表示
 - **floating window アプリ** — Cmd+Tab に表示されない LSUIElement アプリ（Alter など）の floating window を実行時に動的列挙して切り替え
+- **iTerm2 + tmux + Neovim** — `type: itermNvim` で一致する `nvim` ペインを前面化し、固定 Ex コマンドを 1 回送る。iTerm2 専用。詳細は後述。
 
 ---
 
@@ -345,6 +346,41 @@ Cmd+Tab に表示されない LSUIElement アプリの floating window をパネ
 ```
 
 パネルを開いた時点で存在する floating window が候補として表示されます（例: `Alter - Search the web - Hello`）。
+
+### iTerm2 + tmux + Neovim（`type: itermNvim`）
+
+**iTerm2 上**の tmux 内 Neovim ペインだけを前面化し、固定の Ex コマンドを一度だけ送ります。旧 V1 の `type: iterm2` ではありません（それは今も `type: app` へ移行されます）。
+
+```yaml
+- id: project-nvim
+  appName: iTerm2
+  bundleIdPattern: com.googlecode.iterm2
+  context: work
+  state:
+    type: itermNvim
+  createdAt: "2026-08-15T00:00:00Z"
+```
+
+| フィールド | 規則 |
+|---|---|
+| `workingDirectory` | 省略可。省略時は iTerm2 の最初の `nvim` ペイン。絶対パスを書いたときだけそのペインを優先する。マシン固有のフルパスは不要。 |
+| `exCommand` | 省略可。指定するなら先頭 `:` なしの一行。省略・空はフォーカスのみ。先頭 `:`、CR、LF、NUL は拒否。 |
+
+**候補になる条件:**
+
+- `pane_current_command` がちょうど `nvim`（`vim` やラッパーは対象外）
+- tmux クライアントが iTerm2（`com.googlecode.iterm2`）
+
+複数候補があるときは、1 回の tmux `list-panes` 列挙の先頭だけを使う。そのあと対象 TTY で pane ID を切り替え、`#{pane_id}` を再読し、TTY が一致する iTerm2 session がちょうど 1 件のときだけ window → tab → session の順で選択し、Esc を 1 回、続けて `:` + `exCommand` + Enter を 1 回送る。
+
+**次の場合はコマンドを送らない:**
+
+- 適格ペインがない、iTerm2 以外、TTY が空または不明
+- 同一 TTY の iTerm2 session が 0 件または 2 件以上
+- tmux の切替・検証に失敗した
+- FocusBM → iTerm2 の Automation が拒否された、または Apple Event がタイムアウトした（5 秒）
+
+この経路に Accessibility / System Events は不要。必要なのは FocusBM が iTerm2 を操作する **Automation** 許可だけ（システム設定 → プライバシーとセキュリティ → オートメーション）。他ターミナル、tmux 外の Neovim、任意入力は対象外。
 
 ---
 

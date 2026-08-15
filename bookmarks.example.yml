@@ -22,9 +22,14 @@ settings:
   # showAIAgentShortcut: false
 
 # ブックマーク一覧
-# - title: 表示名
-# - url: 開く URL
-# - priority: high (上位) / 未指定 / low (末尾) で並び順を制御
+# 実ファイルのスキーマは id / appName / bundleIdPattern / context / state です。
+# type: iterm2 は使いません（V1 の iterm2 は app に移行されます）。
+#
+# iTerm2 + tmux + nvim 専用（他ターミナル・tmux 外 nvim は対象外）:
+# - workingDirectory: 省略可。指定時だけ pane_current_path と一致する候補を優先
+# - exCommand: 省略可。指定するなら先頭コロンなしの一行
+# - command がちょうど nvim でクライアントが iTerm2 のペインにフォーカス
+# - 複数候補は list-panes 列挙の先頭だけ
 bookmarks:
   - title: GitHub
     url: https://github.com
@@ -37,3 +42,12 @@ bookmarks:
   - title: Hacker News
     url: https://news.ycombinator.com
     priority: low
+
+  # 実スキーマの itermNvim 例（上記の title/url 簡易例とは別形式）
+  - id: project-nvim
+    appName: iTerm2
+    bundleIdPattern: com.googlecode.iterm2
+    context: work
+    state:
+      type: itermNvim
+    createdAt: "2026-08-15T00:00:00Z"

@@ -148,6 +148,7 @@ On first launch or if restoration fails, grant permission as follows:
   - Firefox — tab switching is supported **only when `tabIndex` is specified**, via the Cmd+N shortcut (see below)
 - **Other apps** — Save window titles and bring apps to the front using bundleIdPattern (supports regex)
 - **Floating window apps** — Dynamically enumerate floating windows of LSUIElement apps (such as Alter) that do not appear in Cmd+Tab, and switch between them at runtime
+- **iTerm2 + tmux + Neovim** — `type: itermNvim` fronts the matching `nvim` pane and sends one fixed Ex command. iTerm2 only; see below.
 
 ---
 
@@ -354,6 +355,41 @@ To switch between floating windows of LSUIElement apps that do not appear in Cmd
 ```
 
 Floating windows that exist when the panel is opened are listed as candidates (e.g., `Alter - Search the web - Hello`).
+
+### iTerm2 + tmux + Neovim (`type: itermNvim`)
+
+Restore a specific Neovim pane inside tmux on **iTerm2 only**, then send one fixed Ex command. This is not the legacy V1 `type: iterm2` (that still migrates to `type: app`).
+
+```yaml
+- id: project-nvim
+  appName: iTerm2
+  bundleIdPattern: com.googlecode.iterm2
+  context: work
+  state:
+    type: itermNvim
+  createdAt: "2026-08-15T00:00:00Z"
+```
+
+| Field | Rule |
+|---|---|
+| `workingDirectory` | Optional. If omitted, the first iTerm2 `nvim` pane is used. If set to an absolute path, that pane is preferred, then the first iTerm2 `nvim`. Machine-specific paths are not required. |
+| `exCommand` | Optional. One-line Ex text **without** a leading `:`. Omitted/empty means focus only. CR, LF, NUL, or a leading `:` is rejected. |
+
+**Eligible target:**
+
+- `pane_current_command` is exactly `nvim` (not `vim`, not a wrapper)
+- the tmux client is iTerm2 (`com.googlecode.iterm2`)
+
+If several panes match, the first pane in one tmux `list-panes` snapshot is used. The restorer then switches that client TTY to that pane ID, re-reads `#{pane_id}`, selects the unique iTerm2 session whose TTY matches (window → tab → session), and sends Esc once then `:` + `exCommand` + Enter once.
+
+**No command is sent when any of these is true:**
+
+- no eligible pane, a non-iTerm2 client, or an empty/unknown TTY
+- more than one iTerm2 session has the same TTY, or none does
+- tmux switch/verify fails
+- macOS Automation for FocusBM → iTerm2 is denied, or the Apple Event times out (5 seconds)
+
+This path does **not** require Accessibility / System Events. Grant **Automation** permission so FocusBM can control iTerm2 (System Settings → Privacy & Security → Automation). Other terminals, Neovim outside tmux, and free-form input are out of scope.
 
 ---
 
