@@ -1,7 +1,7 @@
 ---
 task_id: "T-20260815-iterm-nvim"
 title: "iTerm2 の tmux 内 Neovim ペインへの安全な切替と固定 Ex コマンド実行"
-status: planning
+status: done
 created: "2026-08-15"
 scope:
   - Sources/FocusBMLib/Models.swift
@@ -115,17 +115,17 @@ iTerm2 上の tmux 内で起動した特定の Neovim ペインを、どこか�
 
 | Process | Title | Status | Disjoint | Type | File |
 |---|---|---|---|---|---|
-| 01 | YAML 状態型と互換性 | ☐ planning | y | 変換 | [→ process-01.md](plan-iterm-nvim/process-01.md) |
-| 02 | tmux 候補選定・入力前検証 | ☐ planning | y | 変換 | [→ process-02.md](plan-iterm-nvim/process-02.md) |
-| 03 | iTerm2 セッション選択・入力送信 | ☐ planning | y | 変換 | [→ process-03.md](plan-iterm-nvim/process-03.md) |
-| 04 | ブックマーク復元の安全な統合 | ☐ planning | n | both | [→ process-04.md](plan-iterm-nvim/process-04.md) |
-| 10 | 統合回帰テスト | ☐ planning | n | both | [→ process-10.md](plan-iterm-nvim/process-10.md) |
-| 200 | 利用者向け設定文書 | ☐ planning | y | - | [→ process-200.md](plan-iterm-nvim/process-200.md) |
-| 300 | 実行後の知見永続化 | ☐ planning | n.a. | - | [→ process-300.md](plan-iterm-nvim/process-300.md) |
+| 01 | YAML 状態型と互換性 | ☑ done | y | 変換 | [→ process-01.md](plan-iterm-nvim/process-01.md) |
+| 02 | tmux 候補選定・入力前検証 | ☑ done | y | 変換 | [→ process-02.md](plan-iterm-nvim/process-02.md) |
+| 03 | iTerm2 セッション選択・入力送信 | ☑ done | y | 変換 | [→ process-03.md](plan-iterm-nvim/process-03.md) |
+| 04 | ブックマーク復元の安全な統合 | ☑ done | n | both | [→ process-04.md](plan-iterm-nvim/process-04.md) |
+| 10 | 統合回帰テスト | ☑ done | n | both | [→ process-10.md](plan-iterm-nvim/process-10.md) |
+| 200 | 利用者向け設定文書 | ☑ done | y | - | [→ process-200.md](plan-iterm-nvim/process-200.md) |
+| 300 | 実行後の知見永続化 | ☑ done | n.a. | - | [→ process-300.md](plan-iterm-nvim/process-300.md) |
 
 **DAG**: `{01,02,03}→04→{10,200}→300`
 
-**Overall**: ☐ 0/7 completed
+**Overall**: ☑ 7/7 completed
 
 ---
 
@@ -133,10 +133,10 @@ iTerm2 上の tmux 内で起動した特定の Neovim ペインを、どこか�
 
 | Wave | Processes | Depends on Wave | Disjoint | Status |
 |---|---|---|---|---|
-| W01 | P01, P02, P03 | - | y | ☐ planning |
-| W02 | P04 | W01 | n（統合 API に依存） | ☐ planning |
-| W03 | P10, P200 | W02 | y | ☐ planning |
-| W04 | P300 | W03 | n.a. | ☐ planning |
+| W01 | P01, P02, P03 | - | y | ☑ done |
+| W02 | P04 | W01 | n（統合 API に依存） | ☑ done |
+| W03 | P10, P200 | W02 | y | ☑ done |
+| W04 | P300 | W03 | n.a. | ☑ done |
 
 ---
 

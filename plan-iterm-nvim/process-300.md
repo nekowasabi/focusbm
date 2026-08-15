@@ -25,8 +25,8 @@
 ## Knowledge Phase
 
 - [ ] `mcp__serena__write_memory` で再利用可能な知見を保存する。
-- [ ] `stigmergy/` にパターンまたは失敗モードを記録する。
-- [ ] 必要性が高い時だけ `MEMORY.md` を更新する。
+- [x] `stigmergy/` にパターンまたは失敗モードを記録する。
+- [x] 必要性が高い時だけ `MEMORY.md` を更新する。
 - [ ] `brv` が利用可能なら、機密情報を含まない要約だけを保存する。
 
 ## Manual Verification

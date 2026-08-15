@@ -45,9 +45,9 @@ System Type: transformation
 
 ## Red / Green / Refactor
 
-- [ ] Red: 新状態の往復、無効コマンド、V1移行のテストを書き、未実装で失敗することを確認する。
-- [ ] Green: `AppState` の型・符号化・検証だけを追加し、既存型を変更しない。
-- [ ] Refactor: exhaustive switch と公開 API の呼出箇所を確認し `swift test` を成功させる。
+- [x] Red: 新状態の往復、無効コマンド、V1移行のテストを書き、未実装で失敗することを確認する。
+- [x] Green: `AppState` の型・符号化・検証だけを追加し、既存型を変更しない。
+- [x] Refactor: exhaustive switch と公開 API の呼出箇所を確認し `swift test` を成功させる。
 
 ## Manual Verification
 

@@ -36,9 +36,9 @@ System Type: both
 
 ## Red / Green / Refactor
 
-- [ ] Red: 送信回数と呼出順の spy assertion を追加し、実装前に失敗を確認する。
-- [ ] Green: P04 の注入点を使い、実OSへ触れずに成功・失敗を網羅する。
-- [ ] Refactor: テスト名を正常・拒否・回帰に分類し、重複fixtureを共通化する。
+- [x] Red: 送信回数と呼出順の spy assertion を追加し、実装前に失敗を確認する。
+- [x] Green: P04 の注入点を使い、実OSへ触れずに成功・失敗を網羅する。
+- [x] Refactor: テスト名を正常・拒否・回帰に分類し、重複fixtureを共通化する。
 
 ## Manual Verification
 

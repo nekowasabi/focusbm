@@ -43,9 +43,9 @@ System Type: transformation
 
 ## Red / Green / Refactor
 
-- [ ] Red: exact path、順序、bundle/TTY拒否、fallback拒否、pane検証不一致のテストを追加する。
-- [ ] Green: 表示用の既存 `resolveClient` と `focusPane` を変えず、入力専用 API を追加する。
-- [ ] Refactor: tmux 引数は `Process.arguments` を維持し、文字列シェルを組み立てない。
+- [x] Red: exact path、順序、bundle/TTY拒否、fallback拒否、pane検証不一致のテストを追加する。
+- [x] Green: 表示用の既存 `resolveClient` と `focusPane` を変えず、入力専用 API を追加する。
+- [x] Refactor: tmux 引数は `Process.arguments` を維持し、文字列シェルを組み立てない。
 
 ## Manual Verification
 

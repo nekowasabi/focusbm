@@ -31,9 +31,9 @@
 
 ## Red / Green / Refactor
 
-- [ ] Red: README と example に不足がないチェック項目を作る。
-- [ ] Green: P01 の確定 schema を英日同じ意味で記載する。
-- [ ] Refactor: 用語と no-op 条件を揃え、古い `iterm2` 例を混在させない。
+- [x] Red: README と example に不足がないチェック項目を作る。
+- [x] Green: P01 の確定 schema を英日同じ意味で記載する。
+- [x] Refactor: 用語と no-op 条件を揃え、古い `iterm2` 例を混在させない。
 
 ## Manual Verification
 

@@ -42,9 +42,9 @@ System Type: transformation
 
 ## Red / Green / Refactor
 
-- [ ] Red: TTY、順序、Esc、newline、literal escape、0/複数 session の script 構築テストを作成する。
-- [ ] Green: `run` の既存 timeout/stderr エラー経路を再利用して API を実装する。
-- [ ] Refactor: 送信本文をログに残さず、文字列 literal 処理を専用 helper に閉じる。
+- [x] Red: TTY、順序、Esc、newline、literal escape、0/複数 session の script 構築テストを作成する。
+- [x] Green: `run` の既存 timeout/stderr エラー経路を再利用して API を実装する。
+- [x] Refactor: 送信本文をログに残さず、文字列 literal 処理を専用 helper に閉じる。
 
 ## Manual Verification
 

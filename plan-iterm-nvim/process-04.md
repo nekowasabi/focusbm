@@ -43,9 +43,9 @@ System Type: both
 
 ## Red / Green / Refactor
 
-- [ ] Red: spy で list→switch→verify→send の順序、各失敗で送信0回を検証する。
-- [ ] Green: 新 restorer を追加し、既存 browser/app/floatingWindows 分岐を変更しない。
-- [ ] Refactor: UI 層への依存を持たず、同時実行は restorer 内の直列化で重複送信を防ぐ。
+- [x] Red: spy で list→switch→verify→send の順序、各失敗で送信0回を検証する。
+- [x] Green: 新 restorer を追加し、既存 browser/app/floatingWindows 分岐を変更しない。
+- [x] Refactor: UI 層への依存を持たず、同時実行は restorer 内の直列化で重複送信を防ぐ。
 
 ## Manual Verification
 
