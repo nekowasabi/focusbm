@@ -1,5 +1,12 @@
 # focusbm Lessons Index
 
+## 2026-08-15 itermNvim
+
+| ID | 見出し | 保存先 |
+|----|--------|--------|
+| L-itermNvim | `iterm2` 型名再利用禁止・入力用 client は fallback 禁止・TTY 一意ガードは write text より前 | `stigmergy/iterm-nvim-implementation-20260815.md` |
+
+
 プロジェクトで得た教訓の見出しインデックス。詳細は `.serena/memories/` および個別 `stigmergy/*.md` を参照。
 
 ## 2026-06-11 ミッション（リファクタリング計画フェーズ: 20260611-120143-29486-001）
