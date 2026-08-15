@@ -362,6 +362,9 @@ tmux ペインをフォーカスするときは、対象の session/window を�
 - Aider (`aider`)
 - Gemini (`gemini`)
 - Hermes (`hermes`)
+- OpenCode (`opencode`)
+- Pi (`pi`)
+- Grok Build (`grok`)
 
 ---
 

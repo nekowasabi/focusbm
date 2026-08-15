@@ -367,6 +367,9 @@ focusbm now supports discovering and focusing tmux panes running AI agents.
 - Aider (`aider`)
 - Gemini (`gemini`)
 - Hermes (`hermes`)
+- OpenCode (`opencode`)
+- Pi (`pi`)
+- Grok Build (`grok`)
 
 ### Status indicators
 

@@ -104,6 +104,9 @@ private func write(_ text: String, to url: URL) throws {
     #expect(resolver.supports(command: "claude"))
     #expect(resolver.supports(command: "codex"))
     #expect(!resolver.supports(command: "aider"))
+    #expect(!resolver.supports(command: "opencode"))
+    #expect(!resolver.supports(command: "pi"))
+    #expect(!resolver.supports(command: "grok"))
 }
 
 /// Verifies that Codex resolves only the working-directory PR source.

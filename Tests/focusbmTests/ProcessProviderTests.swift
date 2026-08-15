@@ -50,6 +50,15 @@ import AppKit
     #expect(ProcessProvider.processNamePattern("codex") == "(^|/)codex([[:space:]]|$)")
 }
 
+@Test func test_processNamePattern_grokMatchesVersionedBinary() {
+    let pattern = ProcessProvider.processNamePattern("grok")
+    #expect("grok".range(of: pattern, options: .regularExpression) != nil)
+    #expect("/opt/homebrew/bin/grok".range(of: pattern, options: .regularExpression) != nil)
+    #expect("grok-1.0.4-macos-aarch64".range(of: pattern, options: .regularExpression) != nil)
+    #expect("/opt/homebrew/Caskroom/grok-build/1.0.4/grok-1.0.4-macos-aarch64".range(of: pattern, options: .regularExpression) != nil)
+    #expect("grokking".range(of: pattern, options: .regularExpression) == nil)
+}
+
 @Test func test_processNamePattern_escapesRegexCharacters() {
     #expect(ProcessProvider.processNamePattern("foo.bar") == "(^|/)foo\\.bar([[:space:]]|$)")
 }
@@ -127,6 +136,48 @@ import AppKit
     #expect(item.displayName == "📨 Hermes — messages")
 }
 
+@Test func test_searchItem_aiProcess_displayName_opencodeUsesDisplayName() {
+    let proc = ProcessProvider.AIProcess(
+        pid: 3,
+        command: "opencode",
+        workingDirectory: "/Users/user/focusbm",
+        terminalBundleId: "com.googlecode.iterm2",
+        terminalAppName: "iTerm2",
+        terminalEmoji: "🍎",
+        title: "opencode (pid: 3)"
+    )
+    let item = SearchItem.aiProcess(proc)
+    #expect(item.displayName == "🍎 OpenCode — focusbm")
+}
+
+@Test func test_searchItem_aiProcess_displayName_piUsesDisplayName() {
+    let proc = ProcessProvider.AIProcess(
+        pid: 4,
+        command: "pi",
+        workingDirectory: "/Users/user/notes",
+        terminalBundleId: "com.googlecode.iterm2",
+        terminalAppName: "iTerm2",
+        terminalEmoji: "🍎",
+        title: "pi (pid: 4)"
+    )
+    let item = SearchItem.aiProcess(proc)
+    #expect(item.displayName == "🍎 Pi — notes")
+}
+
+@Test func test_searchItem_aiProcess_displayName_grokUsesDisplayName() {
+    let proc = ProcessProvider.AIProcess(
+        pid: 5,
+        command: "grok",
+        workingDirectory: "/Users/user/focusbm",
+        terminalBundleId: "com.googlecode.iterm2",
+        terminalAppName: "iTerm2",
+        terminalEmoji: "🍎",
+        title: "grok (pid: 5)"
+    )
+    let item = SearchItem.aiProcess(proc)
+    #expect(item.displayName == "🍎 Grok Build — focusbm")
+}
+
 @Test func test_searchItem_aiProcess_context() {
     let proc = ProcessProvider.AIProcess(
         pid: 1,
@@ -192,6 +243,9 @@ import AppKit
     #expect(commands.contains("gemini"))
     #expect(commands.contains("copilot"))
     #expect(commands.contains("hermes"))
+    #expect(commands.contains("opencode"))
+    #expect(commands.contains("pi"))
+    #expect(commands.contains("grok"))
 }
 
 // MARK: - Daemon Process Filtering Tests
@@ -239,6 +293,19 @@ import AppKit
         "/Applications/Codex.app/Contents/Resources/codex app-server --analytics-default-enabled"
     )
     #expect(result == true)
+}
+
+@Test func test_isDaemonCommandLine_opencodeServe_returnsTrue() {
+    #expect(ProcessProvider.isDaemonCommandLine("opencode serve") == true)
+    #expect(ProcessProvider.isDaemonCommandLine("/opt/homebrew/bin/opencode serve") == true)
+}
+
+@Test func test_isDaemonCommandLine_opencodeRunPleaseServe_returnsFalse() {
+    #expect(ProcessProvider.isDaemonCommandLine("opencode run please serve the app") == false)
+}
+
+@Test func test_daemonSubcommands_doesNotContainGenericServe() {
+    #expect(!ProcessProvider.daemonSubcommands.contains("serve"))
 }
 
 

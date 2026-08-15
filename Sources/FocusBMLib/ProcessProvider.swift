@@ -35,7 +35,7 @@ public struct ProcessProvider {
     }
 
     /// 検出対象のAIエージェントコマンド名
-    static let aiAgentCommands = ["claude", "aider", "gemini", "copilot", "codex", "hermes"]
+    static let aiAgentCommands = ["claude", "aider", "gemini", "copilot", "codex", "hermes", "opencode", "pi", "grok"]
 
     // MARK: - Daemon Process Filtering
 
@@ -50,7 +50,15 @@ public struct ProcessProvider {
     // Why: pgrep パターンだけではサブコマンドの除外が困難 —
     //      コマンドライン文字列から既知のデーモンサブコマンドを検出する純粋関数方式を採用
     static func isDaemonCommandLine(_ commandLine: String) -> Bool {
-        return daemonSubcommands.contains { commandLine.contains(" " + $0) }
+        if daemonSubcommands.contains(where: { commandLine.contains(" " + $0) }) {
+            return true
+        }
+        // Why: 汎用 `serve` を daemonSubcommands に入れると `opencode run "please serve the app"` を誤除外する。
+        //      `opencode` の直後トークンが `serve` のときだけデーモン扱いする。
+        return commandLine.range(
+            of: #"(^|/)opencode[[:space:]]+serve([[:space:]]|$)"#,
+            options: .regularExpression
+        ) != nil
     }
 
     /// プロセスのコマンドライン引数を取得する
@@ -168,6 +176,10 @@ public struct ProcessProvider {
     /// pgrep でコマンド名からPIDを取得
     static func processNamePattern(_ name: String) -> String {
         let escapedName = NSRegularExpression.escapedPattern(for: name)
+        if name == "grok" {
+            // Why: Homebrew cask の実体は `grok-1.0.4-macos-aarch64`。単語境界だけだとバージョン付きバイナリを落とす。
+            return "(^|/)" + escapedName + "(-[0-9]|[[:space:]]|$)"
+        }
         return "(^|/)" + escapedName + "([[:space:]]|$)"
     }
 

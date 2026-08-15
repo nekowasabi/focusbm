@@ -64,7 +64,8 @@ public struct TmuxPane {
         }
         // コマンド名で直接判定できるエージェント（終了すればコマンドがシェルに戻る）
         if command == "claude" || command == "aider" || command == "gemini" ||
-           command == "copilot" || command == "codex" || command == "agent" || command == "hermes" {
+           command == "copilot" || command == "codex" || command == "agent" || command == "hermes" ||
+           command == "opencode" || command == "pi" || isGrokCommand {
             return true
         }
         // タイトル含有で判定する場合、コマンドがシェルなら終了済みと判断
@@ -75,6 +76,8 @@ public struct TmuxPane {
                t.contains("codex") ||
                t.contains("copilot") ||
                t.contains("hermes") ||
+               t.contains("opencode") ||
+               t.contains("grok") ||
                t.contains("openai") ||
                t.contains("ai agent")
     }
@@ -84,6 +87,12 @@ public struct TmuxPane {
         return shells.contains(command)
     }
 
+    // Why: pane_current_command は comm 16文字制限で `grok-1.0.4-maco` になる。
+    //      シンボリックリンク名 `grok` とバージョン付き実体の両方を同一エージェントとみなす。
+    private var isGrokCommand: Bool {
+        command == "grok" || command.hasPrefix("grok-")
+    }
+
     // Internal helper exposed for logging in TmuxProvider (avoids duplicating shell list)
     var isShellCommandPublic: Bool { isShellCommand }
 
@@ -91,7 +100,8 @@ public struct TmuxPane {
     var aiAgentReason: String {
         let t = title.lowercased()
         if command == "claude" || command == "aider" || command == "gemini" ||
-           command == "copilot" || command == "codex" || command == "agent" || command == "hermes" {
+           command == "copilot" || command == "codex" || command == "agent" || command == "hermes" ||
+           command == "opencode" || command == "pi" || isGrokCommand {
             return "command_match(\(command))"
         }
         if isShellCommand { return "ghost_shell" }
@@ -101,6 +111,8 @@ public struct TmuxPane {
         if t.contains("codex")   { return "title_match(codex)" }
         if t.contains("copilot") { return "title_match(copilot)" }
         if t.contains("hermes")  { return "title_match(hermes)" }
+        if t.contains("opencode") { return "title_match(opencode)" }
+        if t.contains("grok")    { return "title_match(grok)" }
         if t.contains("openai")  { return "title_match(openai)" }
         if t.contains("ai agent") { return "title_match(ai agent)" }
         return "not_ai"
@@ -212,8 +224,12 @@ public struct TmuxPane {
         case "gemini":  return "Gemini"
         case "copilot": return "Copilot"
         case "hermes":  return "Hermes"
+        case "opencode": return "OpenCode"
+        case "pi":      return "Pi"
+        case "grok":    return "Grok Build"
         case "agent":   return "Agent"
         default:
+            if isGrokCommand { return "Grok Build" }
             // Why: Node.js ランタイム経由で起動されたAIツールの名前を
             //      resolvedNodeCommand から解決（command = "node" の場合）
             if let resolved = resolvedNodeCommand {
@@ -224,6 +240,9 @@ public struct TmuxPane {
                 case "aider": return "aider"
                 case "gemini": return "Gemini"
                 case "hermes": return "Hermes"
+                case "opencode": return "OpenCode"
+                case "pi": return "Pi"
+                case "grok": return "Grok Build"
                 default: return resolved.capitalized
                 }
             }
@@ -231,6 +250,8 @@ public struct TmuxPane {
             if t.contains("codex")   { return "Codex" }
             if t.contains("copilot") { return "Copilot" }
             if t.contains("hermes")  { return "Hermes" }
+            if t.contains("opencode") { return "OpenCode" }
+            if t.contains("grok")    { return "Grok Build" }
             return command
         }
     }
@@ -297,7 +318,11 @@ public struct TmuxProvider {
         case "copilot": return "✈️"
         case "codex":   return "📖"
         case "hermes":  return "📨"
-        default:        return "🤖"
+        case "grok":    return "🔫"
+        default:
+            // Why: pane_current_command は comm 16文字制限で `grok-1.0.4-maco` になる。
+            if command.hasPrefix("grok-") { return "🔫" }
+            return "🤖"
         }
     }
 
@@ -976,14 +1001,41 @@ public struct TmuxProvider {
         // 2. 各子孫プロセスのコマンドラインを確認
         for childPid in descendantPids {
             let args = ProcessProvider.getCommandLineArgs(childPid)
-            // 3. aiAgentCommands とマッチング（"bin/codex" パターン）
-            for cmd in ProcessProvider.aiAgentCommands {
-                if args.contains("bin/" + cmd) || args.contains("/" + cmd + " ") {
-                    return cmd
-                }
+            if let cmd = matchNodeAgentCommand(in: args) {
+                return cmd
             }
         }
 
+        return nil
+    }
+
+    /// 子孫 cmdline から AI エージェントコマンド名を解決する純関数。
+    // Why: panePid 走査は I/O。マッチ規則そのものは文字列だけでテスト可能にする。
+    static func matchNodeAgentCommand(in args: String) -> String? {
+        for cmd in ProcessProvider.aiAgentCommands {
+            if args.contains("bin/" + cmd) {
+                return cmd
+            }
+            if cmd == "pi" {
+                // Why: `/{cmd} ` は `/usr/local/pi something` やパス断片に当たる。
+                //      `pi` は `bin/pi` か pi-coding-agent の既知マーカーだけ採用する。
+                if args.contains("pi-coding-agent")
+                    || args.contains("@earendil-works")
+                    || args.contains("@mariozechner") {
+                    return cmd
+                }
+                continue
+            }
+            if cmd == "grok" {
+                // Why: cask 実体は `.../grok-1.0.4-macos-aarch64`。`bin/grok` も `/{cmd} ` も当たらない。
+                if args.range(of: #"(^|/)grok-[0-9]"#, options: .regularExpression) != nil {
+                    return cmd
+                }
+            }
+            if args.contains("/" + cmd + " ") {
+                return cmd
+            }
+        }
         return nil
     }
 

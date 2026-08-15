@@ -233,6 +233,61 @@ import Yams
     #expect(item.agentEmoji == "📨")
 }
 
+@Test func test_agentEmoji_aiProcess_opencode() {
+    let process = ProcessProvider.AIProcess(
+        pid: 5, command: "opencode", workingDirectory: "/tmp",
+        terminalBundleId: nil, terminalAppName: nil, terminalEmoji: "👻", title: ""
+    )
+    let item = SearchItem.aiProcess(process)
+    #expect(item.agentEmoji == "🤖")
+}
+
+@Test func test_agentEmoji_aiProcess_pi() {
+    let process = ProcessProvider.AIProcess(
+        pid: 6, command: "pi", workingDirectory: "/tmp",
+        terminalBundleId: nil, terminalAppName: nil, terminalEmoji: "👻", title: ""
+    )
+    let item = SearchItem.aiProcess(process)
+    #expect(item.agentEmoji == "🤖")
+}
+
+@Test func test_agentEmoji_tmuxPane_opencode() {
+    let pane = TmuxPane(paneId: "%50", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "opencode", title: "", currentPath: "/tmp")
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.agentEmoji == "🤖")
+}
+
+@Test func test_agentEmoji_tmuxPane_pi() {
+    let pane = TmuxPane(paneId: "%51", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "pi", title: "", currentPath: "/tmp")
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.agentEmoji == "🤖")
+}
+
+@Test func test_agentEmoji_aiProcess_grok() {
+    let process = ProcessProvider.AIProcess(
+        pid: 7, command: "grok", workingDirectory: "/tmp",
+        terminalBundleId: nil, terminalAppName: nil, terminalEmoji: "👻", title: ""
+    )
+    let item = SearchItem.aiProcess(process)
+    #expect(item.agentEmoji == "🔫")
+}
+
+@Test func test_agentEmoji_tmuxPane_grok() {
+    let pane = TmuxPane(paneId: "%56", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "grok", title: "", currentPath: "/tmp")
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.agentEmoji == "🔫")
+}
+
+@Test func test_agentEmoji_tmuxPane_grokVersioned() {
+    let pane = TmuxPane(paneId: "%57", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "grok-1.0.4-maco", title: "", currentPath: "/tmp")
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.agentEmoji == "🔫")
+}
+
 @Test func test_agentEmoji_tmuxPane_codex_via_resolvedNodeCommand() {
     // Why: command="node" でもresolvedNodeCommandが"codex"なら📖を返すことを保証する
     var pane = TmuxPane(paneId: "%21", sessionName: "s", windowIndex: 0,
