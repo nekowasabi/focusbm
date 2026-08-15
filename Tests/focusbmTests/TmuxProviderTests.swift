@@ -1319,3 +1319,374 @@ final class MockRunningApp: RunningAppProtocol {
                         windowName: "w", command: "node", title: "", currentPath: "")
     #expect(pane.resolvedNodeCommand == nil)
 }
+
+// MARK: - Input-only iTerm2/nvim selection
+
+private func makeInputNvimPane(
+    paneId: String,
+    sessionName: String = "main",
+    windowIndex: Int = 0,
+    windowName: String = "editor",
+    command: String = "nvim",
+    currentPath: String,
+    bundleId: String? = TmuxProvider.ITERM2_BUNDLE_ID,
+    clientTTY: String? = "/dev/ttys005"
+) -> TmuxPane {
+    var pane = TmuxPane(
+        paneId: paneId,
+        sessionName: sessionName,
+        windowIndex: windowIndex,
+        windowName: windowName,
+        command: command,
+        title: "nvim",
+        currentPath: currentPath
+    )
+    pane.terminalBundleId = bundleId
+    pane.clientTTY = clientTTY
+    return pane
+}
+
+private func makeClientInfo(
+    tty: String,
+    sessionName: String,
+    windowIndex: Int? = nil,
+    windowName: String? = nil,
+    paneId: String? = nil,
+    activity: Int = 0
+) -> TmuxProvider.TmuxClientInfo {
+    TmuxProvider.TmuxClientInfo(
+        tty: tty,
+        sessionName: sessionName,
+        windowIndex: windowIndex,
+        windowName: windowName,
+        paneId: paneId,
+        clientPid: 111,
+        bundleId: TmuxProvider.ITERM2_BUNDLE_ID,
+        appName: "iTerm2",
+        activity: activity
+    )
+}
+
+@Test func test_findNvimPane_returnsFirstInTmuxEnumerationOrder() throws {
+    let workdir = "/Users/me/project"
+    let earlierEligible = makeInputNvimPane(
+        paneId: "%1",
+        sessionName: "zzz",
+        windowIndex: 9,
+        currentPath: workdir,
+        clientTTY: "/dev/ttys001"
+    )
+    let laterEligible = makeInputNvimPane(
+        paneId: "%2",
+        sessionName: "main",
+        windowIndex: 0,
+        currentPath: workdir,
+        clientTTY: "/dev/ttys009"
+    )
+
+    let found = try TmuxProvider.findNvimPane(
+        in: [earlierEligible, laterEligible],
+        workingDirectory: workdir
+    )
+    #expect(found.paneId == "%1")
+    #expect(found.sessionName == "zzz")
+    #expect(found.clientTTY == "/dev/ttys001")
+}
+
+@Test func test_findNvimPaneForFocus_prefersExactPathThenAnyITermNvim() throws {
+    let workdir = "/Users/me/project"
+    let ghosttyNvim = makeInputNvimPane(
+        paneId: "%g",
+        currentPath: workdir,
+        bundleId: "com.mitchellh.ghostty"
+    )
+    let otherITerm = makeInputNvimPane(
+        paneId: "%2",
+        sessionName: "iterm",
+        windowIndex: 1,
+        currentPath: "/Users/me/other",
+        clientTTY: "/dev/ttys002"
+    )
+    let exact = makeInputNvimPane(
+        paneId: "%1",
+        currentPath: workdir,
+        clientTTY: "/dev/ttys001"
+    )
+
+    let preferred = try TmuxProvider.findNvimPaneForFocus(
+        in: [ghosttyNvim, otherITerm, exact],
+        workingDirectory: workdir
+    )
+    #expect(preferred.paneId == "%1")
+
+    let fallback = try TmuxProvider.findNvimPaneForFocus(
+        in: [ghosttyNvim, otherITerm],
+        workingDirectory: workdir
+    )
+    #expect(fallback.paneId == "%2")
+
+    #expect(throws: TmuxInputError.noEligiblePane) {
+        try TmuxProvider.findNvimPaneForFocus(in: [ghosttyNvim], workingDirectory: workdir)
+    }
+
+    let anyITerm = try TmuxProvider.findNvimPaneForFocus(
+        in: [ghosttyNvim, otherITerm],
+        workingDirectory: nil
+    )
+    #expect(anyITerm.paneId == "%2")
+}
+
+@Test func test_findNvimPane_rejectsUnsafeCandidates() {
+    let workdir = "/Users/me/project"
+
+    let unsafe: [(String, TmuxPane)] = [
+        ("vim command", makeInputNvimPane(paneId: "%v", command: "vim", currentPath: workdir)),
+        ("nvim with trailing space", makeInputNvimPane(paneId: "%sp", command: "nvim ", currentPath: workdir)),
+        ("non-iTerm2 bundle", makeInputNvimPane(paneId: "%g", currentPath: workdir, bundleId: "com.mitchellh.ghostty")),
+        ("empty TTY", makeInputNvimPane(paneId: "%e", currentPath: workdir, clientTTY: "")),
+        ("nil TTY", makeInputNvimPane(paneId: "%n", currentPath: workdir, clientTTY: nil)),
+        ("trailing-slash path", makeInputNvimPane(paneId: "%sl", currentPath: workdir + "/")),
+        ("relative path", makeInputNvimPane(paneId: "%rel", currentPath: "Users/me/project")),
+    ]
+
+    for (reason, pane) in unsafe {
+        #expect(throws: TmuxInputError.noEligiblePane, "\(reason)") {
+            try TmuxProvider.findNvimPane(in: [pane], workingDirectory: workdir)
+        }
+    }
+
+    #expect(throws: TmuxInputError.noEligiblePane) {
+        try TmuxProvider.findNvimPane(in: unsafe.map(\.1), workingDirectory: workdir)
+    }
+
+    #expect(throws: TmuxInputError.noEligiblePane) {
+        try TmuxProvider.findNvimPane(in: [], workingDirectory: workdir)
+    }
+}
+
+@Test func test_focusPaneForInput_verifiesPaneId() throws {
+    let pane = makeInputNvimPane(
+        paneId: "%1",
+        sessionName: "main",
+        windowIndex: 2,
+        currentPath: "/Users/me/project",
+        clientTTY: "/dev/ttys005"
+    )
+    let clientMap: [String: TmuxProvider.TmuxClientInfo] = [
+        "main:2": makeClientInfo(
+            tty: "/dev/ttys005",
+            sessionName: "main",
+            windowIndex: 2,
+            windowName: "editor",
+            paneId: "%1"
+        )
+    ]
+
+    var calls: [[String]] = []
+    let target = try TmuxProvider.focusPaneForInput(pane, clientMap: clientMap) { args in
+        calls.append(args)
+        if args.contains("switch-client") {
+            return ""
+        }
+        return "%1\n"
+    }
+
+    #expect(calls == [
+        ["tmux", "switch-client", "-c", "/dev/ttys005", "-t", "%1"],
+        ["tmux", "display-message", "-p", "-c", "/dev/ttys005", "#{pane_id}"],
+    ])
+    #expect(target == ITermNvimPaneTarget(
+        paneId: "%1",
+        sessionName: "main",
+        windowIndex: 2,
+        currentPath: "/Users/me/project",
+        clientTTY: "/dev/ttys005"
+    ))
+    #expect(TmuxProvider.switchClientForInputArgs(tty: "/dev/ttys005", paneId: "%1") == calls[0])
+    #expect(TmuxProvider.verifyActivePaneArgs(tty: "/dev/ttys005") == calls[1])
+
+    #expect(throws: TmuxInputError.paneVerificationFailed(expected: "%1", actual: "%99")) {
+        try TmuxProvider.focusPaneForInput(pane, clientMap: clientMap) { args in
+            if args.contains("switch-client") { return "" }
+            return "  %99\n"
+        }
+    }
+
+    var verifyCalledAfterSwitchFailure = false
+    #expect(throws: TmuxInputError.executionFailed("switch failed")) {
+        try TmuxProvider.focusPaneForInput(pane, clientMap: clientMap) { args in
+            if args.contains("display-message") {
+                verifyCalledAfterSwitchFailure = true
+                return "%1"
+            }
+            throw TmuxInputError.executionFailed("switch failed")
+        }
+    }
+    #expect(verifyCalledAfterSwitchFailure == false)
+
+    let emptyTTYMap: [String: TmuxProvider.TmuxClientInfo] = [
+        "main:2": makeClientInfo(tty: "", sessionName: "main", windowIndex: 2)
+    ]
+    #expect(throws: TmuxInputError.missingClientTTY) {
+        try TmuxProvider.focusPaneForInput(pane, clientMap: emptyTTYMap) { _ in
+            Issue.record("runTmux must not run without a client TTY")
+            return ""
+        }
+    }
+
+    let fallbackOnly: [String: TmuxProvider.TmuxClientInfo] = [
+        TmuxProvider.fallbackClientKey: makeClientInfo(
+            tty: "/dev/ttys009",
+            sessionName: "other",
+            activity: 99
+        )
+    ]
+    #expect(throws: TmuxInputError.noStrictClient) {
+        try TmuxProvider.resolveClientForInput(
+            sessionName: "main",
+            windowIndex: 2,
+            clientMap: fallbackOnly
+        )
+    }
+}
+
+@Test func test_resolveClientForInput_windowOrSessionOnly() throws {
+    let windowClient = makeClientInfo(
+        tty: "/dev/ttys001",
+        sessionName: "main",
+        windowIndex: 1,
+        windowName: "editor",
+        paneId: "%1",
+        activity: 10
+    )
+    let sessionClient = makeClientInfo(
+        tty: "/dev/ttys002",
+        sessionName: "main",
+        activity: 5
+    )
+    let fallbackClient = makeClientInfo(
+        tty: "/dev/ttys009",
+        sessionName: "other",
+        activity: 1
+    )
+
+    let fullMap: [String: TmuxProvider.TmuxClientInfo] = [
+        "main:1": windowClient,
+        "main": sessionClient,
+        TmuxProvider.fallbackClientKey: fallbackClient,
+    ]
+    #expect(try TmuxProvider.resolveClientForInput(
+        sessionName: "main",
+        windowIndex: 1,
+        clientMap: fullMap
+    ).tty == "/dev/ttys001")
+
+    let sessionOnly: [String: TmuxProvider.TmuxClientInfo] = [
+        "main": sessionClient,
+        TmuxProvider.fallbackClientKey: fallbackClient,
+    ]
+    #expect(try TmuxProvider.resolveClientForInput(
+        sessionName: "main",
+        windowIndex: 9,
+        clientMap: sessionOnly
+    ).tty == "/dev/ttys002")
+
+    let fallbackOnly: [String: TmuxProvider.TmuxClientInfo] = [
+        TmuxProvider.fallbackClientKey: fallbackClient,
+    ]
+    #expect(throws: TmuxInputError.noStrictClient) {
+        try TmuxProvider.resolveClientForInput(
+            sessionName: "main",
+            windowIndex: 1,
+            clientMap: fallbackOnly
+        )
+    }
+}
+
+@Test func test_focusPaneForInput_fallbackOnly_doesNotSwitch() {
+    var pane = makeInputNvimPane(
+        paneId: "%1",
+        sessionName: "detached",
+        windowIndex: 0,
+        currentPath: "/Users/me/project",
+        clientTTY: "/dev/ttys009"
+    )
+    pane.terminalBundleId = TmuxProvider.ITERM2_BUNDLE_ID
+
+    let fallbackOnly: [String: TmuxProvider.TmuxClientInfo] = [
+        TmuxProvider.fallbackClientKey: makeClientInfo(
+            tty: "/dev/ttys009",
+            sessionName: "other",
+            activity: 99
+        )
+    ]
+
+    var switchOrVerifyCount = 0
+    #expect(throws: TmuxInputError.noStrictClient) {
+        try TmuxProvider.focusPaneForInput(pane, clientMap: fallbackOnly) { _ in
+            switchOrVerifyCount += 1
+            return ""
+        }
+    }
+    #expect(switchOrVerifyCount == 0)
+}
+
+@Test func test_attachClientsForInput_clearsFallbackStampedTTY() {
+    let workdir = "/Users/me/project"
+    var stamped = makeInputNvimPane(
+        paneId: "%1",
+        sessionName: "detached",
+        windowIndex: 0,
+        currentPath: workdir,
+        clientTTY: "/dev/ttys009"
+    )
+    stamped.terminalBundleId = TmuxProvider.ITERM2_BUNDLE_ID
+
+    let fallbackOnly: [String: TmuxProvider.TmuxClientInfo] = [
+        TmuxProvider.fallbackClientKey: makeClientInfo(
+            tty: "/dev/ttys009",
+            sessionName: "other",
+            activity: 99
+        )
+    ]
+
+    let attached = TmuxProvider.attachClientsForInput([stamped], clientMap: fallbackOnly)
+    #expect(attached[0].clientTTY == nil)
+    #expect(attached[0].terminalBundleId == nil)
+    #expect(throws: TmuxInputError.noEligiblePane) {
+        try TmuxProvider.findNvimPane(in: attached, workingDirectory: workdir)
+    }
+}
+
+@Test func test_focusPaneForInput_usesResolvedWindowTTYNotStampedFallback() throws {
+    let pane = makeInputNvimPane(
+        paneId: "%1",
+        sessionName: "main",
+        windowIndex: 2,
+        currentPath: "/Users/me/project",
+        clientTTY: "/dev/ttys009"
+    )
+    let clientMap: [String: TmuxProvider.TmuxClientInfo] = [
+        "main:2": makeClientInfo(
+            tty: "/dev/ttys001",
+            sessionName: "main",
+            windowIndex: 2,
+            paneId: "%1"
+        ),
+        TmuxProvider.fallbackClientKey: makeClientInfo(
+            tty: "/dev/ttys009",
+            sessionName: "other",
+            activity: 99
+        ),
+    ]
+
+    var seenTTY: String?
+    _ = try TmuxProvider.focusPaneForInput(pane, clientMap: clientMap) { args in
+        if args.contains("switch-client"), let cIdx = args.firstIndex(of: "-c") {
+            seenTTY = args[cIdx + 1]
+        }
+        if args.contains("display-message") { return "%1" }
+        return ""
+    }
+    #expect(seenTTY == "/dev/ttys001")
+}

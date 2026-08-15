@@ -56,6 +56,30 @@ import Yams
     #expect(bm.description == "Finder: Documents")
 }
 
+@Test func test_description_iTermNvim() {
+    let bm = Bookmark(
+        id: "t",
+        appName: "iTerm2",
+        bundleIdPattern: "com.googlecode.iterm2",
+        context: "work",
+        state: .iTermNvim(workingDirectory: "/tmp/foo/", exCommand: "echo secret"),
+        createdAt: "2024-01-01T00:00:00Z"
+    )
+    #expect(bm.description == "iTerm2: /tmp/foo/")
+    #expect(!bm.description.contains("echo"))
+    #expect(!bm.description.contains("secret"))
+
+    let anyNvim = Bookmark(
+        id: "t2",
+        appName: "iTerm2",
+        bundleIdPattern: "com.googlecode.iterm2",
+        context: "work",
+        state: .iTermNvim(),
+        createdAt: "2024-01-01T00:00:00Z"
+    )
+    #expect(anyNvim.description == "iTerm2: nvim")
+}
+
 // MARK: - BookmarkStore Tests
 
 @Test func test_storePath_isYml() {

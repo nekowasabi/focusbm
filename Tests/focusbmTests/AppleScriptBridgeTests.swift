@@ -78,3 +78,71 @@ import Testing
     // タイムアウト（1s）+ SIGTERM 猶予（最大1s）内で返ること
     #expect(Date().timeIntervalSince(start) < 5.0)
 }
+
+// MARK: - iTerm2 Neovim Send Script Tests
+
+@Test func test_iTermNvimScriptTargetsExactTTY() throws {
+    let script = try AppleScriptBridge.makeITermNvimSendScript(tty: "/dev/ttys005", exCommand: "echo 'hi'")
+    #expect(script.contains("com.googlecode.iterm2"))
+    #expect(script.contains("/dev/ttys005"))
+    #expect(script.contains("ASCII character 27"))
+    #expect(script.contains("without newline"))
+    #expect(script.contains(#"write text ":" & "echo 'hi'""#))
+
+    let windowSelect = script.range(of: "select targetWindow")
+    let tabSelect = script.range(of: "select targetTab")
+    let sessionSelect = script.range(of: "select targetSession")
+    #expect(windowSelect != nil)
+    #expect(tabSelect != nil)
+    #expect(sessionSelect != nil)
+    if let windowSelect, let tabSelect, let sessionSelect {
+        #expect(windowSelect.lowerBound < tabSelect.lowerBound)
+        #expect(tabSelect.lowerBound < sessionSelect.lowerBound)
+    }
+}
+
+@Test func test_iTermNvimScriptRejectsAmbiguousTTY() throws {
+    #expect(throws: ITermNvimScriptError.emptyTTY) {
+        _ = try AppleScriptBridge.makeITermNvimSendScript(tty: "", exCommand: "echo 'hi'")
+    }
+
+    let script = try AppleScriptBridge.makeITermNvimSendScript(tty: "/dev/ttys005", exCommand: "echo 'hi'")
+    let uniquenessGuard = script.range(of: "matchCount is not 1")
+    let firstWrite = script.range(of: "write text")
+    #expect(uniquenessGuard != nil)
+    #expect(firstWrite != nil)
+    if let uniquenessGuard, let firstWrite {
+        #expect(uniquenessGuard.lowerBound < firstWrite.lowerBound)
+    }
+}
+
+@Test func test_iTermNvimScriptEscapesExCommand() throws {
+    let exCommand = #"echo "hi\there""#
+    let script = try AppleScriptBridge.makeITermNvimSendScript(tty: "/dev/ttys005", exCommand: exCommand)
+    let escaped = AppleScriptBridge.escapeForAppleScript(exCommand)
+    #expect(script.contains(escaped))
+    #expect(script.contains(#"write text ":" & "\#(escaped)""#))
+
+    var executeCount = 0
+    var seenTimeout: TimeInterval?
+    try AppleScriptBridge.sendExCommandToITerm2(
+        tty: "/dev/ttys005",
+        exCommand: exCommand,
+        execute: { _, timeout in
+            executeCount += 1
+            seenTimeout = timeout
+            return ""
+        }
+    )
+    #expect(executeCount == 1)
+    #expect(seenTimeout == 5.0)
+
+    executeCount = 0
+    #expect(throws: ITermNvimScriptError.emptyTTY) {
+        try AppleScriptBridge.sendExCommandToITerm2(tty: "", exCommand: "echo 'hi'") { _, _ in
+            executeCount += 1
+            return ""
+        }
+    }
+    #expect(executeCount == 0)
+}

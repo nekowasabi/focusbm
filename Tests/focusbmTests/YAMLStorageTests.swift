@@ -46,9 +46,102 @@ private func makeStore() -> BookmarkStore {
     #expect(decoded.bookmarks.isEmpty)
 }
 
+@Test func test_yamlEncodeDecode_iTermNvimBookmark() throws {
+    var original = BookmarkStore()
+    original.bookmarks = [
+        Bookmark(
+            id: "nvim",
+            appName: "iTerm2",
+            bundleIdPattern: "com.googlecode.iterm2",
+            context: "work",
+            state: .iTermNvim(workingDirectory: "/tmp/foo/", exCommand: "echo hello"),
+            createdAt: "2024-01-01T00:00:00Z"
+        ),
+    ]
+    let text = try YAMLEncoder().encode(original)
+    #expect(text.contains("itermNvim"))
+    #expect(text.contains("workingDirectory:"))
+    #expect(text.contains("exCommand:"))
+
+    let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
+    #expect(decoded.bookmarks.count == 1)
+    if case .iTermNvim(let workingDirectory, let exCommand) = decoded.bookmarks[0].state {
+        #expect(workingDirectory == "/tmp/foo/")
+        #expect(exCommand == "echo hello")
+    } else {
+        Issue.record("Expected .iTermNvim state")
+    }
+}
+
+@Test func test_yamlEncodeDecode_iTermNvimBookmark_withoutWorkingDirectory() throws {
+    let yaml = """
+    type: itermNvim
+    """
+    let decoded = try YAMLDecoder().decode(AppState.self, from: yaml)
+    if case .iTermNvim(let workingDirectory, let exCommand) = decoded {
+        #expect(workingDirectory == nil)
+        #expect(exCommand == "")
+    } else {
+        Issue.record("Expected .iTermNvim state")
+    }
+
+    let encoded = try YAMLEncoder().encode(decoded)
+    #expect(encoded.contains("itermNvim"))
+    #expect(!encoded.contains("workingDirectory:"))
+}
+
+@Test func test_iTermNvimOmitsNonAbsoluteWorkingDirectory() throws {
+    for directory in ["", "tmp/foo"] {
+        let yaml = """
+        type: itermNvim
+        workingDirectory: \(directory)
+        """
+        let decoded = try YAMLDecoder().decode(AppState.self, from: yaml)
+        if case .iTermNvim(let workingDirectory, _) = decoded {
+            #expect(workingDirectory == nil)
+        } else {
+            Issue.record("Expected .iTermNvim state")
+        }
+    }
+}
+
+@Test func test_iTermNvimRejectsInvalidExCommand() throws {
+    let invalid = [":echo", "echo\rhello", "echo\nhello", "echo\0hello"]
+    for exCommand in invalid {
+        let yaml = try YAMLEncoder().encode([
+            "type": "itermNvim",
+            "exCommand": exCommand,
+        ])
+        var decoded: AppState?
+        var threw = false
+        do {
+            decoded = try YAMLDecoder().decode(AppState.self, from: yaml)
+        } catch {
+            threw = true
+        }
+        #expect(threw)
+        let sendString: String? = {
+            guard let decoded else { return nil }
+            if case .iTermNvim(_, let command) = decoded {
+                return ":" + command
+            }
+            return nil
+        }()
+        #expect(sendString == nil)
+    }
+}
+
 // MARK: - V1 → V2 Migration Tests
 
 @Test func test_migrateV1toV2_iterm2_to_app() throws {
+    try assertV1Iterm2MigratesToApp()
+}
+
+@Test func test_legacyITerm2MigrationRemainsApp() throws {
+    try assertV1Iterm2MigratesToApp()
+}
+
+private func assertV1Iterm2MigratesToApp() throws {
     let v1yaml = """
     bookmarks:
     - id: term
