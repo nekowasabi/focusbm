@@ -2,16 +2,48 @@ import Foundation
 
 public enum GitHubPullRequestCLI {
     public static let timeoutSeconds: TimeInterval = 5
+    static let envPath = "/usr/bin/env"
+    static let ghArguments = ["pr", "view", "--json", "url", "--jq", ".url"]
+
+    // Why: Adopt candidate-path lookup instead of `/usr/bin/env gh`. Reason: login-item
+    //      launchd PATH has no Homebrew, so env cannot find gh while tmux already works.
+    static let ghCandidatePaths = [
+        "/opt/homebrew/bin/gh",
+        "/usr/local/bin/gh",
+        "/usr/bin/gh",
+    ]
+
+    struct Launch: Equatable {
+        let executableURL: URL
+        let arguments: [String]
+    }
+
+    static func resolvedLaunch(
+        candidates: [String] = ghCandidatePaths,
+        fileManager: FileManager = .default
+    ) -> Launch {
+        if let path = candidates.first(where: { fileManager.isExecutableFile(atPath: $0) }) {
+            return Launch(
+                executableURL: URL(fileURLWithPath: path),
+                arguments: ghArguments
+            )
+        }
+        return Launch(
+            executableURL: URL(fileURLWithPath: envPath),
+            arguments: ["gh"] + ghArguments
+        )
+    }
 
     public static func resolveURLString(
         workingDirectory: String,
         timeout: TimeInterval = timeoutSeconds
     ) -> String? {
-        resolveURLString(
+        let launch = resolvedLaunch()
+        return resolveURLString(
             workingDirectory: workingDirectory,
             timeout: timeout,
-            executableURL: URL(fileURLWithPath: "/usr/bin/env"),
-            arguments: ["gh", "pr", "view", "--json", "url", "--jq", ".url"]
+            executableURL: launch.executableURL,
+            arguments: launch.arguments
         )
     }
 
