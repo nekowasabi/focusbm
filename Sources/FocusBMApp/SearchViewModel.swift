@@ -26,6 +26,12 @@ class SearchViewModel: ObservableObject {
     var prURLCache: [String: (url: URL, fetchedAt: Date)] = [:]
     var prFailureCache: [String: Date] = [:]
     static let PR_CACHE_TTL_SEC: TimeInterval = 300
+    // Why: Instead of reusing the success TTL for failures, adopted a short failure TTL.
+    // Reason: a gh timeout right after wake must not pin missing labels for 300 seconds.
+    static let PR_FAILURE_CACHE_TTL_SEC: TimeInterval = 15
+    var pullRequestURLProvider: (String, TimeInterval) -> String? = {
+        GitHubPullRequestCLI.resolveURLString(workingDirectory: $0, timeout: $1)
+    }
     private(set) var showTmuxAgents: Bool = true
     // Why: private(set) ではなく var を採用。理由: テストから appSettings を注入するため（同モジュール内の書き込みを許容）。
     // 外部からの書き込みは load() 経由が正規経路だが、テスト専用注入を許容する。internal がデフォルトのため明示修飾子は付けない。
@@ -137,6 +143,11 @@ class SearchViewModel: ObservableObject {
                 aiProcesses = ProcessProvider.listNonTmuxAIProcesses()
             }
 
+            let resolved = self?.refreshPullRequestCache(
+                tmuxPanes: tmuxPanes,
+                aiProcesses: aiProcesses
+            )
+
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 // レースコンディション対策: 古い世代の結果は破棄
@@ -144,6 +155,10 @@ class SearchViewModel: ObservableObject {
                 self.floatingWindowCache = windowCache
                 self.tmuxPaneCache = tmuxPanes
                 self.aiProcessCache = aiProcesses
+                if let resolved {
+                    self.prURLCache = resolved.urls
+                    self.prFailureCache = resolved.failures
+                }
                 // Why: 非同期更新はユーザー入力そのものではないため、
                 //      autoExecuteOnSingleResult の副作用（外部アプリ activate）を発火させない。
                 self.updateItems(allowAutoExecute: false)
@@ -202,10 +217,31 @@ class SearchViewModel: ObservableObject {
             return true
         }
         if let fetchedAt = prFailureCache[workingDirectory],
-           now.timeIntervalSince(fetchedAt) < Self.PR_CACHE_TTL_SEC {
+           now.timeIntervalSince(fetchedAt) < Self.PR_FAILURE_CACHE_TTL_SEC {
             return true
         }
         return false
+    }
+
+    /// Resolves stale/uncached PR URLs for the given panel candidates.
+    /// Mutates nothing; the caller applies the returned caches on the main queue.
+    @discardableResult
+    func refreshPullRequestCache(
+        tmuxPanes: [TmuxPane],
+        aiProcesses: [ProcessProvider.AIProcess]
+    ) -> (
+        urls: [String: (url: URL, fetchedAt: Date)],
+        failures: [String: Date]
+    ) {
+        let workingDirectories = Set(
+            tmuxPanes.map(\.currentPath) + aiProcesses.map(\.workingDirectory)
+        ).filter { !isPRCacheFresh(for: $0) }
+        return BackgroundRefreshService.resolvePullRequests(
+            workingDirectories: Array(workingDirectories),
+            existingURLs: prURLCache,
+            existingFailures: prFailureCache,
+            pullRequestURLProvider: pullRequestURLProvider
+        )
     }
 
     /// パネル非アクティブ化時の状態リセット。

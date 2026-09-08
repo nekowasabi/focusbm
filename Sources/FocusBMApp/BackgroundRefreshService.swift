@@ -59,6 +59,9 @@ class BackgroundRefreshService {
         }
         t.resume()
         self.timer = t
+        // Why: Instead of waiting for the first repeating tick, kick one refresh now.
+        // Reason: after reboot the in-memory PR cache is empty until the first refresh.
+        refreshAsync()
     }
 
     func stop() {
@@ -84,10 +87,11 @@ class BackgroundRefreshService {
             tmuxPanes.map(\.currentPath) + aiProcesses.map(\.workingDirectory)
         ).filter { !viewModel.isPRCacheFresh(for: $0) }
 
-        let resolved = resolvePullRequests(
+        let resolved = Self.resolvePullRequests(
             workingDirectories: Array(workingDirectories),
             existingURLs: viewModel.prURLCache,
-            existingFailures: viewModel.prFailureCache
+            existingFailures: viewModel.prFailureCache,
+            pullRequestURLProvider: pullRequestURLProvider
         )
 
         DispatchQueue.main.async { [weak viewModel] in
@@ -102,10 +106,11 @@ class BackgroundRefreshService {
 
     // Why: Use a semaphore instead of unrestricted concurrent work items so one refresh
     // cannot exhaust process slots when many working directories have no pull request.
-    private func resolvePullRequests(
+    static func resolvePullRequests(
         workingDirectories: [String],
         existingURLs: [String: (url: URL, fetchedAt: Date)],
-        existingFailures: [String: Date]
+        existingFailures: [String: Date],
+        pullRequestURLProvider: @escaping (String, TimeInterval) -> String?
     ) -> (
         urls: [String: (url: URL, fetchedAt: Date)],
         failures: [String: Date]
@@ -126,9 +131,9 @@ class BackgroundRefreshService {
                 }
 
                 let fetchedAt = Date()
-                let value = self.pullRequestURLProvider(
+                let value = pullRequestURLProvider(
                     workingDirectory,
-                    Self.GH_TIMEOUT_SEC
+                    GH_TIMEOUT_SEC
                 )
                 lock.lock()
                 defer { lock.unlock() }
@@ -147,7 +152,7 @@ class BackgroundRefreshService {
     }
 
     private func refreshAsync() {
-        DispatchQueue.global(qos: .utility).async { [weak self] in
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             self?.refresh()
         }
     }

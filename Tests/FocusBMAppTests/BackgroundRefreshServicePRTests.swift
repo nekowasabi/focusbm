@@ -190,3 +190,60 @@ private func waitForRefresh() {
     waitForRefresh()
     #expect(maximumActiveCalls <= BackgroundRefreshService.PR_RESOLVE_MAX_CONCURRENT)
 }
+
+/// Verifies that enabling the timer resolves once without waiting a full interval.
+@Test func backgroundRefresh_startsImmediatelyWhenTimerEnabled() {
+    let workingDirectory = "/tmp/focusbm-refresh-startup"
+    let viewModel = SearchViewModel()
+    var calls = 0
+    let resolved = DispatchSemaphore(value: 0)
+    let service = BackgroundRefreshService(
+        viewModel: viewModel,
+        interval: 60,
+        startTimer: false,
+        pullRequestURLProvider: { _, _ in
+            calls += 1
+            resolved.signal()
+            return refreshTestURL
+        },
+        tmuxPaneProvider: { _ in [] },
+        aiProcessProvider: { [refreshTestProcess(workingDirectory)] }
+    )
+    service.isSleeping = false
+    service.start()
+
+    let process = refreshTestProcess(workingDirectory)
+    _ = resolved.wait(timeout: .now() + 2)
+    let deadline = Date().addingTimeInterval(1)
+    while Date() < deadline {
+        if viewModel.prLabel(for: .aiProcess(process)) == "#42" { break }
+        _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+    }
+    service.stop()
+    #expect(calls == 1)
+    #expect(viewModel.prLabel(for: .aiProcess(process)) == "#42")
+}
+
+/// Verifies expired failure cache is resolved again before the success TTL.
+@Test func backgroundRefresh_retriesAfterFailureTTL() {
+    let workingDirectory = "/tmp/focusbm-refresh-failure-ttl"
+    let viewModel = SearchViewModel()
+    viewModel.prFailureCache[workingDirectory] = Date(
+        timeIntervalSinceNow: -SearchViewModel.PR_FAILURE_CACHE_TTL_SEC
+    )
+    var calls = 0
+    let service = BackgroundRefreshService(
+        viewModel: viewModel,
+        startTimer: false,
+        pullRequestURLProvider: { _, _ in
+            calls += 1
+            return refreshTestURL
+        },
+        tmuxPaneProvider: { _ in [] },
+        aiProcessProvider: { [refreshTestProcess(workingDirectory)] }
+    )
+
+    service.refreshForTesting()
+    waitForRefresh()
+    #expect(calls == 1)
+}
