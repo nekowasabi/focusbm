@@ -531,6 +531,14 @@ class SearchViewModel: ObservableObject {
         return mainListAssignments[selectedIndex].item
     }
 
+    /// togglePanel ホットキー再押下で実行する指定ブックマーク（executeOnToggleRepress: true の先頭1件）。
+    /// Why: searchItems ではなく bookmarks を直接引く。理由: 検索クエリや shortcutBar への
+    ///      振り分けに左右されず、再押下の実行対象を常に一意に固定するため。
+    var toggleRepressTarget: SearchItem? {
+        guard let bm = bookmarks.first(where: { $0.executeOnToggleRepress == true }) else { return nil }
+        return .bookmark(bm)
+    }
+
     var openSessionPullRequestHotkey: String {
         appSettings?.hotkey.openSessionPullRequest ?? DEFAULT_OPEN_PR_HOTKEY
     }

@@ -163,7 +163,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         if keyCode == targetKeyCode && flags == targetFlags {
             DispatchQueue.main.async { [weak self] in
-                self?.toggleSearchPanel()
+                self?.handleTogglePanelHotkey()
             }
             return nil  // イベントを消費（他アプリに渡さない）
         }
@@ -308,6 +308,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.viewModel.isActive = true
             }
             viewModel.refreshForPanelAsync()          // バックグラウンドでデータ更新
+        }
+    }
+
+    /// togglePanel ホットキー押下時の振り分け。
+    /// Why: パネル表示中の再押下は確定操作として扱う。executeOnToggleRepress 指定の
+    ///      ブックマークがあればそれを、未指定時は選択中アイテムを実行する（Enter 同等）。
+    ///      閉じるだけの用途は Esc とフォーカスアウトに委ね、実行対象が無い場合のみ
+    ///      従来通り閉じてトグルでの脱出経路を残す。
+    private func handleTogglePanelHotkey() {
+        guard let panel = searchPanel else { return }
+        if panel.isVisible {
+            if let item = viewModel.toggleRepressTarget ?? viewModel.selectedItem() {
+                panel.executeItem(item)
+            } else {
+                panel.close()
+            }
+        } else {
+            toggleSearchPanel()
         }
     }
 
