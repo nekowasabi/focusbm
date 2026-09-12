@@ -286,7 +286,7 @@ bookmarks:
 
 | キー | 型 | デフォルト | 説明 |
 |---|---|---|---|
-| `settings.hotkey.togglePanel` | 文字列 | `"cmd+ctrl+b"` | 検索パネルを呼び出すグローバルホットキー |
+| `settings.hotkey.togglePanel` | 文字列 | `"cmd+ctrl+b"` | 検索パネルを呼び出すグローバルホットキー。パネル表示中の再押下は `executeOnToggleRepress` 指定のブックマークを実行（未指定時は選択中項目、実行対象が無ければ閉じる） |
 | `settings.hotkey.forceReloadAgents` | 文字列 | `"cmd+ctrl+r"` | AIエージェントプロセス一覧を強制再取得するグローバルホットキー |
 | `settings.hotkey.openSessionPullRequest` | 文字列 | `"cmd+p"` | 選択中Claude Codeセッションの構造化済みGitHubプルリクエストURLを開く画面内キー。不正値・予約キーは既定値へ戻る |
 | `settings.displayNumber` | 整数 | `1` | パネルを表示するディスプレイ番号（1始まり） |
@@ -302,6 +302,7 @@ bookmarks:
 - **urlPrefix** — （省略可能）このプレフィックスで始まる URL のタブが既に開いていれば、新規タブを開かずそのタブにスイッチする。Slack のようにページ・チャンネルごとに URL が変わるアプリに有効。省略時は従来通り `urlPattern` で検索する
 - **noShortcut** — （省略可能）`true` にすると、そのアイテムに ⌘1–⌘9 のショートカットバッジを表示しない。後続アイテムの番号は詰めて割り当てられる。省略または `false` で通常通り
 - **lowPriority** — （省略可能）`true` にすると、クエリなし時にリストの下部に移動する。クエリあり時はスコア順に表示される（他のアイテムと同様）。省略または `false` で通常通り
+- **executeOnToggleRepress** — （省略可能）`true` にすると、パネル表示中に togglePanel ホットキーを再押下した際にそのブックマークを実行する。検索クエリや選択位置に関係なく常に固定実行される。複数指定時は先頭の1件のみ有効。省略または `false` で通常通り（再押下は選択中項目を実行）
 
 ### Firefox を使う場合の注意事項
 

@@ -48,6 +48,9 @@ bookmarks:
     appName: iTerm2
     bundleIdPattern: com.googlecode.iterm2
     context: work
+    # パネル表示中に togglePanel ホットキー（既定: cmd+ctrl+b）を再押下したとき
+    # このブックマークを実行する。複数指定時は先着1件のみ有効
+    executeOnToggleRepress: true
     state:
       type: itermNvim
     createdAt: "2026-08-15T00:00:00Z"

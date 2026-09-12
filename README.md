@@ -291,7 +291,7 @@ bookmarks:
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `settings.hotkey.togglePanel` | string | `"cmd+ctrl+b"` | Global hotkey to invoke the search panel |
+| `settings.hotkey.togglePanel` | string | `"cmd+ctrl+b"` | Global hotkey to invoke the search panel. Pressing it again while the panel is open executes the bookmark marked `executeOnToggleRepress` (falls back to the selected item; closes the panel when nothing can run) |
 | `settings.hotkey.forceReloadAgents` | string | `"cmd+ctrl+r"` | Global hotkey to force-refresh the AI agent process list |
 | `settings.hotkey.openSessionPullRequest` | string | `"cmd+p"` | Panel hotkey to open the selected Claude Code or Codex session's GitHub pull request URL. Invalid and reserved shortcuts fall back to the default |
 | `settings.displayNumber` | integer | `1` | Display number where the panel appears (1-based) |
@@ -311,6 +311,7 @@ bookmarks:
 - **urlPrefix** — (Optional) If a tab whose URL starts with this prefix is already open, switches to that tab instead of opening a new one. Useful for apps like Slack where the URL changes per page/channel. If omitted, `urlPattern` is used for exact matching as usual
 - **noShortcut** — (Optional) If `true`, the item is not assigned a ⌘1–⌘9 shortcut badge. Subsequent items are numbered consecutively without skipping. Defaults to `false` (or omit the field)
 - **lowPriority** — (Optional) If `true`, the item is moved to the bottom of the list when there is no search query. In search mode it appears in score order like any other item. Defaults to `false` (or omit the field)
+- **executeOnToggleRepress** — (Optional) If `true`, pressing the togglePanel hotkey again while the panel is open executes this bookmark regardless of the query or selection. Only the first matching bookmark is used. Defaults to `false` (re-press executes the selected item)
 
 ### Notes on Using Firefox
 
