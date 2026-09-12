@@ -312,6 +312,22 @@ import Yams
     #expect(item.agentEmoji == "🔫")
 }
 
+@Test func test_agentEmoji_aiProcess_devin() {
+    let process = ProcessProvider.AIProcess(
+        pid: 8, command: "devin", workingDirectory: "/tmp",
+        terminalBundleId: nil, terminalAppName: nil, terminalEmoji: "👻", title: ""
+    )
+    let item = SearchItem.aiProcess(process)
+    #expect(item.agentEmoji == "☕")
+}
+
+@Test func test_agentEmoji_tmuxPane_devin() {
+    let pane = TmuxPane(paneId: "%62", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "devin", title: "", currentPath: "/tmp")
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.agentEmoji == "☕")
+}
+
 @Test func test_agentEmoji_tmuxPane_codex_via_resolvedNodeCommand() {
     // Why: command="node" でもresolvedNodeCommandが"codex"なら📖を返すことを保証する
     var pane = TmuxPane(paneId: "%21", sessionName: "s", windowIndex: 0,

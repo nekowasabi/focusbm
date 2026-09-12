@@ -111,7 +111,7 @@ public struct TmuxPane {
         // コマンド名で直接判定できるエージェント（終了すればコマンドがシェルに戻る）
         if command == "claude" || command == "aider" || command == "gemini" ||
            command == "copilot" || command == "codex" || command == "agent" || command == "hermes" ||
-           command == "opencode" || command == "pi" || isGrokCommand {
+           command == "opencode" || command == "pi" || command == "devin" || isGrokCommand {
             return true
         }
         // タイトル含有で判定する場合、コマンドがシェルなら終了済みと判断
@@ -147,7 +147,7 @@ public struct TmuxPane {
         let t = title.lowercased()
         if command == "claude" || command == "aider" || command == "gemini" ||
            command == "copilot" || command == "codex" || command == "agent" || command == "hermes" ||
-           command == "opencode" || command == "pi" || isGrokCommand {
+           command == "opencode" || command == "pi" || command == "devin" || isGrokCommand {
             return "command_match(\(command))"
         }
         if isShellCommand { return "ghost_shell" }
@@ -273,6 +273,7 @@ public struct TmuxPane {
         case "opencode": return "OpenCode"
         case "pi":      return "Pi"
         case "grok":    return "Grok Build"
+        case "devin":   return "Devin CLI"
         case "agent":   return "Agent"
         default:
             if isGrokCommand { return "Grok Build" }
@@ -289,6 +290,7 @@ public struct TmuxPane {
                 case "opencode": return "OpenCode"
                 case "pi": return "Pi"
                 case "grok": return "Grok Build"
+                case "devin": return "Devin CLI"
                 default: return resolved.capitalized
                 }
             }
@@ -365,6 +367,7 @@ public struct TmuxProvider {
         case "codex":   return "📖"
         case "hermes":  return "📨"
         case "grok":    return "🔫"
+        case "devin":   return "☕"
         default:
             // Why: pane_current_command は comm 16文字制限で `grok-1.0.4-maco` になる。
             if command.hasPrefix("grok-") { return "🔫" }

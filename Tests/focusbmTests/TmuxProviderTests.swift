@@ -134,6 +134,20 @@ import AppKit
     #expect(pane.aiAgentReason == "ghost_shell")
 }
 
+@Test func test_isAIAgent_devinCommand() {
+    let pane = TmuxPane(paneId: "%58", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "devin", title: "", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+    #expect(pane.aiAgentReason == "command_match(devin)")
+}
+
+@Test func test_isAIAgent_devinExited_shellCommand() {
+    let pane = TmuxPane(paneId: "%59", sessionName: "main", windowIndex: 0,
+                        windowName: "editor", command: "zsh", title: "devin", currentPath: "/tmp")
+    #expect(pane.isAIAgent == false)
+    #expect(pane.aiAgentReason == "ghost_shell")
+}
+
 @Test func test_isAIAgent_nonAICommand() {
     let pane = TmuxPane(paneId: "%8", sessionName: "main", windowIndex: 0,
                         windowName: "editor", command: "vim", title: "README.md", currentPath: "/tmp")
@@ -1282,12 +1296,29 @@ final class MockRunningApp: RunningAppProtocol {
     #expect(pane.agentName == "Grok Build")
 }
 
+@Test func test_agentName_devinCommand() {
+    let pane = TmuxPane(paneId: "%60", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "devin", title: "", currentPath: "/tmp")
+    #expect(pane.agentName == "Devin CLI")
+}
+
+@Test func test_agentName_nodeCommand_resolvedDevin() {
+    var pane = TmuxPane(paneId: "%61", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "node", title: "", currentPath: "")
+    pane.resolvedNodeCommand = "devin"
+    #expect(pane.agentName == "Devin CLI")
+}
+
 @Test func test_agentCommandToEmoji_grok() {
     #expect(TmuxProvider.agentCommandToEmoji("grok") == "🔫")
 }
 
 @Test func test_agentCommandToEmoji_grokVersioned() {
     #expect(TmuxProvider.agentCommandToEmoji("grok-1.0.4-maco") == "🔫")
+}
+
+@Test func test_agentCommandToEmoji_devin() {
+    #expect(TmuxProvider.agentCommandToEmoji("devin") == "☕")
 }
 
 @Test func test_isAIAgent_nodeCommand_withResolvedGrok() {

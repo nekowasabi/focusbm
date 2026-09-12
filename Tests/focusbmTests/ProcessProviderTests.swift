@@ -246,6 +246,7 @@ import AppKit
     #expect(commands.contains("opencode"))
     #expect(commands.contains("pi"))
     #expect(commands.contains("grok"))
+    #expect(commands.contains("devin"))
 }
 
 // MARK: - Daemon Process Filtering Tests

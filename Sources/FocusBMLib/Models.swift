@@ -438,6 +438,7 @@ public enum SearchItem: Identifiable {
             case "opencode": name = "OpenCode"
             case "pi": name = "Pi"
             case "grok": name = "Grok Build"
+            case "devin": name = "Devin CLI"
             default: name = p.command
             }
             return "\(p.terminalEmoji) \(name) — \(dir)"
