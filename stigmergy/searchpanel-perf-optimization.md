@@ -64,3 +64,32 @@ DispatchQueue.global().async {
 ## 並列実装の知見
 - Phase 1-3 (FocusBMApp.swift + SearchViewModel.swift) と Phase 4-5 (ProcessProvider.swift + TmuxProvider.swift) はファイル重複なしで完全並列実行可能だった
 - Multi-LLM 合議（Claude 3エージェント + Codex）で事前に施策の妥当性を確認し、実装フェーズでの手戻りゼロ
+
+---
+
+## Round 2: ProcessSnapshot 集約 + PR 解決の非ブロッキング化（2026-09-13）
+
+### 消した spawn
+- `pgrep -f <name>` × AIコマンド数(10) + プロセス毎の `ps -o args=`・`ps -o tty=`・`ps -t`
+- `pgrep -P` 多段（子孫3段 × ノードペイン数）+ 子孫毎の `ps -o args=`
+- tmux client 毎の `ps -t`（buildClientMap）
+- per-pane `capture-pane` の逐次待機 → `DispatchQueue.concurrentPerform` で並列化
+
+### 追加したもの
+- `ProcessSnapshot`: `ps -axo pid=,ppid=,tty=,stat=,args=` を 1 回 spawn して
+  args/tty/stat/ppid をインメモリ索引化（pids(onTTY:) / descendants(of:) / commandLine(for:)）
+- `refreshForPanelAsync`: 1 回の snapshot を tmux/プロセス両 provider に共有し、
+  AX・tmux・プロセスの3系統を DispatchGroup で並列化
+- PR 解決（gh CLI）を行適用後の別ホップへ分離。表示は PR 完了を待たない
+
+### 計測（WSL2 + Swift 6.1.2、実プロセスで等価性検証済み）
+| メトリクス | Before | After |
+|-----------|--------|-------|
+| AI プロセス走査 | pgrep×10+ps×3N = 1441ms | ProcessSnapshot×1 = 55ms (**26x**) |
+
+等価性: pgrep とのコマンド一致 0 mismatch、descendants == pgrep -P、pids(onTTY:) == ps -t。
+
+### 落とし穴メモ
+- `split(maxSplits:)` の残り部分は列パディングの先頭空白を保持する →
+  `(^|/)name` アンカーが効かなくなる。args 先頭の空白を `drop(while:)` で除去必須。
+- macOS の `ps -axo tty=` は `??`（疑問符2つ）、Linux は `?`。両方 nil 扱いにする。
