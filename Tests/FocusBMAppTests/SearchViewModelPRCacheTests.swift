@@ -153,3 +153,41 @@ private func prCacheProcess() -> ProcessProvider.AIProcess {
     #expect(calls == 1)
     #expect(viewModel.prLabel(for: .aiProcess(prCacheProcess())) == "#88")
 }
+
+/// Verifies the named PR behavior without network access.
+@Test func refreshForPanelAsync_appliesRowsWithoutWaitingForPRResolution() {
+    let viewModel = SearchViewModel()
+    let gate = DispatchSemaphore(value: 0)
+    var providerCalls = 0
+    viewModel.pullRequestURLProvider = { _, _ in
+        providerCalls += 1
+        _ = gate.wait(timeout: .now() + 30)
+        return "https://github.com/acme/focusbm/pull/99"
+    }
+    viewModel.tmuxPaneProvider = { _, _ in [] }
+    viewModel.aiProcessProvider = { _ in [prCacheProcess()] }
+
+    viewModel.refreshForPanelAsync()
+
+    // 行適用（main ホップ1）をポーリングで待つ。PR 解決は別ホップで provider は gate でブロック中のはず。
+    func waitUntil(_ condition: () -> Bool) {
+        let deadline = Date().addingTimeInterval(30)
+        while !condition(), Date() < deadline {
+            _ = RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+    }
+    let hasRow = { viewModel.searchItems.contains { item in
+        if case .aiProcess(let process) = item { return process.pid == 1 }
+        return false
+    } }
+    waitUntil(hasRow)
+
+    #expect(hasRow())
+    // PR 解決が完了していなくても行は表示済みであること
+    #expect(viewModel.prLabel(for: .aiProcess(prCacheProcess())) == nil)
+
+    gate.signal()
+    waitUntil { viewModel.prLabel(for: .aiProcess(prCacheProcess())) != nil }
+    #expect(providerCalls == 1)
+    #expect(viewModel.prLabel(for: .aiProcess(prCacheProcess())) == "#99")
+}
