@@ -432,7 +432,7 @@ public struct TmuxProvider {
     static let fallbackClientKey = ":fallback:"
 
     /// tmux list-clients で全クライアントを一括取得し、window→client / session→fallback マッピングを構築
-    static func buildClientMap() -> [String: TmuxClientInfo] {
+    static func buildClientMap(snapshot: ProcessSnapshot? = nil) -> [String: TmuxClientInfo] {
         let process = makeTmuxProcess(["list-clients", "-F", "#{client_tty}||#{client_session}||#{window_index}||#{window_name}||#{pane_id}||#{client_pid}||#{client_activity}"])
 
         let outPipe = Pipe()
@@ -450,13 +450,21 @@ public struct TmuxProvider {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         log("buildClientMap raw output: \(output)")
 
-        return parseClientMapOutput(output)
+        return parseClientMapOutput(output, snapshot: snapshot)
     }
 
     /// list-clients -a の出力をパースしてセッション→ターミナル情報の辞書を構築
-    static func parseClientMapOutput(_ output: String) -> [String: TmuxClientInfo] {
+    // Why: snapshot/runningApps は TTY 検出が必要な行でのみ遅延取得する。
+    //      クライアント無し時に ps spawn や NSWorkspace アクセスを発生させない。
+    static func parseClientMapOutput(
+        _ output: String,
+        snapshot: ProcessSnapshot? = nil,
+        runningApps: [any RunningAppProtocol]? = nil
+    ) -> [String: TmuxClientInfo] {
         var result: [String: TmuxClientInfo] = [:]
         var fallbackClient: TmuxClientInfo?
+        var resolvedSnapshot = snapshot
+        var resolvedApps = runningApps
 
         let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
         for line in lines {
@@ -490,10 +498,14 @@ public struct TmuxProvider {
             guard !tty.isEmpty, !sessionName.isEmpty else { continue }
 
             let ttyName = tty.hasPrefix("/dev/") ? String(tty.dropFirst(5)) : tty
-            let app = findTerminalAppForTTY(ttyName) ?? clientPid.flatMap { pid in
+            if resolvedSnapshot == nil { resolvedSnapshot = ProcessSnapshot.capture() }
+            if resolvedApps == nil { resolvedApps = NSWorkspace.shared.runningApplications }
+            let app = resolvedSnapshot.flatMap {
+                findTerminalAppForTTY(ttyName, snapshot: $0, runningApps: resolvedApps ?? [])
+            } ?? clientPid.flatMap { pid in
                 findTerminalByAncestorProcess(
                     pid,
-                    runningApps: NSWorkspace.shared.runningApplications,
+                    runningApps: resolvedApps ?? [],
                     getParentPID: { sysctlParentPID($0) })
             }
             let info = TmuxClientInfo(
@@ -703,7 +715,8 @@ public struct TmuxProvider {
     }
 
     // 全ペインを取得
-    public static func listAllPanes(settings: AppSettings? = nil) throws -> [TmuxPane] {
+    public static func listAllPanes(settings: AppSettings? = nil, snapshot: ProcessSnapshot? = nil) throws -> [TmuxPane] {
+        let snapshot = snapshot ?? ProcessSnapshot.capture()
         let process = makeTmuxProcess(["list-panes", "-a", "-F", formatString])
 
         let outPipe = Pipe()
@@ -730,17 +743,28 @@ public struct TmuxProvider {
         var panes = try parseOutput(output)
         log("parsed panes count: \(panes.count)")
 
+        // Why: list-clients spawn をパース済みペインの Node 解決（インメモリ）と並行させる。
+        final class ClientMapBox: @unchecked Sendable { var value: [String: TmuxClientInfo] = [:] }
+        let clientMapBox = ClientMapBox()
+        let clientMapGroup = DispatchGroup()
+        clientMapGroup.enter()
+        DispatchQueue.global(qos: .utility).async {
+            clientMapBox.value = buildClientMap(snapshot: snapshot)
+            clientMapGroup.leave()
+        }
+
         // Why: pane_current_command が "node"/"deno"/"bun" の場合、
         //      pane_pid の子プロセスからAIツール名を解決する
         for i in panes.indices {
             if panes[i].command == "node" || panes[i].command == "deno" || panes[i].command == "bun" {
                 if let panePid = panes[i].panePid {
-                    panes[i].resolvedNodeCommand = resolveNodeAgentCommand(panePid: panePid)
+                    panes[i].resolvedNodeCommand = resolveNodeAgentCommand(panePid: panePid, snapshot: snapshot)
                 }
             }
         }
 
-        let clientMap = buildClientMap()
+        clientMapGroup.wait()
+        let clientMap = clientMapBox.value
         log("clientMap: \(clientMap.mapValues { (tty: $0.tty, sessionName: $0.sessionName, windowIndex: $0.windowIndex.map(String.init) ?? "nil", bundleId: $0.bundleId ?? "nil", appName: $0.appName) })")
 
         var terminalCache: [String: (bundleId: String?, appName: String?, emoji: String, tty: String?)] = [:]
@@ -757,7 +781,7 @@ public struct TmuxProvider {
                 panes[i].clientTTY = cached.tty
             } else {
                 // Why: Prefer window-level clients over session-level clients because different windows in one session can be shown in different terminals.
-                let info = detectTerminalApp(for: pane, settings: settings, clientMap: clientMap)
+                let info = detectTerminalApp(for: pane, settings: settings, clientMap: clientMap, snapshot: snapshot)
                 let emoji = terminalBundleIdToEmoji(info?.bundleId)
                 let tty = mappedClient?.tty
                 panes[i].terminalEmoji = emoji
@@ -771,8 +795,8 @@ public struct TmuxProvider {
     }
 
     // AIエージェントのペインのみ取得
-    public static func listAIAgentPanes(settings: AppSettings? = nil) throws -> [TmuxPane] {
-        let allPanes = try listAllPanes(settings: settings)
+    public static func listAIAgentPanes(settings: AppSettings? = nil, snapshot: ProcessSnapshot? = nil) throws -> [TmuxPane] {
+        let allPanes = try listAllPanes(settings: settings, snapshot: snapshot)
         var aiPanes = allPanes.filter { pane in
             let result = pane.isAIAgent
             log("pane \(pane.paneId): command='\(pane.command)', title='\(pane.title)', isShell=\(pane.isShellCommandPublic)")
@@ -780,8 +804,17 @@ public struct TmuxProvider {
             return result
         }
 
+        // Why: capture-pane はペイン毎の tmux spawn。逐次待機を避けて並列実行する。
+        let captured: [String?] = {
+            final class Box: @unchecked Sendable { var value: String? }
+            let boxes = aiPanes.map { _ in Box() }
+            DispatchQueue.concurrentPerform(iterations: aiPanes.count) { i in
+                boxes[i].value = capturePaneContent(paneId: aiPanes[i].paneId)
+            }
+            return boxes.map { $0.value }
+        }()
         for index in aiPanes.indices {
-            aiPanes[index].statusContent = capturePaneContent(paneId: aiPanes[index].paneId)
+            aiPanes[index].statusContent = captured[index]
         }
 
         log("listAIAgentPanes: total=\(allPanes.count), ai=\(aiPanes.count)")
@@ -985,7 +1018,8 @@ public struct TmuxProvider {
     static func detectTerminalApp(
         for pane: TmuxPane,
         settings: AppSettings? = nil,
-        clientMap: [String: TmuxClientInfo]? = nil
+        clientMap: [String: TmuxClientInfo]? = nil,
+        snapshot: ProcessSnapshot? = nil
     ) -> (bundleId: String?, appName: String)? {
         let sessionName = pane.sessionName
 
@@ -1045,7 +1079,11 @@ public struct TmuxProvider {
 
         // TTYの親プロセスからターミナルアプリを特定
         let ttyName = ttyOutput.hasPrefix("/dev/") ? String(ttyOutput.dropFirst(5)) : ttyOutput
-        if let app = findTerminalAppForTTY(ttyName) {
+        if let app = findTerminalAppForTTY(
+            ttyName,
+            snapshot: snapshot ?? ProcessSnapshot.capture(),
+            runningApps: NSWorkspace.shared.runningApplications
+        ) {
             log("detectTerminal: TTY path -> (\(app.bundleId ?? "nil"), \(app.appName))")
             return app
         }
@@ -1097,26 +1135,14 @@ public struct TmuxProvider {
     }
 
     // TTYの親プロセスPIDからGUIターミナルアプリを特定
-    public static func findTerminalAppForTTY(_ ttyName: String) -> (bundleId: String?, appName: String)? {
-        // ps でTTYに接続しているプロセスのPIDを取得
-        let psProcess = Process()
-        psProcess.executableURL = URL(fileURLWithPath: "/bin/ps")
-        let pipe = Pipe()
-        psProcess.standardOutput = pipe
-        psProcess.standardError = Pipe()
-        psProcess.arguments = ["-t", ttyName, "-o", "pid=,ppid="]
-        try? psProcess.run()
-        psProcess.waitUntilExit()
-
-        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        let pids = output.split(separator: "\n").compactMap { line -> pid_t? in
-            let parts = line.trimmingCharacters(in: .whitespaces).split(separator: " ")
-            return parts.first.flatMap { Int32($0) }
-        }
-
-        // PIDからNSRunningApplicationを検索（GUIアプリのみ）
-        let runningApps = NSWorkspace.shared.runningApplications
-        for pid in pids {
+    // Why: 従来は TTY 毎に `ps -t` を spawn していた。ProcessSnapshot から
+    //      TTY→pid を引くことで spawn を消し、リフレッシュ全体で ps を1回に集約する。
+    public static func findTerminalAppForTTY(
+        _ ttyName: String,
+        snapshot: ProcessSnapshot,
+        runningApps: [any RunningAppProtocol]
+    ) -> (bundleId: String?, appName: String)? {
+        for pid in snapshot.pids(onTTY: ttyName) {
             if let app = runningApps.first(where: { $0.processIdentifier == pid }),
                let bundleId = app.bundleIdentifier {
                 return (bundleId, app.localizedName ?? "Terminal")
@@ -1125,6 +1151,14 @@ public struct TmuxProvider {
 
         // nil を返す（フォールバックは detectTerminalApp() で tmux show-environment → 実行中アプリ順次検索）
         return nil
+    }
+
+    public static func findTerminalAppForTTY(_ ttyName: String) -> (bundleId: String?, appName: String)? {
+        findTerminalAppForTTY(
+            ttyName,
+            snapshot: ProcessSnapshot.capture(),
+            runningApps: NSWorkspace.shared.runningApplications
+        )
     }
 
     // MARK: - client_pid ベースのターミナル検出
@@ -1190,57 +1224,16 @@ public struct TmuxProvider {
         return name.isEmpty ? nil : name
     }
 
-    // Why: pgrep -P <pid> で直接の子プロセスPIDリストを取得する。
-    //      getDescendantPids() から再帰的に呼び出すため独立したヘルパーに分離。
-    private static func getChildPids(_ pid: pid_t) -> [pid_t] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
-        process.arguments = ["-P", "\(pid)"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        try? process.run()
-        process.waitUntilExit()
-        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        return output.split(separator: "\n").compactMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
-    }
-
-    // Why: pane_pid の直接子プロセスだけでなく孫・曾孫まで探索する。
-    //      codex は zsh → zsh → node codex のように中間シェルを挟むため、
-    //      pgrep -P <panePid> の1段階だけでは node プロセスに到達できない。
-    //      maxDepth=3 は実運用での zsh→zsh→node の3段構成をカバーする最小値。
-    private static func getDescendantPids(_ pid: pid_t, maxDepth: Int = 3) -> [pid_t] {
-        var allPids: [pid_t] = []
-        var currentLevel: [pid_t] = [pid]
-
-        for _ in 0..<maxDepth {
-            var nextLevel: [pid_t] = []
-            for parentPid in currentLevel {
-                let children = getChildPids(parentPid)
-                nextLevel.append(contentsOf: children)
-            }
-            allPids.append(contentsOf: nextLevel)
-            currentLevel = nextLevel
-            if currentLevel.isEmpty { break }
-        }
-        return allPids
-    }
-
     // Why: pane_pid の子孫プロセスのコマンドラインから AI ツール名を特定する。
-    //      直接子のみの pgrep -P <panePid> から getDescendantPids() による深さ3探索に変更。
-    //      理由: codex は pane_pid(zsh) → intermediate_zsh → node codex の孫として起動するため。
-    static func resolveNodeAgentCommand(panePid: pid_t) -> String? {
-        // 1. pane_pid の子孫プロセスを深さ3まで収集
-        let descendantPids = getDescendantPids(panePid, maxDepth: 3)
-
-        // 2. 各子孫プロセスのコマンドラインを確認
-        for childPid in descendantPids {
-            let args = ProcessProvider.getCommandLineArgs(childPid)
-            if let cmd = matchNodeAgentCommand(in: args) {
+    //      pgrep -P 多段 spawn + 子孫毎の ps spawn を ProcessSnapshot の
+    //      ppid マップ走査と args 参照に置き換え、外部プロセス起動を消す。
+    static func resolveNodeAgentCommand(panePid: pid_t, snapshot: ProcessSnapshot) -> String? {
+        for childPid in snapshot.descendants(of: panePid, maxDepth: 3) {
+            if let args = snapshot.commandLine(for: childPid),
+               let cmd = matchNodeAgentCommand(in: args) {
                 return cmd
             }
         }
-
         return nil
     }
 

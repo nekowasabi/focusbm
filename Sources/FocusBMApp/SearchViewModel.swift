@@ -32,6 +32,14 @@ class SearchViewModel: ObservableObject {
     var pullRequestURLProvider: (String, TimeInterval) -> String? = {
         GitHubPullRequestCLI.resolveURLString(workingDirectory: $0, timeout: $1)
     }
+    // Why: 取得系の DI。refreshForPanelAsync の表示/PR 分離を決定的に検証するため、
+    //      BackgroundRefreshService と同じクロージャ注入パターンを採用。
+    var tmuxPaneProvider: (AppSettings?, ProcessSnapshot) -> [TmuxPane] = {
+        (try? TmuxProvider.listAIAgentPanes(settings: $0, snapshot: $1)) ?? []
+    }
+    var aiProcessProvider: (ProcessSnapshot) -> [ProcessProvider.AIProcess] = {
+        ProcessProvider.listNonTmuxAIProcesses(snapshot: $0)
+    }
     private(set) var showTmuxAgents: Bool = true
     // Why: private(set) ではなく var を採用。理由: テストから appSettings を注入するため（同モジュール内の書き込みを許容）。
     // 外部からの書き込みは load() 経由が正規経路だが、テスト専用注入を許容する。internal がデフォルトのため明示修飾子は付けない。
@@ -58,9 +66,10 @@ class SearchViewModel: ObservableObject {
 
     /// パネル表示時に呼ぶ。AX API でキャッシュを更新してから候補リストを再構築する。
     func refreshForPanel() {
+        let snapshot = ProcessSnapshot.capture()
         cacheFloatingWindows()
-        loadTmuxPanes()
-        loadAIProcesses()
+        loadTmuxPanes(snapshot: snapshot)
+        loadAIProcesses(snapshot: snapshot)
         updateItems()
     }
 
@@ -115,53 +124,97 @@ class SearchViewModel: ObservableObject {
     }
 
     /// パネル表示後にバックグラウンドでデータを更新する非同期版
+    // Why: 3系統の取得（AX/tmux/プロセス）を並列化し、ps スナップショットを共有する。
+    //      PR 解決（gh CLI、最大5秒×N）は行表示をブロックしない — 行を先に適用し、
+    //      PR キャッシュは別の非同期ホップで後からマージする。
     func refreshForPanelAsync() {
         refreshGeneration += 1
         let generation = refreshGeneration
         let currentBookmarks = bookmarks
         let currentShowTmuxAgents = showTmuxAgents
         let currentSettings = appSettings
+        let currentTmuxPaneProvider = tmuxPaneProvider
+        let currentAIProcessProvider = aiProcessProvider
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            final class FetchResults: @unchecked Sendable {
+                var windowCache: [String: [FloatingWindowEntry]] = [:]
+                var tmuxPanes: [TmuxPane] = []
+                var aiProcesses: [ProcessProvider.AIProcess] = []
+            }
+            let results = FetchResults()
+            let snapshot = ProcessSnapshot.capture()
+
+            let fetchGroup = DispatchGroup()
+
             // floatingWindows (AX API)
-            var windowCache: [String: [FloatingWindowEntry]] = [:]
-            for bookmark in currentBookmarks {
-                if case .floatingWindows = bookmark.state {
-                    windowCache[bookmark.appName] = FloatingWindowProvider.enumerate(appName: bookmark.appName)
+            fetchGroup.enter()
+            DispatchQueue.global(qos: .utility).async {
+                var cache: [String: [FloatingWindowEntry]] = [:]
+                for bookmark in currentBookmarks {
+                    if case .floatingWindows = bookmark.state {
+                        cache[bookmark.appName] = FloatingWindowProvider.enumerate(appName: bookmark.appName)
+                    }
+                }
+                results.windowCache = cache
+                fetchGroup.leave()
+            }
+
+            if currentShowTmuxAgents {
+                // tmux panes
+                fetchGroup.enter()
+                DispatchQueue.global(qos: .utility).async {
+                    results.tmuxPanes = currentTmuxPaneProvider(currentSettings, snapshot)
+                    fetchGroup.leave()
+                }
+
+                // AI processes
+                fetchGroup.enter()
+                DispatchQueue.global(qos: .utility).async {
+                    results.aiProcesses = currentAIProcessProvider(snapshot)
+                    fetchGroup.leave()
                 }
             }
 
-            // tmux panes
-            var tmuxPanes: [TmuxPane] = []
-            if currentShowTmuxAgents {
-                tmuxPanes = (try? TmuxProvider.listAIAgentPanes(settings: currentSettings)) ?? []
-            }
-
-            // AI processes
-            var aiProcesses: [ProcessProvider.AIProcess] = []
-            if currentShowTmuxAgents {
-                aiProcesses = ProcessProvider.listNonTmuxAIProcesses()
-            }
-
-            let resolved = self?.refreshPullRequestCache(
-                tmuxPanes: tmuxPanes,
-                aiProcesses: aiProcesses
-            )
+            fetchGroup.wait()
+            let tmuxPanes = results.tmuxPanes
+            let aiProcesses = results.aiProcesses
 
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
                 // レースコンディション対策: 古い世代の結果は破棄
                 guard generation == self.refreshGeneration else { return }
-                self.floatingWindowCache = windowCache
+                self.floatingWindowCache = results.windowCache
                 self.tmuxPaneCache = tmuxPanes
                 self.aiProcessCache = aiProcesses
-                if let resolved {
-                    self.prURLCache = resolved.urls
-                    self.prFailureCache = resolved.failures
-                }
                 // Why: 非同期更新はユーザー入力そのものではないため、
                 //      autoExecuteOnSingleResult の副作用（外部アプリ activate）を発火させない。
                 self.updateItems(allowAutoExecute: false)
+
+                // Why: gh CLI の PR 解決は表示後の別ホップで行う。
+                //      行表示が gh 完了（最大 timeout 秒）にブロックされていたため。
+                let staleDirectories = Set(
+                    tmuxPanes.map(\.currentPath) + aiProcesses.map(\.workingDirectory)
+                ).filter { !self.isPRCacheFresh(for: $0) }
+                guard !staleDirectories.isEmpty else { return }
+                let provider = self.pullRequestURLProvider
+                let existingURLs = self.prURLCache
+                let existingFailures = self.prFailureCache
+                DispatchQueue.global(qos: .utility).async { [weak self] in
+                    let resolved = BackgroundRefreshService.resolvePullRequests(
+                        workingDirectories: Array(staleDirectories),
+                        existingURLs: existingURLs,
+                        existingFailures: existingFailures,
+                        pullRequestURLProvider: provider
+                    )
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self = self else { return }
+                        guard generation == self.refreshGeneration else { return }
+                        self.prURLCache = resolved.urls
+                        self.prFailureCache = resolved.failures
+                        self.updateItems(allowAutoExecute: false)
+                    }
+                }
             }
         }
     }
@@ -267,22 +320,22 @@ class SearchViewModel: ObservableObject {
 
     /// tmux AIエージェントペインをパネル表示時に1回だけ取得してキャッシュ
     /// settings.showTmuxAgents が false の場合はスキップ
-    private func loadTmuxPanes() {
+    private func loadTmuxPanes(snapshot: ProcessSnapshot? = nil) {
         guard showTmuxAgents else {
             tmuxPaneCache = []
             return
         }
-        tmuxPaneCache = (try? TmuxProvider.listAIAgentPanes(settings: appSettings)) ?? []
+        tmuxPaneCache = (try? TmuxProvider.listAIAgentPanes(settings: appSettings, snapshot: snapshot)) ?? []
     }
 
     /// tmux外で実行中のAIエージェントプロセスをパネル表示時に1回だけ取得してキャッシュ
     /// settings.showTmuxAgents が false の場合はスキップ
-    private func loadAIProcesses() {
+    private func loadAIProcesses(snapshot: ProcessSnapshot? = nil) {
         guard showTmuxAgents else {
             aiProcessCache = []
             return
         }
-        aiProcessCache = ProcessProvider.listNonTmuxAIProcesses()
+        aiProcessCache = ProcessProvider.listNonTmuxAIProcesses(snapshot: snapshot)
     }
 
     func updateItems(allowAutoExecute: Bool = true) {

@@ -61,24 +61,6 @@ public struct ProcessProvider {
         ) != nil
     }
 
-    /// プロセスのコマンドライン引数を取得する
-    /// - Parameter pid: 対象プロセスID
-    /// - Returns: フルコマンドライン文字列（取得失敗時は空文字列）
-    // Why: getTTYForProcess と同パターンでプロセスのコマンドライン引数を取得 —
-    //      DRY 違反だが、共通化は Refactor Phase のスコープ（本ミッションのスコープ外）
-    static func getCommandLineArgs(_ pid: pid_t) -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/ps")
-        process.arguments = ["-p", "\(pid)", "-o", "args="]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        try? process.run()
-        process.waitUntilExit()
-        return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-    }
-
     /// PID が存在し、かつゾンビ状態ではないことを判定する
     static func isProcessAlive(_ pid: pid_t) -> Bool {
         var info = kinfo_proc()
@@ -110,38 +92,53 @@ public struct ProcessProvider {
 
     /// tmux外で実行中のAIエージェントプロセスを取得
     /// tmuxペインに属するプロセスは除外する
-    public static func listNonTmuxAIProcesses() -> [AIProcess] {
+    // Why: pgrep×10 + プロセス毎の ps×3 という spawn 群を ProcessSnapshot 1 回に集約。
+    //      args/tty/stat はスナップショットから読み、外部プロセス起動を消す。
+    public static func listNonTmuxAIProcesses(snapshot: ProcessSnapshot? = nil) -> [AIProcess] {
+        let snapshot = snapshot ?? ProcessSnapshot.capture()
         clearTmuxCheckCache()
+        let runningApps = NSWorkspace.shared.runningApplications
         var result: [AIProcess] = []
 
-        for commandName in aiAgentCommands {
-            let pids = findProcessesByName(commandName)
-            log("search '\(commandName)': found \(pids.count) processes")
+        // Why: コマンド名の部分文字列で事前絞り込みし、正規表現評価を候補のみに限定する。
+        //      `(^|/)name` パターンがマッチするなら name は必ず args に含まれるため安全。
+        let candidates = snapshot.entries.filter { entry in
+            aiAgentCommands.contains(where: { entry.args.contains($0) })
+        }
+        let compiledPatterns: [(name: String, regex: NSRegularExpression)] = aiAgentCommands.compactMap { name in
+            guard let regex = try? NSRegularExpression(pattern: processNamePattern(name)) else { return nil }
+            return (name, regex)
+        }
 
-            for pid in pids {
+        for (commandName, regex) in compiledPatterns {
+            for entry in candidates {
+                let args = entry.args
+                guard regex.firstMatch(in: args, range: NSRange(args.startIndex..., in: args)) != nil else {
+                    continue
+                }
+                let pid = entry.pid
                 // tmuxペインに属するプロセスは除外
                 if isProcessInTmux(pid) {
                     log("  pid \(pid): skip (in tmux)")
                     continue
                 }
 
-                // Why: pgrep の結果だけを採用すると終了済み/ゾンビ化した PID が残り、
+                // Why: スナップショットの stat でゾンビを除外（旧 isProcessAlive sysctl と同義）。
                 //      復元不能な「❓」項目として絞り込み画面に表示されるため事前に除外する。
-                guard isProcessAlive(pid) else {
-                    log("  pid \(pid): skip (not alive or zombie)")
+                guard !entry.isZombie else {
+                    log("  pid \(pid): skip (zombie)")
                     continue
                 }
 
                 // Why: codex app-server 等のデーモンプロセスを AI エージェントリストから除外
-                let cmdLine = getCommandLineArgs(pid)
-                if isDaemonCommandLine(cmdLine) {
+                if isDaemonCommandLine(entry.args) {
                     log("  pid \(pid): skip (daemon subcommand)")
                     continue
                 }
 
-                let tty = getTTYForProcess(pid)
+                let tty = entry.tty
                 let cwd = getWorkingDirectory(pid)
-                let terminalInfo = findTerminalForTTY(tty)
+                let terminalInfo = findTerminalForTTY(tty, snapshot: snapshot, runningApps: runningApps)
 
                 log("  pid \(pid): tty=\(tty ?? "nil"), cwd=\(cwd ?? "nil"), terminal=\(terminalInfo?.appName ?? "nil")")
 
@@ -294,9 +291,13 @@ public struct ProcessProvider {
     }
 
     /// TTY名からターミナルアプリを特定（TmuxProvider.findTerminalAppForTTY を再利用）
-    private static func findTerminalForTTY(_ tty: String?) -> (bundleId: String?, appName: String)? {
+    // Why: スナップショット版を使い per-TTY の ps -t spawn を消す。
+    private static func findTerminalForTTY(
+        _ tty: String?,
+        snapshot: ProcessSnapshot,
+        runningApps: [any RunningAppProtocol]
+    ) -> (bundleId: String?, appName: String)? {
         guard let tty = tty else { return nil }
-        let ttyName = tty.hasPrefix("/dev/") ? String(tty.dropFirst(5)) : tty
-        return TmuxProvider.findTerminalAppForTTY(ttyName)
+        return TmuxProvider.findTerminalAppForTTY(tty, snapshot: snapshot, runningApps: runningApps)
     }
 }
