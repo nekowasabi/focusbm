@@ -196,15 +196,21 @@ public struct ProcessProvider {
 
     /// 同一リフレッシュサイクル内のメモ化キャッシュ
     private static var tmuxCheckCache: [pid_t: Bool] = [:]
+    // Why: refreshForPanelAsync / concurrentPerform 経路から同時アクセスされ得るため排他する
+    private static let tmuxCheckCacheLock = NSLock()
 
     /// メモ化キャッシュをクリア（リフレッシュサイクル開始時に呼ぶ）
     static func clearTmuxCheckCache() {
+        tmuxCheckCacheLock.lock()
+        defer { tmuxCheckCacheLock.unlock() }
         tmuxCheckCache = [:]
     }
 
     /// プロセスがtmux内で実行されているか判定（親プロセスチェーンに tmux があるか）
     /// sysctl を使用してサブプロセス spawn を回避
     static func isProcessInTmux(_ pid: pid_t) -> Bool {
+        tmuxCheckCacheLock.lock()
+        defer { tmuxCheckCacheLock.unlock() }
         if let cached = tmuxCheckCache[pid] {
             return cached
         }
