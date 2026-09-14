@@ -1,5 +1,29 @@
+import Foundation
 import Testing
 @testable import FocusBMLib
+
+/// デッドロック検証用のスレッドセーフな結果ボックス
+private final class LockedBox<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: Value?
+    private var _isSet = false
+    var isSet: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _isSet
+    }
+    var value: Value? {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+    func set(_ v: Value) {
+        lock.lock()
+        storage = v
+        _isSet = true
+        lock.unlock()
+    }
+}
 
 // MARK: - ProcessSnapshot.parse テスト
 
@@ -109,4 +133,43 @@ import Testing
     let snap = ProcessSnapshot.capture()
     let selfPid = ProcessInfo.processInfo.processIdentifier
     #expect(snap.byPid[selfPid] != nil)
+}
+
+@Test func test_processSnapshot_capture_completesWithinTimeout() async {
+    // Why: capture() が waitUntilExit() をパイプ読み取りより先に呼ぶと、
+    //      ps 出力がパイプ容量(macOS ~64KB)を超える環境で子プロセスが write ブロックし
+    //      デッドロックする。実機の ps 出力が大きい環境での退行を検知する。
+    //      Task.detached を使うのは、ブロック中のタスクが withTaskGroup の完了を
+    //      阻害してテスト自体がハングするのを防ぐため。
+    let box = LockedBox<ProcessSnapshot>()
+    Task.detached {
+        box.set(ProcessSnapshot.capture())
+    }
+    for _ in 0..<100 where !box.isSet {
+        try? await Task.sleep(for: .milliseconds(100))
+    }
+    #expect(box.isSet)
+}
+
+@Test func test_processSnapshot_collectStandardOutput_readsPastPipeBuffer() async throws {
+    // Why: waitUntilExit() 先行だとパイプ容量(macOS ~64KB)を超える出力でデッドロックする。
+    //      環境のプロセス数に依存しないよう、256KB を出す /bin/cat で決定的に検証する。
+    let bytes = Data(repeating: 0x61, count: 256 * 1024)
+    let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("focusbm-pstest-\(UUID().uuidString)")
+    try bytes.write(to: url)
+    defer { try? FileManager.default.removeItem(at: url) }
+
+    let box = LockedBox<Data>()
+    Task.detached {
+        box.set(ProcessSnapshot.collectStandardOutput(
+            executableURL: URL(fileURLWithPath: "/bin/cat"),
+            arguments: [url.path]
+        ))
+    }
+    for _ in 0..<100 where !box.isSet {
+        try? await Task.sleep(for: .milliseconds(100))
+    }
+    #expect(box.isSet)
+    #expect(box.value == bytes)
 }
