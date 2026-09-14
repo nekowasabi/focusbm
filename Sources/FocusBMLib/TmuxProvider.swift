@@ -828,7 +828,9 @@ public struct TmuxProvider {
         let process = makeTmuxProcess(["capture-pane", "-p", "-t", paneId, "-S", "-30"])
         let outputPipe = Pipe()
         process.standardOutput = outputPipe
-        process.standardError = Pipe()
+        // Why: stderr は読まないため nullDevice。Pipe のままだと 64KB 超の stderr 出力で
+        //      stdout ドレインと同様に子プロセスが write ブロックする latent バグになる
+        process.standardError = FileHandle.nullDevice
 
         do {
             try process.run()
@@ -836,12 +838,11 @@ public struct TmuxProvider {
             return nil
         }
 
+        // Why: waitUntilExit より先に stdout を読み切る。逆順はパイプ容量超過時デッドロック
+        let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else { return nil }
-        return String(
-            data: outputPipe.fileHandleForReading.readDataToEndOfFile(),
-            encoding: .utf8
-        )
+        return String(data: data, encoding: .utf8)
     }
 
     // focusPane の select-window 引数を構築（テスト可能にするため分離）

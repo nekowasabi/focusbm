@@ -50,20 +50,33 @@ public struct ProcessSnapshot {
 
     /// 現在のプロセス表を取得。ps 失敗時は空スナップショット（pgrep 失敗→空と同じ扱い）
     public static func capture() -> ProcessSnapshot {
+        let data = collectStandardOutput(
+            executableURL: URL(fileURLWithPath: "/bin/ps"),
+            arguments: ["-axo", "pid=,ppid=,tty=,stat=,args="]
+        )
+        let output = String(data: data, encoding: .utf8) ?? ""
+        return parse(output)
+    }
+
+    /// プロセスを spawn し、stdout を EOF まで読み切ってから終了を待つ。
+    // Why: waitUntilExit() を先に呼ぶと、出力がパイプ容量(macOS ~64KB)を超えた時点で
+    //      子プロセスが write ブロックし waitUntilExit が戻らないデッドロックになる。
+    //      ps -axo は実機で ~165KB になり得るため、readDataToEndOfFile を先行させる。
+    static func collectStandardOutput(executableURL: URL, arguments: [String]) -> Data {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/bin/ps")
-        process.arguments = ["-axo", "pid=,ppid=,tty=,stat=,args="]
+        process.executableURL = executableURL
+        process.arguments = arguments
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = Pipe()
         do {
             try process.run()
         } catch {
-            return ProcessSnapshot(entries: [])
+            return Data()
         }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
-        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        return parse(output)
+        return data
     }
 
     /// ps -axo 出力のパース。`pid ppid tty stat args(残り全部)` の固定5カラム。
