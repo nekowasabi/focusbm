@@ -187,6 +187,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func forceReloadAgents() {
         if let panel = searchPanel, panel.isVisible {
             // 開いている: その場で再スキャン
+            viewModel.cancelPendingAutoExecute()
             viewModel.refreshForPanelAsync()
         } else {
             // 閉じている: パネルを開く（toggleSearchPanel が末尾で refreshForPanelAsync を呼ぶ）

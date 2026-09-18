@@ -223,6 +223,7 @@ class SearchPanel: NSPanel {
 
             // Command+R: 絞り込み画面を開いたまま動的な tmux/process 情報を再取得
             if Self.isManualRefreshShortcut(keyCode: event.keyCode, flags: event.modifierFlags) {
+                self.viewModel.cancelPendingAutoExecute()
                 self.viewModel.refreshForPanelAsync()
                 return nil
             }

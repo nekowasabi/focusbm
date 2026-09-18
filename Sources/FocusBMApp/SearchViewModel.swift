@@ -6,7 +6,10 @@ import FocusBMLib
 
 class SearchViewModel: ObservableObject {
     @Published var query: String = "" {
-        didSet { updateItems() }
+        didSet {
+            autoExecuteGeneration += 1
+            updateItems()
+        }
     }
     @Published var bookmarks: [Bookmark] = []
     @Published var searchItems: [SearchItem] = []
@@ -52,6 +55,7 @@ class SearchViewModel: ObservableObject {
     var onAutoExecute: (() -> Void)?
     /// 自動実行の遅延タイマー（キー入力ごとにキャンセル＆再スケジュール）
     private var autoExecuteWorkItem: DispatchWorkItem?
+    private var autoExecuteGeneration = 0
 
     /// YAML を読み込んで bookmarks を更新する。AX API は呼ばない（起動時にも安全）。
     func load() {
@@ -303,6 +307,11 @@ class SearchViewModel: ObservableObject {
     func deactivatePanel() {
         isActive = false
         stopAgentStatusMonitoring()
+        cancelPendingAutoExecute()
+    }
+
+    /// ユーザー操作による再読込など、保留中の自動実行を明示的に取り消す。
+    func cancelPendingAutoExecute() {
         autoExecuteWorkItem?.cancel()
         autoExecuteWorkItem = nil
         isAutoExecuteHighlighted = false
@@ -400,21 +409,25 @@ class SearchViewModel: ObservableObject {
         }
 
         // 候補が1件 + クエリ非空 + 設定ON → ディレイ後にハイライト → 自動実行
-        autoExecuteWorkItem?.cancel()
-        autoExecuteWorkItem = nil
-        isAutoExecuteHighlighted = false
+        if allowAutoExecute || searchItems.count != 1 {
+            cancelPendingAutoExecute()
+        }
         if allowAutoExecute,
            searchItems.count == 1,
            !query.isEmpty,
            appSettings?.autoExecuteOnSingleResult == true {
             let delay = appSettings?.autoExecuteDelay ?? 0.3
+            let generation = autoExecuteGeneration
             let workItem = DispatchWorkItem { [weak self] in
                 guard let self else { return }
+                guard generation == self.autoExecuteGeneration else { return }
                 withAnimation(.easeIn(duration: 0.15)) {
                     self.isAutoExecuteHighlighted = true
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-                    guard let self, self.isAutoExecuteHighlighted else { return }
+                    guard let self,
+                          generation == self.autoExecuteGeneration,
+                          self.isAutoExecuteHighlighted else { return }
                     self.onAutoExecute?()
                 }
             }

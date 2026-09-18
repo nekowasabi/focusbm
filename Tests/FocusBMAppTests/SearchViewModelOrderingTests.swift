@@ -746,3 +746,90 @@ private final class AutoExecuteProbe {
     try await Task.sleep(nanoseconds: 300_000_000)
     #expect(probe.didFire == false, "close/deactivate 後に予約済み自動実行が残らない")
 }
+
+// MARK: - autoExecute Wave 1 (RED, decide.md 契約A/世代境界の固定用)
+
+/// 生存: ユーザータイプで生じた予約は、同一候補の黙った背景更新（allowAutoExecute:false）では
+/// 破棄されず発火すること。現行は updateItems(false) 冒頭3行が無条件 cancel するため RED。
+@Test func test_reservedAutoExecute_survivesSameCandidateBackgroundUpdate() async throws {
+    let vm = SearchViewModel()
+    vm.appSettings = AppSettings(autoExecuteOnSingleResult: true, autoExecuteDelay: 0.05)
+    vm.isActive = true
+    vm.bookmarks = [makeBookmark(name: "claude-target", appName: "Google Chrome")]
+
+    let probe = AutoExecuteProbe()
+    vm.onAutoExecute = { probe.didFire = true }
+
+    vm.query = "claude"
+    #expect(vm.searchItems.count == 1, "ユーザータイプで1件に絞られ予約されること")
+
+    // 黙った背景更新（同一候補、件数不変）
+    vm.applyBackgroundCache(tmuxPanes: [], aiProcesses: [])
+
+    try await Task.sleep(nanoseconds: 500_000_000)
+    #expect(probe.didFire == true, "同一候補の黙った背景更新はユーザー予約を殺さない")
+}
+
+/// ハイライト窓: isAutoExecuteHighlighted==true になった後（内側0.15s待ち中）に同一候補の
+/// 黙った背景更新が来ても発火すること。現行は :405 の isAutoExecuteHighlighted=false 代入で
+/// 内側 asyncAfter の guard が空振りするため RED。
+@Test func test_reservedAutoExecute_survivesBackgroundUpdateDuringHighlightWindow() async throws {
+    let vm = SearchViewModel()
+    vm.appSettings = AppSettings(autoExecuteOnSingleResult: true, autoExecuteDelay: 0.05)
+    vm.isActive = true
+    vm.bookmarks = [makeBookmark(name: "claude-target", appName: "Google Chrome")]
+
+    let probe = AutoExecuteProbe()
+    vm.onAutoExecute = { probe.didFire = true }
+
+    vm.query = "claude"
+    #expect(vm.searchItems.count == 1)
+
+    try await Task.sleep(nanoseconds: 100_000_000) // delay(0.05s)経過 → ハイライト窓に入る
+    #expect(vm.isAutoExecuteHighlighted == true, "ハイライト窓に入っていること")
+
+    vm.applyBackgroundCache(tmuxPanes: [], aiProcesses: []) // 同一候補、黙った更新
+
+    try await Task.sleep(nanoseconds: 300_000_000) // 内側0.15s経過
+    #expect(probe.didFire == true, "ハイライト開始後の黙った同一候補更新でも発火する")
+}
+
+/// 候補消滅: 予約後に背景更新で候補件数が1件から変化したら発火しないこと。
+@Test func test_reservedAutoExecute_doesNotFireWhenBackgroundUpdateChangesCandidateCount() async throws {
+    let vm = SearchViewModel()
+    vm.appSettings = AppSettings(autoExecuteOnSingleResult: true, autoExecuteDelay: 0.01)
+    vm.isActive = true
+    vm.bookmarks = [makeBookmark(name: "claude-target", appName: "Google Chrome")]
+
+    let probe = AutoExecuteProbe()
+    vm.onAutoExecute = { probe.didFire = true }
+
+    vm.query = "claude"
+    #expect(vm.searchItems.count == 1, "ユーザータイプで1件に絞られ予約されること")
+
+    vm.applyBackgroundCache(tmuxPanes: [makeTmuxPane(id: "%1")], aiProcesses: [])
+    #expect(vm.searchItems.count == 2, "背景更新で候補が2件になること")
+
+    try await Task.sleep(nanoseconds: 500_000_000)
+    #expect(probe.didFire == false, "予約後に候補件数が変化したら発火しない")
+}
+
+/// ⌘R契約A: refreshForPanelAsync 相当の明示 cancel を呼んだら、予約済み自動実行は発火しない。
+/// cancelPendingAutoExecute() は decide.md の契約Aで要求される公開APIだが未実装 → RED（コンパイルエラー）。
+@Test func test_explicitCancel_preventsReservedAutoExecuteFromFiring() async throws {
+    let vm = SearchViewModel()
+    vm.appSettings = AppSettings(autoExecuteOnSingleResult: true, autoExecuteDelay: 0.01)
+    vm.isActive = true
+    vm.bookmarks = [makeBookmark(name: "claude-target", appName: "Google Chrome")]
+
+    let probe = AutoExecuteProbe()
+    vm.onAutoExecute = { probe.didFire = true }
+
+    vm.query = "claude"
+    #expect(vm.searchItems.count == 1)
+
+    vm.cancelPendingAutoExecute() // RED PHASE: 未実装 → compile error expected
+
+    try await Task.sleep(nanoseconds: 500_000_000)
+    #expect(probe.didFire == false, "⌘R 相当の明示 cancel 後は予約が発火しない")
+}
