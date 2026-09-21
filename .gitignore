@@ -8,6 +8,7 @@ DerivedData/
 .netrc
 *.app
 .serena/
+.tgrep/
 
 # Windows port (.NET) build artifacts
 dotnet/**/bin/
