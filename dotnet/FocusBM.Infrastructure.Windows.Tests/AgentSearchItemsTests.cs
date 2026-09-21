@@ -104,4 +104,21 @@ public sealed class AgentSearchItemsTests
         Assert.Equal("tmux:dev:0:%4", shown.Id);
         Assert.Equal("Devin CLI @ WezTerm — repo", shown.DisplayLabel);
     }
+
+    [Fact]
+    public void Build_HidesUnmappedNodeCodexWrapperWhenRustChildIsTmuxMapped()
+    {
+        var panes = new[] { new TmuxPaneInfo("dash", "8", "%53", CurrentCommand: "node", Title: "Respond to hello", CurrentDirectory: "/tmp/codex") };
+        var processes = new[]
+        {
+            new WslProcessInfo(2, 1, "/opt/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex --yolo", "/tmp/codex", "%53", "WezTerm"),
+            new WslProcessInfo(1, 2, "node /opt/bin/codex --yolo", "/tmp/codex", null, "WezTerm")
+        };
+
+        var items = AgentSearchItems.Build(panes, processes, showTmuxAgents: true, showWslAgents: true, tmuxDiscoverySucceeded: true);
+
+        var shown = Assert.Single(items);
+        Assert.Equal("tmux:dash:8:%53", shown.Id);
+        Assert.StartsWith("codex @", shown.AppName, StringComparison.OrdinalIgnoreCase);
+    }
 }

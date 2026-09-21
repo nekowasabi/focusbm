@@ -303,6 +303,8 @@ settings:
     togglePanel: "cmd+ctrl+b"
     forceReloadAgents: "cmd+ctrl+r"
     openSessionPullRequest: "cmd+p"
+    previewHoveredAgent: "ctrl+p"
+    previewAllAgents: "ctrl+v"
   displayNumber: 1
   listFontSize: 15.0   # 省略時はシステム標準 .body (≈13pt)
   directNumberKeys: true  # 数字キー単体でブックマークにフォーカス（false: Cmd+数字のみ）
@@ -317,6 +319,8 @@ bookmarks:
 | `settings.hotkey.togglePanel` | 文字列 | `"cmd+ctrl+b"` | 検索パネルを呼び出すグローバルホットキー。パネル表示中の再押下は `executeOnToggleRepress` 指定のブックマークを実行（未指定時は選択中項目、実行対象が無ければ閉じる） |
 | `settings.hotkey.forceReloadAgents` | 文字列 | `"cmd+ctrl+r"` | AIエージェントプロセス一覧を強制再取得するグローバルホットキー |
 | `settings.hotkey.openSessionPullRequest` | 文字列 | `"cmd+p"` | 選択中Claude Codeセッションの構造化済みGitHubプルリクエストURLを開く画面内キー。不正値・予約キーは既定値へ戻る |
+| `settings.hotkey.previewHoveredAgent` | 文字列 | `"ctrl+p"` | ホバー中（なければ選択中）の AI エージェント画面を tmux キャプチャで表示。Esc はキャプチャだけ閉じ、パネルは残す |
+| `settings.hotkey.previewAllAgents` | 文字列 | `"ctrl+v"` | すべての AI エージェント画面を並べて tmux キャプチャ表示。Esc はキャプチャだけ閉じ、パネルは残す |
 | `settings.displayNumber` | 整数 | `1` | パネルを表示するディスプレイ番号（1始まり） |
 | `settings.listFontSize` | 小数 | `nil`（≈13pt）| 候補リストのフォントサイズ（pt）。省略時はシステム標準サイズ |
 | `settings.directNumberKeys` | 真偽値 | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |

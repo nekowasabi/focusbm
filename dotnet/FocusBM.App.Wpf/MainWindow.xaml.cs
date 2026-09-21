@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Diagnostics;
@@ -22,7 +23,11 @@ public partial class MainWindow : Window
         IsVisibleChanged += (_, _) =>
         {
             FocusBmLog.Write("panel", IsVisible ? "shown" : "hidden");
-            if (!IsVisible) ViewModel.ClearQuery();
+            if (!IsVisible)
+            {
+                ViewModel.DismissPreview();
+                ViewModel.ClearQuery();
+            }
         };
     }
 
@@ -196,9 +201,11 @@ public partial class MainWindow : Window
         if (e.Key == Key.Escape)
         {
             e.Handled = true;
+            if (ViewModel.DismissPreview()) return;
             await DismissPanelAsync();
             return;
         }
+        if (TryShowAgentPreview(e)) return;
         if (await TryHandleEmptyQueryLaunchAsync(e)) return;
     }
 
@@ -328,7 +335,7 @@ public partial class MainWindow : Window
 
     private async Task<bool> TryOpenSessionPullRequestAsync(System.Windows.Input.KeyEventArgs e)
     {
-        if (!MatchesSessionPullRequestHotkey(e) || ViewModel.SelectedBookmark is not { } bookmark || !ViewModel.CanResolveSessionPullRequest(bookmark)) return false;
+        if (!MatchesPanelHotkey(e, ViewModel.Settings.OpenSessionPullRequestHotkey) || ViewModel.SelectedBookmark is not { } bookmark || !ViewModel.CanResolveSessionPullRequest(bookmark)) return false;
         e.Handled = true;
         var url = await ViewModel.ResolveSessionPullRequestAsync(bookmark);
         if (url is null)
@@ -350,12 +357,53 @@ public partial class MainWindow : Window
         return true;
     }
 
-    private bool MatchesSessionPullRequestHotkey(System.Windows.Input.KeyEventArgs e)
+    private bool TryShowAgentPreview(System.Windows.Input.KeyEventArgs e)
+    {
+        try
+        {
+            if (MatchesPanelHotkey(e, ViewModel.Settings.PreviewHoveredAgentHotkey)
+                && ViewModel.ShowHoveredPreview())
+            {
+                e.Handled = true;
+                return true;
+            }
+            if (MatchesPanelHotkey(e, ViewModel.Settings.PreviewAllAgentsHotkey)
+                && ViewModel.ShowAllPreviews())
+            {
+                e.Handled = true;
+                return true;
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            ViewModel.SetStatus($"プレビューを開けません: {ex.Message}");
+            e.Handled = true;
+            return true;
+        }
+    }
+
+    private void ResultItem_OnMouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (sender is ListBoxItem item)
+            ViewModel.HoveredIndex = ResultList.ItemContainerGenerator.IndexFromContainer(item);
+    }
+
+    private void PreviewOverlay_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        ViewModel.DismissPreview();
+        e.Handled = true;
+    }
+
+    private bool MatchesSessionPullRequestHotkey(System.Windows.Input.KeyEventArgs e) =>
+        MatchesPanelHotkey(e, ViewModel.Settings.OpenSessionPullRequestHotkey);
+
+    private bool MatchesPanelHotkey(System.Windows.Input.KeyEventArgs e, string hotkey)
     {
         ParsedHotkey parsed;
         try
         {
-            parsed = HotkeyParser.Parse(ViewModel.Settings.OpenSessionPullRequestHotkey, ViewModel.Settings.CmdMapping);
+            parsed = HotkeyParser.Parse(hotkey, ViewModel.Settings.CmdMapping);
         }
         catch (ArgumentException)
         {

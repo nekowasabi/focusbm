@@ -11,6 +11,10 @@ settings:
   # 検索パネルを呼び出すグローバルホットキー
   hotkey:
     togglePanel: "ctrl+alt+space"
+    # ホバー中（なければ選択中）の AI エージェント画面キャプチャ（既定: ctrl+p）。Esc で閉じる
+    previewHoveredAgent: "ctrl+p"
+    # すべての AI エージェント画面を並べてキャプチャ（既定: ctrl+v）。Esc で閉じる
+    previewAllAgents: "ctrl+v"
 
   panelWidth: 800
   bookmarkListColumns: 2

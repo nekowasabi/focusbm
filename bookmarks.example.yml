@@ -14,6 +14,10 @@ settings:
     togglePanel: "cmd+ctrl+b"
     # 選択中の Claude Code セッションに記録された GitHub PR を開く（既定: cmd+p）
     openSessionPullRequest: "cmd+p"
+    # ホバー中（なければ選択中）の AI エージェント画面をキャプチャ表示（既定: ctrl+p）。Esc で閉じる
+    previewHoveredAgent: "ctrl+p"
+    # すべての AI エージェント画面を並べてキャプチャ表示（既定: ctrl+v）。Esc で閉じる
+    previewAllAgents: "ctrl+v"
     # AI エージェント一覧を手動更新する（既定: cmd+ctrl+r）
     forceReloadAgents: "cmd+ctrl+r"
 

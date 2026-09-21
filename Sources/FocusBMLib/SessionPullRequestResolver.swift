@@ -1,6 +1,8 @@
 import Foundation
 
 public let DEFAULT_OPEN_PR_HOTKEY = "cmd+p"
+public let DEFAULT_PREVIEW_HOVERED_HOTKEY = "ctrl+p"
+public let DEFAULT_PREVIEW_ALL_HOTKEY = "ctrl+v"
 public let CLAUDE_SESSION_REGISTRY_DIR = ".claude/sessions"
 public let CLAUDE_PROJECTS_DIR = ".claude/projects"
 public let PR_URL_FIELD = "prUrl"

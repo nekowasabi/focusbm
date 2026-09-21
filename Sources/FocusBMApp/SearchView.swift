@@ -36,6 +36,13 @@ struct SearchView: View {
                     : Color.clear)
         )
         .contentShape(Rectangle())
+        .onHover { hovering in
+            if hovering {
+                viewModel.hoveredIndex = index
+            } else if viewModel.hoveredIndex == index {
+                viewModel.hoveredIndex = nil
+            }
+        }
         .onTapGesture {
             viewModel.selectedIndex = index
             panel?.executeItem(pair.item)
@@ -43,6 +50,7 @@ struct SearchView: View {
     }
 
     var body: some View {
+        ZStack {
         VStack(spacing: 0) {
             // Search field
             HStack {
@@ -129,6 +137,12 @@ struct SearchView: View {
                     }
                 )
             }
+        }
+        if let preview = viewModel.screenPreview {
+            AgentScreenPreviewOverlay(state: preview) {
+                _ = viewModel.dismissScreenPreview()
+            }
+        }
         }
         .onChange(of: viewModel.isActive) { active in
             if active {

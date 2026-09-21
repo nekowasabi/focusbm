@@ -24,6 +24,11 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     public ObservableCollection<Bookmark> Results { get; } = new();
     public ObservableCollection<ShortcutAssignment> Shortcuts { get; } = new();
     public int SelectedIndex { get; set; }
+    public int HoveredIndex { get; set; } = -1;
+    public ObservableCollection<AgentScreenCapture> PreviewCaptures { get; } = new();
+    public bool IsPreviewVisible => PreviewCaptures.Count > 0;
+    public bool IsTiledPreview { get; private set; }
+    public int PreviewColumnCount => IsTiledPreview ? 2 : 1;
     public AppSettings Settings { get; private set; } = new();
     public string StatusMessage { get; private set; } = "準備完了";
     public string Query { get => _query; set { _query = value ?? string.Empty; Refresh(); OnChanged(nameof(Query)); OnChanged(nameof(ShowShortcuts)); OnChanged(nameof(ShowShortcutBar)); } }
@@ -208,6 +213,78 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
             return bookmark with { PullRequestUrl = null };
         }).ToArray();
         Refresh();
+    }
+
+    public Bookmark? PreviewTarget
+    {
+        get
+        {
+            if (HoveredIndex >= 0 && HoveredIndex < Results.Count && Results[HoveredIndex].IsAIAgent)
+                return Results[HoveredIndex];
+            return SelectedBookmark is { IsAIAgent: true } selected ? selected : null;
+        }
+    }
+
+    public bool DismissPreview()
+    {
+        if (PreviewCaptures.Count == 0) return false;
+        PreviewCaptures.Clear();
+        IsTiledPreview = false;
+        OnChanged(nameof(IsPreviewVisible));
+        OnChanged(nameof(IsTiledPreview));
+        OnChanged(nameof(PreviewColumnCount));
+        return true;
+    }
+
+    public bool ShowHoveredPreview()
+    {
+        if (PreviewTarget is not { } bookmark) return false;
+        var capture = CaptureFromCache(bookmark);
+        if (capture is null) return false;
+        SetPreview(new[] { capture }, tiled: false);
+        return true;
+    }
+
+    public bool ShowAllPreviews()
+    {
+        var agents = _all.Where(bookmark => bookmark.IsAIAgent).ToArray();
+        if (agents.Length == 0) return false;
+        var captures = agents.Select(CaptureFromCache).OfType<AgentScreenCapture>().ToArray();
+        if (captures.Length == 0) return false;
+        SetPreview(captures, tiled: captures.Length > 1);
+        return true;
+    }
+
+    private void SetPreview(IReadOnlyList<AgentScreenCapture> captures, bool tiled)
+    {
+        PreviewCaptures.Clear();
+        foreach (var capture in captures) PreviewCaptures.Add(capture);
+        IsTiledPreview = tiled;
+        OnChanged(nameof(IsPreviewVisible));
+        OnChanged(nameof(IsTiledPreview));
+        OnChanged(nameof(PreviewColumnCount));
+    }
+
+    private static AgentScreenCapture? CaptureFromCache(Bookmark bookmark)
+    {
+        if (!bookmark.IsAIAgent) return null;
+        var cached = bookmark.State switch
+        {
+            WslProcessState process => process.ScreenCapture,
+            _ => null
+        };
+        var paneId = bookmark.State switch
+        {
+            WslProcessState process => process.TmuxPaneId,
+            TmuxPaneState pane => pane.PaneId,
+            _ => null
+        };
+        var text = string.IsNullOrWhiteSpace(cached)
+            ? string.IsNullOrWhiteSpace(paneId)
+                ? "tmux ペインがないため画面キャプチャできません"
+                : "キャプチャできませんでした"
+            : cached;
+        return new AgentScreenCapture(bookmark.Id, bookmark.DisplayLabel, text);
     }
 
     private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

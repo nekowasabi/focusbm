@@ -35,7 +35,7 @@ public struct ProcessProvider {
     }
 
     /// 検出対象のAIエージェントコマンド名
-    static let aiAgentCommands = ["claude", "aider", "gemini", "copilot", "codex", "hermes", "opencode", "pi", "grok", "devin"]
+    static let aiAgentCommands = ["claude", "aider", "gemini", "copilot", "codex", "hermes", "opencode", "pi", "grok", "devin", "cursor-agent"]
 
     // MARK: - Daemon Process Filtering
 

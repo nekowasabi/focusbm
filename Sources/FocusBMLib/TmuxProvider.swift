@@ -111,7 +111,8 @@ public struct TmuxPane {
         // コマンド名で直接判定できるエージェント（終了すればコマンドがシェルに戻る）
         if command == "claude" || command == "aider" || command == "gemini" ||
            command == "copilot" || command == "codex" || command == "agent" || command == "hermes" ||
-           command == "opencode" || command == "pi" || command == "devin" || isGrokCommand {
+           command == "opencode" || command == "pi" || command == "devin" ||
+           command == "cursor-agent" || isGrokCommand {
             return true
         }
         // タイトル含有で判定する場合、コマンドがシェルなら終了済みと判断
@@ -124,6 +125,8 @@ public struct TmuxPane {
                t.contains("hermes") ||
                t.contains("opencode") ||
                t.contains("grok") ||
+               t.contains("cursor-agent") ||
+               t.contains("cursor agent") ||
                t.contains("openai") ||
                t.contains("ai agent")
     }
@@ -147,7 +150,8 @@ public struct TmuxPane {
         let t = title.lowercased()
         if command == "claude" || command == "aider" || command == "gemini" ||
            command == "copilot" || command == "codex" || command == "agent" || command == "hermes" ||
-           command == "opencode" || command == "pi" || command == "devin" || isGrokCommand {
+           command == "opencode" || command == "pi" || command == "devin" ||
+           command == "cursor-agent" || isGrokCommand {
             return "command_match(\(command))"
         }
         if isShellCommand { return "ghost_shell" }
@@ -159,6 +163,7 @@ public struct TmuxPane {
         if t.contains("hermes")  { return "title_match(hermes)" }
         if t.contains("opencode") { return "title_match(opencode)" }
         if t.contains("grok")    { return "title_match(grok)" }
+        if t.contains("cursor-agent") || t.contains("cursor agent") { return "title_match(cursor-agent)" }
         if t.contains("openai")  { return "title_match(openai)" }
         if t.contains("ai agent") { return "title_match(ai agent)" }
         return "not_ai"
@@ -824,8 +829,14 @@ public struct TmuxProvider {
         return aiPanes
     }
 
-    private static func capturePaneContent(paneId: String) -> String? {
-        let process = makeTmuxProcess(["capture-pane", "-p", "-t", paneId, "-S", "-30"])
+    /// Capture tmux pane text. `historyLines` of 30 is used for status detection;
+    /// `nil` captures the visible pane only (the live screen).
+    public static func capturePaneContent(paneId: String, historyLines: Int? = 30) -> String? {
+        var args = ["capture-pane", "-p", "-t", paneId]
+        if let historyLines {
+            args.append(contentsOf: ["-S", "-\(historyLines)"])
+        }
+        let process = makeTmuxProcess(args)
         let outputPipe = Pipe()
         process.standardOutput = outputPipe
         // Why: stderr は読まないため nullDevice。Pipe のままだと 64KB 超の stderr 出力で

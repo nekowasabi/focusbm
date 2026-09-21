@@ -46,7 +46,8 @@ public sealed record TmuxPaneInfo(
     string? Status = null,
     string? CurrentDirectory = null,
     string? WindowName = null,
-    TmuxAgentStatus AgentStatus = TmuxAgentStatus.Idle);
+    TmuxAgentStatus AgentStatus = TmuxAgentStatus.Idle,
+    string? CaptureText = null);
 
 public interface IWslProcessFocusService
 {

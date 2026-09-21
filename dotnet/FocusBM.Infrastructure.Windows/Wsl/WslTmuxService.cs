@@ -284,7 +284,7 @@ public sealed class WslTmuxService : ITmuxService, IWslNvimService
                 content = null;
             }
             var status = DetectAgentStatus(result[i].Title, content);
-            result[i] = result[i] with { Status = status.ToString(), AgentStatus = status };
+            result[i] = result[i] with { Status = status.ToString(), AgentStatus = status, CaptureText = content };
         }
         return result;
     }

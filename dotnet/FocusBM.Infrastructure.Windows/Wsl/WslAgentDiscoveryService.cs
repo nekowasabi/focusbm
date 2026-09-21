@@ -71,6 +71,11 @@ public sealed class WslAgentDiscoveryService : IDisposable
                     *bin/hermes*|*"/hermes "*) command_name="hermes" ;;
                   esac
                   ;;
+                node|deno|bun|npx)
+                  case "$command" in
+                    *bin/codex*|*"/codex "*) command_name="codex" ;;
+                  esac
+                  ;;
               esac
               is_agent=0
               case "$command_name" in
@@ -89,17 +94,36 @@ public sealed class WslAgentDiscoveryService : IDisposable
           tmux_bin=""
           panes_ok=0
           clients_ok=0
+          pane_dump=""
+          capture_socket=""
           if [ "$want_tmux" = 1 ]; then
             tmux_bin=$(command -v tmux || true)
           fi
           if [ -n "$tmux_bin" ]; then
             for socket in /run/user/*/tmux-*/* /tmp/tmux-*/*; do
               if [ -S "$socket" ]; then
-                if "$tmux_bin" -S "$socket" list-panes -a -F $'#{session_name}\t#{window_index}\t#{pane_id}\t#{pane_current_command}\t#{pane_title}\t#{pane_current_path}\t#{window_name}' 2>/dev/null; then
+                if pane_dump=$("$tmux_bin" -S "$socket" list-panes -a -F $'#{session_name}\t#{window_index}\t#{pane_id}\t#{pane_current_command}\t#{pane_title}\t#{pane_current_path}\t#{window_name}' 2>/dev/null); then
                   panes_ok=1
+                  capture_socket=$socket
+                  printf '%s\n' "$pane_dump"
                   break
                 fi
               fi
+            done
+          fi
+
+          echo "@CAPTURES"
+          if [ "$panes_ok" = 1 ] && [ -n "$tmux_bin" ] && [ -n "$capture_socket" ]; then
+            printf '%s\n' "$pane_dump" | while IFS="$(printf '\t')" read -r sess win paneid cmd title path wname; do
+              [ -n "$paneid" ] || continue
+              capture=0
+              case "$cmd" in
+                claude|aider|gemini|copilot|codex|devin|hermes|opencode|pi|grok|grok-*|cursor-agent|agent|node) capture=1 ;;
+              esac
+              [ "$capture" = 1 ] || continue
+              printf '<<PANE %s>>\n' "$paneid"
+              "$tmux_bin" -S "$capture_socket" capture-pane -p -t "$paneid" -S -30 2>/dev/null || true
+              printf '\n<<END>>\n'
             done
           fi
 
@@ -289,17 +313,22 @@ public sealed class WslAgentDiscoveryService : IDisposable
         var panes = new StringBuilder();
         var clients = new StringBuilder();
         var processes = new StringBuilder();
+        var captures = new Dictionary<string, StringBuilder>(StringComparer.Ordinal);
         var section = 0;
         var processOk = false;
         var sawStatus = false;
+        string? capturePaneId = null;
         foreach (var rawLine in output.Split('\n'))
         {
             var line = rawLine.TrimEnd('\r', RecordSeparator);
-            if (line.StartsWith('@'))
+            // Why: Cursor/Codex screens contain `@file` lines; treating them as protocol dropped later pane captures.
+            var inCaptureBody = section == 4 && capturePaneId is not null;
+            if (!inCaptureBody && line.StartsWith('@') && !line.StartsWith("@@", StringComparison.Ordinal))
             {
                 if (line == "@PANES") section = 1;
                 else if (line == "@CLIENTS") section = 2;
                 else if (line == "@PROCESSES") section = 3;
+                else if (line == "@CAPTURES") section = 4;
                 else if (line.StartsWith("@STATUS\t", StringComparison.Ordinal))
                 {
                     var flags = line.Split('\t');
@@ -315,10 +344,37 @@ public sealed class WslAgentDiscoveryService : IDisposable
                 case 1: panes.Append(rawLine).Append('\n'); break;
                 case 2: clients.Append(rawLine).Append('\n'); break;
                 case 3: processes.Append(rawLine).Append('\n'); break;
+                case 4:
+                    if (line.StartsWith("<<PANE ", StringComparison.Ordinal) && line.EndsWith(">>", StringComparison.Ordinal))
+                    {
+                        capturePaneId = line[7..^2];
+                        if (!string.IsNullOrWhiteSpace(capturePaneId))
+                            captures[capturePaneId] = new StringBuilder();
+                    }
+                    else if (line == "<<END>>")
+                    {
+                        capturePaneId = null;
+                    }
+                    else if (capturePaneId is not null && captures.TryGetValue(capturePaneId, out var body))
+                    {
+                        if (body.Length > 0) body.Append('\n');
+                        body.Append(rawLine.TrimEnd('\r', RecordSeparator));
+                    }
+                    break;
             }
         }
         if (!sawStatus) return AgentDiscoverySnapshot.Empty;
         var paneList = WslTmuxService.ParsePanes(panes.ToString());
+        if (captures.Count > 0)
+        {
+            paneList = paneList.Select(pane =>
+            {
+                if (!captures.TryGetValue(pane.PaneId, out var body)) return pane;
+                var text = Redactor.Mask(body.ToString());
+                var status = WslTmuxService.DetectAgentStatus(pane.Title, text);
+                return pane with { CaptureText = text, Status = status.ToString(), AgentStatus = status };
+            }).ToList();
+        }
         return new AgentDiscoverySnapshot(
             paneList,
             WslTmuxService.ParseClientTerminals(clients.ToString()),

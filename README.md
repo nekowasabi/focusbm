@@ -304,6 +304,8 @@ settings:
     togglePanel: "cmd+ctrl+b"
     forceReloadAgents: "cmd+ctrl+r"
     openSessionPullRequest: "cmd+p"
+    previewHoveredAgent: "ctrl+p"
+    previewAllAgents: "ctrl+v"
   displayNumber: 1
   listFontSize: 15.0   # Defaults to system .body size (≈13pt) if omitted
   panelWidth: 600         # 検索パネルの幅（デフォルト: 500）
@@ -322,6 +324,8 @@ bookmarks:
 | `settings.hotkey.togglePanel` | string | `"cmd+ctrl+b"` | Global hotkey to invoke the search panel. Pressing it again while the panel is open executes the bookmark marked `executeOnToggleRepress` (falls back to the selected item; closes the panel when nothing can run) |
 | `settings.hotkey.forceReloadAgents` | string | `"cmd+ctrl+r"` | Global hotkey to force-refresh the AI agent process list |
 | `settings.hotkey.openSessionPullRequest` | string | `"cmd+p"` | Panel hotkey to open the selected Claude Code or Codex session's GitHub pull request URL. Invalid and reserved shortcuts fall back to the default |
+| `settings.hotkey.previewHoveredAgent` | string | `"ctrl+p"` | Panel hotkey to show a screen-only tmux capture of the hovered (or selected) AI agent. Escape closes the capture, not the panel |
+| `settings.hotkey.previewAllAgents` | string | `"ctrl+v"` | Panel hotkey to tile screen-only tmux captures of every AI agent. Escape closes the capture, not the panel |
 | `settings.displayNumber` | integer | `1` | Display number where the panel appears (1-based) |
 | `settings.listFontSize` | float | `nil` (≈13pt) | Font size (pt) for the candidate list. Uses system default if omitted |
 | `settings.panelWidth` | integer | `500` | 検索パネルの幅（px） |

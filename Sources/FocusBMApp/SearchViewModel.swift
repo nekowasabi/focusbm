@@ -14,7 +14,11 @@ class SearchViewModel: ObservableObject {
     @Published var bookmarks: [Bookmark] = []
     @Published var searchItems: [SearchItem] = []
     @Published var selectedIndex: Int = 0
+    @Published var hoveredIndex: Int? = nil
+    @Published var screenPreview: AgentScreenPreviewState? = nil
     @Published var isActive: Bool = false
+    /// Live tmux visible-pane capture. Tests replace this to avoid calling tmux.
+    var paneScreenCaptureProvider: (String) -> String? = { TmuxProvider.capturePaneContent(paneId: $0, historyLines: nil) }
 
     private static let AGENT_STATUS_REFRESH_INTERVAL_SEC: TimeInterval = 3
     private var agentStatusTimer: DispatchSourceTimer?
@@ -306,6 +310,8 @@ class SearchViewModel: ObservableObject {
     ///      updateItems 経由の自動実行予約が残留/再発火し得るため。
     func deactivatePanel() {
         isActive = false
+        hoveredIndex = nil
+        _ = dismissScreenPreview()
         stopAgentStatusMonitoring()
         cancelPendingAutoExecute()
     }
@@ -607,6 +613,73 @@ class SearchViewModel: ObservableObject {
 
     var openSessionPullRequestHotkey: String {
         appSettings?.hotkey.openSessionPullRequest ?? DEFAULT_OPEN_PR_HOTKEY
+    }
+
+    var previewHoveredAgentHotkey: String {
+        appSettings?.hotkey.previewHoveredAgent ?? DEFAULT_PREVIEW_HOVERED_HOTKEY
+    }
+
+    var previewAllAgentsHotkey: String {
+        appSettings?.hotkey.previewAllAgents ?? DEFAULT_PREVIEW_ALL_HOTKEY
+    }
+
+    func previewTargetItem() -> SearchItem? {
+        if let hovered = hoveredIndex,
+           hovered >= 0,
+           hovered < mainListAssignments.count {
+            let item = mainListAssignments[hovered].item
+            if item.isAIAgent { return item }
+        }
+        if let item = selectedItem(), item.isAIAgent { return item }
+        return nil
+    }
+
+    @discardableResult
+    func dismissScreenPreview() -> Bool {
+        guard screenPreview != nil else { return false }
+        screenPreview = nil
+        return true
+    }
+
+    @discardableResult
+    func showHoveredAgentPreview() -> Bool {
+        guard let item = previewTargetItem(), let capture = captureScreen(for: item) else { return false }
+        screenPreview = .single(capture)
+        return true
+    }
+
+    @discardableResult
+    func showAllAgentPreviews() -> Bool {
+        let captures = searchItems.compactMap { item -> AgentScreenCapture? in
+            guard item.isAIAgent else { return nil }
+            return captureScreen(for: item)
+        }
+        guard !captures.isEmpty else { return false }
+        screenPreview = captures.count == 1 ? .single(captures[0]) : .tiled(captures)
+        return true
+    }
+
+    private func captureScreen(for item: SearchItem) -> AgentScreenCapture? {
+        switch item {
+        case .tmuxPane(let pane):
+            let text = paneScreenCaptureProvider(pane.paneId)
+                ?? pane.statusContent
+                ?? ""
+            let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            return AgentScreenCapture(
+                id: pane.paneId,
+                title: pane.displayNameWithoutEmoji,
+                text: body.isEmpty ? "キャプチャできませんでした" : text
+            )
+        case .aiProcess(let process):
+            return AgentScreenCapture(
+                id: "aiprocess-\(process.pid)",
+                title: process.title,
+                text: "tmux ペインがないため画面キャプチャできません"
+            )
+        default:
+            return nil
+        }
     }
 
     func canResolveSessionPullRequest(for item: SearchItem) -> Bool {

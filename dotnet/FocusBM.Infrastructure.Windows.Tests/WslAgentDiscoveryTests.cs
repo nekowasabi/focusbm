@@ -36,6 +36,71 @@ public sealed class WslAgentDiscoveryTests
     }
 
     [Fact]
+    public void Parse_AttachesCachedPaneCaptureWithoutLiveWsl()
+    {
+        const string output = """
+            @PANES
+            dash	5	%52	cursor-agent	Preview On Hover	/home/takets/repos/focusbm-win	cursor-agent
+            @CAPTURES
+            <<PANE %52>>
+            ❯ 1. continue
+              2. something else
+            <<END>>
+            @CLIENTS
+            dash	WezTerm
+            @PROCESSES
+            42	1	/home/takets/repos/focusbm-win	%52	WezTerm	cursor-agent --yolo
+            @STATUS	1	1	1
+            
+            """;
+
+        var snapshot = WslAgentDiscoveryService.Parse(output);
+
+        var pane = Assert.Single(snapshot.Panes);
+        Assert.Equal("%52", pane.PaneId);
+        Assert.Contains("❯ 1. continue", pane.CaptureText);
+        var bookmark = AgentSearchItems.CreateTmuxBookmark(pane, snapshot.Processes[0]);
+        var state = Assert.IsType<WslProcessState>(bookmark.State);
+        Assert.Contains("❯ 1. continue", state.ScreenCapture);
+    }
+
+    [Fact]
+    public void Parse_KeepsLaterPaneCaptureWhenEarlierCaptureContainsAtMention()
+    {
+        const string output = """
+            @PANES
+            dash	3	%2	cursor-agent	Preview On Hover	/tmp/cursor	cursor-agent
+            dash	8	%53	node	Respond to hello	/tmp/codex	node
+            @CAPTURES
+            <<PANE %2>>
+            @codebase
+            cursor screen
+            <<END>>
+            <<PANE %53>>
+            › hello from codex
+            <<END>>
+            @CLIENTS
+            dash	WezTerm
+            @PROCESSES
+            1	1	/tmp/cursor	%2	WezTerm	cursor-agent --yolo
+            2	1	/tmp/codex	%53	WezTerm	node /opt/bin/codex --yolo
+            @STATUS	1	1	1
+            
+            """;
+
+        var snapshot = WslAgentDiscoveryService.Parse(output);
+
+        Assert.True(snapshot.ProcessDiscoverySucceeded);
+        var codex = Assert.Single(snapshot.Panes, pane => pane.PaneId == "%53");
+        Assert.Contains("hello from codex", codex.CaptureText);
+        var cursor = Assert.Single(snapshot.Panes, pane => pane.PaneId == "%2");
+        Assert.Contains("@codebase", cursor.CaptureText);
+        var bookmark = AgentSearchItems.CreateTmuxBookmark(codex, snapshot.Processes.Single(process => process.Pid == 2));
+        var state = Assert.IsType<WslProcessState>(bookmark.State);
+        Assert.Contains("hello from codex", state.ScreenCapture);
+    }
+
+    [Fact]
     public void Parse_MissingStatusReturnsEmpty()
     {
         var snapshot = WslAgentDiscoveryService.Parse("@PANES\ndash\t1\t%0\n@PROCESSES\n20 1 codex\n");

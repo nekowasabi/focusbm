@@ -70,6 +70,7 @@ class SearchPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 
     override func cancelOperation(_ sender: Any?) {
+        if viewModel.dismissScreenPreview() { return }
         close()
     }
 
@@ -214,6 +215,22 @@ class SearchPanel: NSPanel {
             if Self.matchesSessionPullRequestHotkey(
                 keyCode: event.keyCode,
                 flags: event.modifierFlags,
+                hotkey: self.viewModel.previewHoveredAgentHotkey
+            ), self.viewModel.showHoveredAgentPreview() {
+                return nil
+            }
+
+            if Self.matchesSessionPullRequestHotkey(
+                keyCode: event.keyCode,
+                flags: event.modifierFlags,
+                hotkey: self.viewModel.previewAllAgentsHotkey
+            ), self.viewModel.showAllAgentPreviews() {
+                return nil
+            }
+
+            if Self.matchesSessionPullRequestHotkey(
+                keyCode: event.keyCode,
+                flags: event.modifierFlags,
                 hotkey: self.viewModel.openSessionPullRequestHotkey
             ), let item = self.viewModel.selectedItem(),
                self.viewModel.canResolveSessionPullRequest(for: item) {
@@ -274,6 +291,7 @@ class SearchPanel: NSPanel {
                 self.viewModel.moveRight()
                 return nil
             case 53: // Escape
+                if self.viewModel.dismissScreenPreview() { return nil }
                 self.close()
                 return nil
             default:

@@ -18,6 +18,7 @@
     <local:ScaledListFontConverter x:Key="ScaledListFontConverter" />
     <BooleanToVisibilityConverter x:Key="BoolToVis" />
   </Window.Resources>
+  <Grid>
   <Border CornerRadius="12" Background="White" Margin="16" MouseLeftButtonDown="Header_OnMouseLeftButtonDown">
     <Border.Effect>
       <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.28" Color="#000000" />
@@ -93,6 +94,7 @@
         </ListBox.ItemsPanel>
         <ListBox.ItemContainerStyle>
           <Style TargetType="ListBoxItem">
+            <EventSetter Event="MouseEnter" Handler="ResultItem_OnMouseEnter"/>
             <Setter Property="Padding" Value="0" />
             <Setter Property="Margin" Value="2" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -227,4 +229,50 @@
       </ListBox>
     </DockPanel>
   </Border>
+  <Border Background="#F2000000"
+          Visibility="{Binding IsPreviewVisible, Converter={StaticResource BoolToVis}}"
+          MouseLeftButtonDown="PreviewOverlay_OnMouseLeftButtonDown">
+    <DockPanel>
+      <TextBlock DockPanel.Dock="Bottom" Text="Esc で閉じる" Foreground="#AAAAAA" FontSize="12"
+                 HorizontalAlignment="Center" Margin="0,8"/>
+      <ItemsControl ItemsSource="{Binding PreviewCaptures}" Margin="12">
+        <ItemsControl.Style>
+          <Style TargetType="ItemsControl">
+            <Setter Property="ItemsPanel">
+              <Setter.Value>
+                <ItemsPanelTemplate>
+                  <UniformGrid Columns="1"/>
+                </ItemsPanelTemplate>
+              </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsTiledPreview}" Value="True">
+                <Setter Property="ItemsPanel">
+                  <Setter.Value>
+                    <ItemsPanelTemplate>
+                      <UniformGrid Columns="2"/>
+                    </ItemsPanelTemplate>
+                  </Setter.Value>
+                </Setter>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </ItemsControl.Style>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <Border Background="#111111" Margin="6" Padding="10" CornerRadius="6">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Foreground="#888888" FontSize="11" Margin="0,0,0,8"
+                           Visibility="{Binding DataContext.IsTiledPreview, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <TextBlock Text="{Binding Text}" FontFamily="Consolas" Foreground="#E6E6E6" TextWrapping="Wrap"/>
+                </ScrollViewer>
+              </DockPanel>
+            </Border>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </DockPanel>
+  </Border>
+  </Grid>
 </Window>

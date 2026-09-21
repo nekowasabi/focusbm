@@ -128,6 +128,21 @@ public class HotkeySettingsRoundTripTests
         Assert.DoesNotContain("hotkeyKey:", yaml);
     }
 
+    [Fact]
+    public void PreviewHotkeys_NestedYaml_AreReadAndSerialized()
+    {
+        var yaml = "settings:\n  hotkey:\n    togglePanel: \"ctrl+alt+space\"\n    previewHoveredAgent: \"ctrl+shift+p\"\n    previewAllAgents: \"ctrl+shift+g\"\nbookmarks: []\n";
+        var store = new BookmarkYamlSerializer().Deserialize(yaml);
+        Assert.Equal("ctrl+shift+p", store.Settings!.PreviewHoveredAgentHotkey);
+        Assert.Equal("ctrl+shift+g", store.Settings.PreviewAllAgentsHotkey);
+
+        var round = new BookmarkYamlSerializer().Serialize(store);
+        Assert.Contains("previewHoveredAgent:", round);
+        Assert.Contains("ctrl+shift+p", round);
+        Assert.Contains("previewAllAgents:", round);
+        Assert.Contains("ctrl+shift+g", round);
+    }
+
     [Fact] public void TogglePanel_NestedYaml_IsRead()
     {
         var yaml = "settings:\n  hotkey:\n    togglePanel: \"ctrl+shift+f8\"\nbookmarks: []\n";

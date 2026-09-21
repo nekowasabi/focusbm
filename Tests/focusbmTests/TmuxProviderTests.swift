@@ -10,6 +10,12 @@ import AppKit
     #expect(pane.isAIAgent == true)
 }
 
+@Test func test_isAIAgent_cursorAgentCommand() {
+    let pane = TmuxPane(paneId: "%52", sessionName: "0", windowIndex: 1,
+                        windowName: "cursor-agent", command: "cursor-agent", title: "Preview On Hover", currentPath: "/tmp")
+    #expect(pane.isAIAgent == true)
+}
+
 @Test func test_isAIAgent_codexCommandWithNonCodexTitle() {
     let pane = TmuxPane(paneId: "%codex", sessionName: "main", windowIndex: 0,
                         windowName: "editor", command: "codex", title: "focusbm", currentPath: "/tmp")

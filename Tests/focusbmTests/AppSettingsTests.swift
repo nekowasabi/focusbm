@@ -8,6 +8,8 @@ import Yams
     let settings = HotkeySettings()
     #expect(settings.togglePanel == "cmd+ctrl+b")
     #expect(settings.forceReloadAgents == "cmd+ctrl+r")
+    #expect(settings.previewHoveredAgent == DEFAULT_PREVIEW_HOVERED_HOTKEY)
+    #expect(settings.previewAllAgents == DEFAULT_PREVIEW_ALL_HOTKEY)
 }
 
 @Test func test_hotkeySettings_openSessionPullRequest_defaultsAndAcceptsCustomValue() {
@@ -110,6 +112,35 @@ import Yams
     let text = try YAMLEncoder().encode(store)
     let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
     #expect(decoded.settings?.hotkey == store.settings?.hotkey)
+}
+
+@Test func test_hotkeySettings_previewKeys_fromYAMLAndLegacyDefault() throws {
+    let configured = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+        previewHoveredAgent: "ctrl+shift+p"
+        previewAllAgents: "ctrl+shift+g"
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: configured)
+    #expect(store.settings?.hotkey.previewHoveredAgent == "ctrl+shift+p")
+    #expect(store.settings?.hotkey.previewAllAgents == "ctrl+shift+g")
+
+    let legacy = try YAMLDecoder().decode(BookmarkStore.self, from: """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+    bookmarks: []
+    """)
+    #expect(legacy.settings?.hotkey.previewHoveredAgent == DEFAULT_PREVIEW_HOVERED_HOTKEY)
+    #expect(legacy.settings?.hotkey.previewAllAgents == DEFAULT_PREVIEW_ALL_HOTKEY)
+}
+
+@Test func test_hotkeySettings_previewKeys_invalidOrReserved_fallsBack() {
+    #expect(HotkeySettings(previewHoveredAgent: "escape").previewHoveredAgent == DEFAULT_PREVIEW_HOVERED_HOTKEY)
+    #expect(HotkeySettings(previewHoveredAgent: "cmd+r").previewHoveredAgent == DEFAULT_PREVIEW_HOVERED_HOTKEY)
+    #expect(HotkeySettings(previewAllAgents: "cmd+1").previewAllAgents == DEFAULT_PREVIEW_ALL_HOTKEY)
 }
 
 @Test func test_appSettings_yamlRoundTrip() throws {

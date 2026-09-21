@@ -189,3 +189,58 @@ public class PullRequestViewModelTests
         Assert.Equal("#42", vm.Results[0].PullRequestLabel);
     }
 }
+
+public class AgentScreenPreviewTests
+{
+    [Fact]
+    public void ShowHoveredPreview_UsesCachedScreenCaptureInstantly()
+    {
+        var bookmark = new Bookmark(
+            "tmux:0:1:%52",
+            "cursor-agent @ WezTerm",
+            "pane",
+            new WslProcessState(42, "cursor-agent", TmuxPaneId: "%52", ScreenCapture: "❯ prompt"));
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { bookmark }));
+        vm.HoveredIndex = 0;
+
+        Assert.True(vm.ShowHoveredPreview());
+        Assert.True(vm.IsPreviewVisible);
+        Assert.Equal("❯ prompt", Assert.Single(vm.PreviewCaptures).Text);
+        Assert.False(vm.IsTiledPreview);
+
+        Assert.True(vm.DismissPreview());
+        Assert.False(vm.IsPreviewVisible);
+        Assert.Empty(vm.PreviewCaptures);
+        Assert.False(vm.DismissPreview());
+    }
+
+    [Fact]
+    public void ShowHoveredPreview_MissingCache_DoesNotThrow()
+    {
+        var bookmark = new Bookmark(
+            "tmux:0:1:%52",
+            "cursor-agent @ WezTerm",
+            "pane",
+            new WslProcessState(42, "cursor-agent", TmuxPaneId: "%52"));
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { bookmark }));
+        vm.HoveredIndex = 0;
+
+        Assert.True(vm.ShowHoveredPreview());
+        Assert.Equal("キャプチャできませんでした", Assert.Single(vm.PreviewCaptures).Text);
+    }
+
+    [Fact]
+    public void ShowAllPreviews_TilesCachedCaptures()
+    {
+        var first = new Bookmark("tmux:a", "claude", "one", new WslProcessState(1, "claude", TmuxPaneId: "%1", ScreenCapture: "pane %1"));
+        var second = new Bookmark("tmux:b", "codex", "two", new WslProcessState(2, "codex", TmuxPaneId: "%2", ScreenCapture: "pane %2"));
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { first, second }));
+
+        Assert.True(vm.ShowAllPreviews());
+        Assert.True(vm.IsTiledPreview);
+        Assert.Equal(new[] { "pane %1", "pane %2" }, vm.PreviewCaptures.Select(capture => capture.Text).ToArray());
+    }
+}

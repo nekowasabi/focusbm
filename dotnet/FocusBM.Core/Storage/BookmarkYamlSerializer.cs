@@ -15,6 +15,8 @@ public sealed class BookmarkYamlSerializer
         sb.AppendLine($"  cmdMapping: {settings.CmdMapping}");
         sb.AppendLine("  hotkey:");
         sb.AppendLine($"    togglePanel: {Q(HotkeyParser.Format(settings.EffectiveHotkey))}");
+        sb.AppendLine($"    previewHoveredAgent: {Q(settings.PreviewHoveredAgentHotkey)}");
+        sb.AppendLine($"    previewAllAgents: {Q(settings.PreviewAllAgentsHotkey)}");
         sb.AppendLine($"  panelWidth: {settings.EffectivePanelWidth.ToString(CultureInfo.InvariantCulture)}");
         sb.AppendLine($"  panelHeight: {settings.EffectivePanelHeight.ToString(CultureInfo.InvariantCulture)}");
         if (settings.ListFontSize is not null) sb.AppendLine($"  listFontSize: {settings.ListFontSize.Value.ToString(CultureInfo.InvariantCulture)}");
@@ -160,6 +162,8 @@ public sealed class BookmarkYamlSerializer
                         "showWslAgents" => settings with { ShowWslAgents = ParseBool(s.Value) },
                         "openSessionPullRequest" => settings with { OpenSessionPullRequestHotkey = Uq(s.Value) },
                         "forceReloadAgents" => settings with { ForceReloadAgentsHotkey = Uq(s.Value) },
+                        "previewHoveredAgent" => settings with { PreviewHoveredAgentHotkey = Uq(s.Value) },
+                        "previewAllAgents" => settings with { PreviewAllAgentsHotkey = Uq(s.Value) },
                         "imeRestoreEnabled" => settings with { ImeRestoreEnabled = ParseBool(s.Value) ?? false },
                         "virtuawinEnabled" => settings with { VirtuaWinEnabled = ParseBool(s.Value) ?? false },
                         "browserCdpEnabled" => settings with { BrowserCdp = (settings.BrowserCdp ?? new BrowserCdpSettings()) with { Enabled = ParseBool(s.Value) ?? false } },

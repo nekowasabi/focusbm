@@ -38,6 +38,8 @@ public sealed record AppSettings(
     WslSettings? Wsl = null,
     string OpenSessionPullRequestHotkey = "ctrl+p",
     string ForceReloadAgentsHotkey = "ctrl+alt+r",
+    string PreviewHoveredAgentHotkey = "ctrl+p",
+    string PreviewAllAgentsHotkey = "ctrl+v",
     double? PanelWidth = null,
     double? PanelHeight = null,
     double? ListFontSize = null,

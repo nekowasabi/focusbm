@@ -161,13 +161,21 @@ public struct HotkeySettings: Codable, Equatable {
     public var forceReloadAgents: String
     /// Panel hotkey for opening the selected session's pull request (default: cmd+p).
     public var openSessionPullRequest: String
+    /// Panel hotkey for the hovered (or selected) AI agent screen capture (default: ctrl+p).
+    public var previewHoveredAgent: String
+    /// Panel hotkey for tiling every AI agent screen capture (default: ctrl+v).
+    public var previewAllAgents: String
 
     public init(togglePanel: String = "cmd+ctrl+b",
                 forceReloadAgents: String = "cmd+ctrl+r",
-                openSessionPullRequest: String = DEFAULT_OPEN_PR_HOTKEY) {
+                openSessionPullRequest: String = DEFAULT_OPEN_PR_HOTKEY,
+                previewHoveredAgent: String = DEFAULT_PREVIEW_HOVERED_HOTKEY,
+                previewAllAgents: String = DEFAULT_PREVIEW_ALL_HOTKEY) {
         self.togglePanel = togglePanel
         self.forceReloadAgents = forceReloadAgents
-        self.openSessionPullRequest = Self.normalizedOpenSessionPullRequestHotkey(openSessionPullRequest)
+        self.openSessionPullRequest = Self.normalizedPanelHotkey(openSessionPullRequest, default: DEFAULT_OPEN_PR_HOTKEY)
+        self.previewHoveredAgent = Self.normalizedPanelHotkey(previewHoveredAgent, default: DEFAULT_PREVIEW_HOVERED_HOTKEY)
+        self.previewAllAgents = Self.normalizedPanelHotkey(previewAllAgents, default: DEFAULT_PREVIEW_ALL_HOTKEY)
     }
 
     // Why: Keep custom decoding instead of synthesized Decodable so legacy YAML
@@ -176,19 +184,29 @@ public struct HotkeySettings: Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         togglePanel = try container.decodeIfPresent(String.self, forKey: .togglePanel) ?? "cmd+ctrl+b"
         forceReloadAgents = try container.decodeIfPresent(String.self, forKey: .forceReloadAgents) ?? "cmd+ctrl+r"
-        let configured = try container.decodeIfPresent(String.self, forKey: .openSessionPullRequest)
+        let configuredPR = try container.decodeIfPresent(String.self, forKey: .openSessionPullRequest)
             ?? DEFAULT_OPEN_PR_HOTKEY
-        openSessionPullRequest = Self.normalizedOpenSessionPullRequestHotkey(configured)
-        if configured != DEFAULT_OPEN_PR_HOTKEY && openSessionPullRequest == DEFAULT_OPEN_PR_HOTKEY {
+        openSessionPullRequest = Self.normalizedPanelHotkey(configuredPR, default: DEFAULT_OPEN_PR_HOTKEY)
+        if configuredPR != DEFAULT_OPEN_PR_HOTKEY && openSessionPullRequest == DEFAULT_OPEN_PR_HOTKEY {
             print("[FocusBM] Invalid openSessionPullRequest; using " + DEFAULT_OPEN_PR_HOTKEY + ".")
         }
+        let configuredHovered = try container.decodeIfPresent(String.self, forKey: .previewHoveredAgent)
+            ?? DEFAULT_PREVIEW_HOVERED_HOTKEY
+        previewHoveredAgent = Self.normalizedPanelHotkey(configuredHovered, default: DEFAULT_PREVIEW_HOVERED_HOTKEY)
+        let configuredAll = try container.decodeIfPresent(String.self, forKey: .previewAllAgents)
+            ?? DEFAULT_PREVIEW_ALL_HOTKEY
+        previewAllAgents = Self.normalizedPanelHotkey(configuredAll, default: DEFAULT_PREVIEW_ALL_HOTKEY)
     }
 
     public static func normalizedOpenSessionPullRequestHotkey(_ value: String) -> String {
+        normalizedPanelHotkey(value, default: DEFAULT_OPEN_PR_HOTKEY)
+    }
+
+    public static func normalizedPanelHotkey(_ value: String, default defaultValue: String) -> String {
         let parsed = HotkeyParser.parse(value)
         guard isSupportedOpenSessionPullRequestHotkey(parsed),
               !isReservedOpenSessionPullRequestHotkey(parsed) else {
-            return DEFAULT_OPEN_PR_HOTKEY
+            return defaultValue
         }
         return value
     }

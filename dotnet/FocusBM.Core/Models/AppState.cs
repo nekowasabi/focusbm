@@ -25,13 +25,16 @@ public sealed record WslProcessState(
     string? TmuxSession = null,
     string? TmuxWindow = null,
     string? WorkingDirectory = null,
-    TmuxAgentStatus? AgentStatus = null) : AppState("wslProcess");
+    TmuxAgentStatus? AgentStatus = null,
+    string? ScreenCapture = null) : AppState("wslProcess");
 
 public sealed record WslNvimState(
     string? WorkingDirectory = null,
     string ExCommand = "") : AppState("wslNvim");
 
 public sealed record UnknownAppState(string UnknownType, IReadOnlyDictionary<string,string> Fields) : AppState(UnknownType);
+
+public sealed record AgentScreenCapture(string Id, string Title, string Text);
 
 public sealed record BookmarkStore(AppSettings? Settings, IReadOnlyList<Bookmark> Bookmarks)
 {

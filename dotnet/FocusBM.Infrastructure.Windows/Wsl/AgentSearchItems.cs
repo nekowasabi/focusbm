@@ -33,8 +33,19 @@ public static class AgentSearchItems
         {
             var knownPanes = panes.Select(pane => pane.PaneId).ToHashSet(StringComparer.Ordinal);
             var hideMappedTmuxProcesses = showTmuxAgents && tmuxDiscoverySucceeded;
+            var mappedAgentKeys = agentProcesses
+                .Where(process => process.TmuxPaneId is not null && knownPanes.Contains(process.TmuxPaneId))
+                .Select(process => (process.AgentCommand, process.CurrentDirectory ?? ""))
+                .ToHashSet();
             bookmarks.AddRange(agentProcesses
-                .Where(process => !hideMappedTmuxProcesses || process.TmuxPaneId is null || !knownPanes.Contains(process.TmuxPaneId))
+                .Where(process =>
+                {
+                    if (!hideMappedTmuxProcesses) return true;
+                    if (process.TmuxPaneId is not null && knownPanes.Contains(process.TmuxPaneId)) return false;
+                    // Why: Codex is node wrapper + rust child; the wrapper has no TMUX_PANE and would show a no-tmux row.
+                    return process.TmuxPaneId is not null
+                        || !mappedAgentKeys.Contains((process.AgentCommand, process.CurrentDirectory ?? ""));
+                })
                 .Select(CreateWslBookmark));
         }
         return bookmarks;
@@ -78,7 +89,8 @@ public static class AgentSearchItems
                 pane.Session,
                 pane.Window,
                 directory,
-                pane.AgentStatus),
+                pane.AgentStatus,
+                pane.CaptureText),
             LowPriority: true);
     }
 
