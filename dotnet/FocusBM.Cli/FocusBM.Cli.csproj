@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+      <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FocusBM.Core\FocusBM.Core.csproj" />
+    <ProjectReference Include="..\FocusBM.Infrastructure.Windows\FocusBM.Infrastructure.Windows.csproj" />
+  </ItemGroup>
+</Project>

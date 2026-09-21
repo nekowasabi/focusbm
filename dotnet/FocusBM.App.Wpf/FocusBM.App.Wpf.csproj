@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+      <ApplicationManifest>app.manifest</ApplicationManifest>
+      <!-- Why: Native WPF libraries must self-extract in a single-file publish; otherwise window creation throws DllNotFoundException. -->
+      <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FocusBM.Core\FocusBM.Core.csproj" />
+    <ProjectReference Include="..\FocusBM.Infrastructure.Windows\FocusBM.Infrastructure.Windows.csproj" />
+  </ItemGroup>
+</Project>
