@@ -92,7 +92,7 @@ struct AgentScreenPreviewOverlay: View {
     }
 
     private func captureView(_ capture: AgentScreenCapture, showTitle: Bool) -> some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .trailing) {
             VStack(alignment: .leading, spacing: 6) {
                 if showTitle {
                     Text(capture.title)
@@ -123,7 +123,6 @@ struct AgentScreenPreviewOverlay: View {
                     .foregroundColor(Color(red: 1, green: 0.1, blue: 0.1))
                     .shadow(color: .black, radius: 4)
                     .padding(.trailing, 8)
-                    .padding(.bottom, 4)
                     .allowsHitTesting(false)
             }
         }

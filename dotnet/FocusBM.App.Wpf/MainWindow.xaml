@@ -284,10 +284,10 @@
                     </ScrollViewer>
                   </DockPanel>
                   <TextBlock Text="{Binding Index}"
-                             HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                             HorizontalAlignment="Right" VerticalAlignment="Center"
                              FontFamily="{Binding DataContext.PreviewFontFamily, RelativeSource={RelativeSource AncestorType=Window}}"
                              FontSize="72" FontWeight="Bold" Foreground="#FF1A1A"
-                             Margin="0,0,8,4" IsHitTestVisible="False"
+                             Margin="0,0,8,0" IsHitTestVisible="False"
                              Visibility="{Binding DataContext.IsTiledPreview, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
                     <TextBlock.Effect>
                       <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="0" Opacity="0.95"/>
