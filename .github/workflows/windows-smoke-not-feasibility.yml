@@ -1,0 +1,30 @@
+name: windows-smoke-not-feasibility
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+jobs:
+  tier-a-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet test dotnet/FocusBM.Core.Tests/FocusBM.Core.Tests.csproj
+  tier-ci-smoke-not-feasibility:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - name: smoke-not-feasibility build and tests
+        run: dotnet test dotnet/FocusBM.sln
+      - name: release evidence lint (ci-smoke mode)
+        shell: pwsh
+        run: ./scripts/release-evidence-lint.ps1
+      - name: strict release evidence lint
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: ./scripts/release-evidence-lint.ps1
+        env:
+          RELEASE_GATE: '1'
