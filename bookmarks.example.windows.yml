@@ -19,6 +19,13 @@ settings:
   panelWidth: 800
   bookmarkListColumns: 2
 
+  # プレビューは対象モニタの最大座標を基準。未指定ならモニタ最大。Ctrl+P は中央寄せ
+  previewWidth: 1200
+  previewHeight: 800
+  previewFontSize: 16
+  fontName: "Fira Code"
+  previewFontName: "JetBrains Mono"
+
   # C# シリアライザは PR / エージェント再読込キーを settings 直下に書く
   openSessionPullRequest: "ctrl+p"
   forceReloadAgents: "ctrl+alt+r"

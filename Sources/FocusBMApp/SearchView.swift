@@ -139,15 +139,34 @@ struct SearchView: View {
             }
         }
         if let preview = viewModel.screenPreview {
-            AgentScreenPreviewOverlay(state: preview) {
-                _ = viewModel.dismissScreenPreview()
+            GeometryReader { geo in
+                let card = PreviewLayout.sizeOnMonitor(
+                    monitorWidth: geo.size.width,
+                    monitorHeight: geo.size.height,
+                    previewWidth: viewModel.previewWidth,
+                    previewHeight: viewModel.previewHeight,
+                    fillMonitor: preview.isTiled
+                )
+                AgentScreenPreviewOverlay(
+                    state: preview,
+                    cardSize: CGSize(width: card.width, height: card.height),
+                    fontSize: viewModel.previewFontSize,
+                    fontName: viewModel.previewFontName ?? viewModel.fontName
+                ) {
+                    _ = viewModel.dismissScreenPreview()
+                    panel?.applyPreviewWindowLayout(visible: false)
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         }
         .onChange(of: viewModel.isActive) { active in
             if active {
                 isSearchFieldFocused = true
             }
+        }
+        .onChange(of: viewModel.screenPreview != nil) { showing in
+            panel?.applyPreviewWindowLayout(visible: showing)
         }
     }
 }

@@ -24,7 +24,32 @@ import Testing
     #expect(viewModel.screenPreview == .single(AgentScreenCapture(
         id: "%52",
         title: pane.displayNameWithoutEmoji,
-        text: "❯ 1. continue\n  2. something else"
+        text: "❯ 1. continue\n  2. something else",
+        index: 1
+    )))
+}
+
+@Test func agentScreenPreview_dropsBlankPaddingBelowPrompt() {
+    let viewModel = SearchViewModel()
+    viewModel.paneScreenCaptureProvider = { _ in "❯ prompt\n\n\n          \n" }
+    let pane = TmuxPane(
+        paneId: "%2",
+        sessionName: "0",
+        windowIndex: 3,
+        windowName: "claude",
+        command: "claude",
+        title: "Claude Code",
+        currentPath: "/tmp"
+    )
+    viewModel.searchItems = [.tmuxPane(pane)]
+    viewModel.hoveredIndex = 0
+
+    #expect(viewModel.showHoveredAgentPreview())
+    #expect(viewModel.screenPreview == .single(AgentScreenCapture(
+        id: "%2",
+        title: pane.displayNameWithoutEmoji,
+        text: "❯ prompt",
+        index: 1
     )))
 }
 
@@ -70,6 +95,14 @@ import Testing
     }
     #expect(captures.map(\.id) == ["%1", "%2"])
     #expect(captures.map(\.text) == ["pane %1", "pane %2"])
+    #expect(captures.map(\.index) == [1, 2])
+    #expect(captures.map(\.numberedTitle)[0].hasPrefix("1  "))
+    if case .tmuxPane(let pane) = viewModel.previewItem(forDigit: 2) {
+        #expect(pane.paneId == "%2")
+    } else {
+        Issue.record("digit 2 should focus the second tiled agent")
+    }
+    #expect(viewModel.previewItem(forDigit: 3) == nil)
 }
 
 @Test func searchPanel_escapeDismissesPreviewFirst() {

@@ -148,6 +148,10 @@ public struct TmuxPane {
     /// Human-readable reason why isAIAgent returned its value (for debug logging)
     var aiAgentReason: String {
         let t = title.lowercased()
+        if let resolved = resolvedNodeCommand,
+           ProcessProvider.aiAgentCommands.contains(resolved) {
+            return "resolved(\(resolved))"
+        }
         if command == "claude" || command == "aider" || command == "gemini" ||
            command == "copilot" || command == "codex" || command == "agent" || command == "hermes" ||
            command == "opencode" || command == "pi" || command == "devin" ||
@@ -758,13 +762,13 @@ public struct TmuxProvider {
             clientMapGroup.leave()
         }
 
-        // Why: pane_current_command が "node"/"deno"/"bun" の場合、
-        //      pane_pid の子プロセスからAIツール名を解決する
+        // Why: pane_current_command がホスト名（node / jev-routing / python 等）のとき、
+        //      pane_pid の子孫 cmdline から AI ツール名を解決する。
         for i in panes.indices {
-            if panes[i].command == "node" || panes[i].command == "deno" || panes[i].command == "bun" {
-                if let panePid = panes[i].panePid {
-                    panes[i].resolvedNodeCommand = resolveNodeAgentCommand(panePid: panePid, snapshot: snapshot)
-                }
+            if panes[i].isShellCommandPublic { continue }
+            if ProcessProvider.aiAgentCommands.contains(panes[i].command) { continue }
+            if let panePid = panes[i].panePid {
+                panes[i].resolvedNodeCommand = resolveNodeAgentCommand(panePid: panePid, snapshot: snapshot)
             }
         }
 
@@ -829,9 +833,9 @@ public struct TmuxProvider {
         return aiPanes
     }
 
-    /// Capture tmux pane text. `historyLines` of 30 is used for status detection;
-    /// `nil` captures the visible pane only (the live screen).
-    public static func capturePaneContent(paneId: String, historyLines: Int? = 30) -> String? {
+    /// Capture tmux pane text. Default is the visible pane (prompt at the bottom).
+    /// Pass `historyLines` only when status detection needs scrollback.
+    public static func capturePaneContent(paneId: String, historyLines: Int? = nil) -> String? {
         var args = ["capture-pane", "-p", "-t", paneId]
         if let historyLines {
             args.append(contentsOf: ["-S", "-\(historyLines)"])

@@ -121,4 +121,26 @@ public sealed class AgentSearchItemsTests
         Assert.Equal("tmux:dash:8:%53", shown.Id);
         Assert.StartsWith("codex @", shown.AppName, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Build_KeepsCaptureForJevRoutingHostedCodexPane()
+    {
+        var panes = new[]
+        {
+            new TmuxPaneInfo("dash", "2", "%1", CurrentCommand: "jev-routing", Title: "Respond to hello | jev-routing", CurrentDirectory: "/tmp/jev", WindowName: "jev-routing", CaptureText: "OpenAI Codex (v0.156.0)")
+        };
+        var processes = new[]
+        {
+            new WslProcessInfo(20, 1, "node /opt/bin/codex --yolo", "/tmp/jev", "%1", "WezTerm"),
+            new WslProcessInfo(21, 20, "/opt/vendor/bin/codex --yolo", "/tmp/jev", "%1", "WezTerm")
+        };
+
+        var items = AgentSearchItems.Build(panes, processes, showTmuxAgents: true, showWslAgents: true, tmuxDiscoverySucceeded: true);
+
+        var shown = Assert.Single(items);
+        Assert.Equal("tmux:dash:2:%1", shown.Id);
+        var state = Assert.IsType<WslProcessState>(shown.State);
+        Assert.Equal("%1", state.TmuxPaneId);
+        Assert.Contains("OpenAI Codex", state.ScreenCapture);
+    }
 }

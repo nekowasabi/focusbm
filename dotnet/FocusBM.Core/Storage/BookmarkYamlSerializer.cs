@@ -21,6 +21,10 @@ public sealed class BookmarkYamlSerializer
         sb.AppendLine($"  panelHeight: {settings.EffectivePanelHeight.ToString(CultureInfo.InvariantCulture)}");
         if (settings.ListFontSize is not null) sb.AppendLine($"  listFontSize: {settings.ListFontSize.Value.ToString(CultureInfo.InvariantCulture)}");
         if (!string.IsNullOrWhiteSpace(settings.FontName)) sb.AppendLine($"  fontName: {Q(settings.FontName)}");
+        if (settings.PreviewWidth is not null) sb.AppendLine($"  previewWidth: {settings.PreviewWidth.Value.ToString(CultureInfo.InvariantCulture)}");
+        if (settings.PreviewHeight is not null) sb.AppendLine($"  previewHeight: {settings.PreviewHeight.Value.ToString(CultureInfo.InvariantCulture)}");
+        if (settings.PreviewFontSize is not null) sb.AppendLine($"  previewFontSize: {settings.PreviewFontSize.Value.ToString(CultureInfo.InvariantCulture)}");
+        if (!string.IsNullOrWhiteSpace(settings.PreviewFontName)) sb.AppendLine($"  previewFontName: {Q(settings.PreviewFontName)}");
         if (settings.DisplayNumber is not null) sb.AppendLine($"  displayNumber: {settings.DisplayNumber.Value}");
         if (settings.AutoExecuteOnSingleResult is not null) sb.AppendLine($"  autoExecuteOnSingleResult: {settings.AutoExecuteOnSingleResult.Value.ToString().ToLowerInvariant()}");
         if (settings.AutoExecuteDelay is not null) sb.AppendLine($"  autoExecuteDelay: {settings.AutoExecuteDelay.Value.ToString(CultureInfo.InvariantCulture)}");
@@ -153,6 +157,10 @@ public sealed class BookmarkYamlSerializer
                         "panelHeight" => settings with { PanelHeight = double.TryParse(Uq(s.Value), NumberStyles.Float, CultureInfo.InvariantCulture, out var h) ? h : settings.PanelHeight },
                         "listFontSize" => settings with { ListFontSize = double.TryParse(Uq(s.Value), NumberStyles.Float, CultureInfo.InvariantCulture, out var fs) ? fs : settings.ListFontSize },
                         "fontName" => settings with { FontName = Uq(s.Value) },
+                        "previewWidth" => settings with { PreviewWidth = double.TryParse(Uq(s.Value), NumberStyles.Float, CultureInfo.InvariantCulture, out var pw) ? pw : settings.PreviewWidth },
+                        "previewHeight" or "previewHight" => settings with { PreviewHeight = double.TryParse(Uq(s.Value), NumberStyles.Float, CultureInfo.InvariantCulture, out var ph) ? ph : settings.PreviewHeight },
+                        "previewFontSize" => settings with { PreviewFontSize = double.TryParse(Uq(s.Value), NumberStyles.Float, CultureInfo.InvariantCulture, out var pfs) ? pfs : settings.PreviewFontSize },
+                        "previewFontName" => settings with { PreviewFontName = Uq(s.Value) },
                         "displayNumber" => settings with { DisplayNumber = int.TryParse(Uq(s.Value), out var dn) ? dn : settings.DisplayNumber },
                         "autoExecuteOnSingleResult" => settings with { AutoExecuteOnSingleResult = ParseBool(s.Value) },
                         "autoExecuteDelay" => settings with { AutoExecuteDelay = double.TryParse(Uq(s.Value), NumberStyles.Float, CultureInfo.InvariantCulture, out var ad) ? ad : settings.AutoExecuteDelay },

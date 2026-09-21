@@ -44,6 +44,10 @@ public sealed record AppSettings(
     double? PanelHeight = null,
     double? ListFontSize = null,
     string? FontName = null,
+    double? PreviewWidth = null,
+    double? PreviewHeight = null,
+    double? PreviewFontSize = null,
+    string? PreviewFontName = null,
     int? DisplayNumber = null,
     bool? AutoExecuteOnSingleResult = null,
     double? AutoExecuteDelay = null,
@@ -54,6 +58,11 @@ public sealed record AppSettings(
     public double EffectivePanelWidth => PanelWidth is > 0 ? PanelWidth.Value : NormalizedColumns == 2 ? 800 : 500;
     public double EffectivePanelHeight => PanelHeight is > 0 ? PanelHeight.Value : 400;
     public double EffectiveListFontSize => ListFontSize is > 0 ? ListFontSize.Value : 14;
+    public double EffectivePreviewFontSize => PreviewFontSize is > 0 ? PreviewFontSize.Value : 14;
+    public string? EffectivePreviewFontName =>
+        !string.IsNullOrWhiteSpace(PreviewFontName) ? PreviewFontName
+        : !string.IsNullOrWhiteSpace(FontName) ? FontName
+        : null;
     public double EffectiveAutoExecuteDelay => AutoExecuteDelay is > 0 ? AutoExecuteDelay.Value : 0.3;
     public bool EffectiveDirectNumberKeys => DirectNumberKeys ?? true;
     public bool EffectiveShowAIAgentShortcut => ShowAIAgentShortcut ?? true;

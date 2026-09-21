@@ -12,6 +12,8 @@ class SearchPanel: NSPanel {
     //      追加する方式(Strategy D)ではなく一元管理を選択した理由:
     //      将来のclose path追加でも自動的にフォーカス復元が保証されるため
     private var previousApp: NSRunningApplication?
+    private var restoredPreviewFrame: NSRect?
+    private var restoredPreviewBackground: CGColor?
 
     init(
         viewModel: SearchViewModel,
@@ -70,7 +72,10 @@ class SearchPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 
     override func cancelOperation(_ sender: Any?) {
-        if viewModel.dismissScreenPreview() { return }
+        if viewModel.dismissScreenPreview() {
+            applyPreviewWindowLayout(visible: false)
+            return
+        }
         close()
     }
 
@@ -84,6 +89,7 @@ class SearchPanel: NSPanel {
     }
 
     override func close() {
+        applyPreviewWindowLayout(visible: false)
         let appToRestore = previousApp
         previousApp = nil  // 先にnilクリア（再入防止）
         viewModel.deactivatePanel()
@@ -207,6 +213,38 @@ class SearchPanel: NSPanel {
         }
     }
 
+    /// Expand this panel to the target monitor's maximum frame while a preview is open,
+    /// then restore the search-panel size. Centering of the single-process card happens
+    /// in SwiftUI against that monitor coordinate space.
+    func applyPreviewWindowLayout(visible: Bool) {
+        if visible {
+            if restoredPreviewFrame == nil {
+                restoredPreviewFrame = frame
+                restoredPreviewBackground = contentView?.layer?.backgroundColor
+            }
+            let screen = resolvedPreviewScreen()
+            setFrame(screen.frame, display: true)
+            contentView?.layer?.backgroundColor = NSColor.clear.cgColor
+            hasShadow = false
+        } else if let restored = restoredPreviewFrame {
+            setFrame(restored, display: true)
+            contentView?.layer?.backgroundColor = restoredPreviewBackground
+                ?? NSColor.windowBackgroundColor.cgColor
+            restoredPreviewFrame = nil
+            restoredPreviewBackground = nil
+            hasShadow = true
+        }
+    }
+
+    private func resolvedPreviewScreen() -> NSScreen {
+        let screens = NSScreen.screens
+        if let number = viewModel.appSettings?.displayNumber,
+           number >= 1, number <= screens.count {
+            return screens[number - 1]
+        }
+        return screen ?? NSScreen.main ?? screens[0]
+    }
+
     private func startLocalKeyMonitor() {
         guard localKeyMonitor == nil else { return }
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
@@ -217,6 +255,7 @@ class SearchPanel: NSPanel {
                 flags: event.modifierFlags,
                 hotkey: self.viewModel.previewHoveredAgentHotkey
             ), self.viewModel.showHoveredAgentPreview() {
+                self.applyPreviewWindowLayout(visible: true)
                 return nil
             }
 
@@ -225,6 +264,7 @@ class SearchPanel: NSPanel {
                 flags: event.modifierFlags,
                 hotkey: self.viewModel.previewAllAgentsHotkey
             ), self.viewModel.showAllAgentPreviews() {
+                self.applyPreviewWindowLayout(visible: true)
                 return nil
             }
 
@@ -252,6 +292,10 @@ class SearchPanel: NSPanel {
                 let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
                 let direct = self.viewModel.appSettings?.directNumberKeys ?? true
                 let isBareOrCmd = direct ? (flags.isEmpty || flags == .command) : flags == .command
+                if isBareOrCmd, let item = self.viewModel.previewItem(forDigit: number) {
+                    self.executeItem(item)
+                    return nil
+                }
                 if isBareOrCmd, self.viewModel.query.isEmpty {
                     if self.viewModel.selectByDigit(number) {
                         if let item = self.viewModel.selectedItem() {
@@ -291,7 +335,10 @@ class SearchPanel: NSPanel {
                 self.viewModel.moveRight()
                 return nil
             case 53: // Escape
-                if self.viewModel.dismissScreenPreview() { return nil }
+                if self.viewModel.dismissScreenPreview() {
+                    self.applyPreviewWindowLayout(visible: false)
+                    return nil
+                }
                 self.close()
                 return nil
             default:

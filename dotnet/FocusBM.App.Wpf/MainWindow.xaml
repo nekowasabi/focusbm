@@ -232,47 +232,74 @@
   <Border Background="#F2000000"
           Visibility="{Binding IsPreviewVisible, Converter={StaticResource BoolToVis}}"
           MouseLeftButtonDown="PreviewOverlay_OnMouseLeftButtonDown">
-    <DockPanel>
-      <TextBlock DockPanel.Dock="Bottom" Text="Esc で閉じる" Foreground="#AAAAAA" FontSize="12"
-                 HorizontalAlignment="Center" Margin="0,8"/>
-      <ItemsControl ItemsSource="{Binding PreviewCaptures}" Margin="12">
-        <ItemsControl.Style>
-          <Style TargetType="ItemsControl">
-            <Setter Property="ItemsPanel">
-              <Setter.Value>
-                <ItemsPanelTemplate>
-                  <UniformGrid Columns="1"/>
-                </ItemsPanelTemplate>
-              </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-              <DataTrigger Binding="{Binding IsTiledPreview}" Value="True">
-                <Setter Property="ItemsPanel">
-                  <Setter.Value>
-                    <ItemsPanelTemplate>
-                      <UniformGrid Columns="2"/>
-                    </ItemsPanelTemplate>
-                  </Setter.Value>
-                </Setter>
-              </DataTrigger>
-            </Style.Triggers>
-          </Style>
-        </ItemsControl.Style>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate>
-            <Border Background="#111111" Margin="6" Padding="10" CornerRadius="6">
-              <DockPanel>
-                <TextBlock DockPanel.Dock="Top" Text="{Binding Title}" Foreground="#888888" FontSize="11" Margin="0,0,0,8"
-                           Visibility="{Binding DataContext.IsTiledPreview, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                  <TextBlock Text="{Binding Text}" FontFamily="Consolas" Foreground="#E6E6E6" TextWrapping="Wrap"/>
-                </ScrollViewer>
-              </DockPanel>
-            </Border>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-    </DockPanel>
+    <Border x:Name="PreviewCard"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Background="#111111"
+            CornerRadius="8">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Bottom" Text="Esc で閉じる" Foreground="#AAAAAA" FontSize="12"
+                   HorizontalAlignment="Center" Margin="0,8"/>
+        <ItemsControl ItemsSource="{Binding PreviewCaptures}" Margin="12">
+          <ItemsControl.Style>
+            <Style TargetType="ItemsControl">
+              <Setter Property="ItemsPanel">
+                <Setter.Value>
+                  <ItemsPanelTemplate>
+                    <UniformGrid Columns="1"/>
+                  </ItemsPanelTemplate>
+                </Setter.Value>
+              </Setter>
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsTiledPreview}" Value="True">
+                  <Setter Property="ItemsPanel">
+                    <Setter.Value>
+                      <ItemsPanelTemplate>
+                        <UniformGrid Columns="2"/>
+                      </ItemsPanelTemplate>
+                    </Setter.Value>
+                  </Setter>
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </ItemsControl.Style>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Border Background="#111111" BorderBrush="#808080" BorderThickness="0,1,0,0"
+                      Padding="12,10" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <Grid>
+                  <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding Title}"
+                               FontFamily="{Binding DataContext.PreviewFontFamily, RelativeSource={RelativeSource AncestorType=Window}}"
+                               FontSize="{Binding DataContext.PreviewFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Foreground="#EEEEEE" Margin="0,0,0,6"
+                               Visibility="{Binding DataContext.IsTiledPreview, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
+                    <Border DockPanel.Dock="Top" Height="2" Background="#808080" Margin="0,0,0,8"
+                            Visibility="{Binding DataContext.IsTiledPreview, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Loaded="PreviewScroll_OnLoaded">
+                      <TextBlock Text="{Binding Text}"
+                                 FontFamily="{Binding DataContext.PreviewFontFamily, RelativeSource={RelativeSource AncestorType=Window}}"
+                                 FontSize="{Binding DataContext.PreviewFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                 Foreground="#E6E6E6" TextWrapping="Wrap"/>
+                    </ScrollViewer>
+                  </DockPanel>
+                  <TextBlock Text="{Binding Index}"
+                             HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                             FontFamily="{Binding DataContext.PreviewFontFamily, RelativeSource={RelativeSource AncestorType=Window}}"
+                             FontSize="72" FontWeight="Bold" Foreground="#FF1A1A"
+                             Margin="0,0,8,4" IsHitTestVisible="False"
+                             Visibility="{Binding DataContext.IsTiledPreview, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}">
+                    <TextBlock.Effect>
+                      <DropShadowEffect Color="Black" BlurRadius="6" ShadowDepth="0" Opacity="0.95"/>
+                    </TextBlock.Effect>
+                  </TextBlock>
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </DockPanel>
+    </Border>
   </Border>
   </Grid>
 </Window>

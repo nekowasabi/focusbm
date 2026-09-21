@@ -216,6 +216,22 @@ public class AgentScreenPreviewTests
     }
 
     [Fact]
+    public void ShowHoveredPreview_DropsBlankPaddingBelowPrompt()
+    {
+        var bookmark = new Bookmark(
+            "tmux:0:1:%2",
+            "claude @ WezTerm",
+            "pane",
+            new WslProcessState(1, "claude", TmuxPaneId: "%2", ScreenCapture: "❯ prompt\n\n\n          \n"));
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { bookmark }));
+        vm.HoveredIndex = 0;
+
+        Assert.True(vm.ShowHoveredPreview());
+        Assert.Equal("❯ prompt", Assert.Single(vm.PreviewCaptures).Text);
+    }
+
+    [Fact]
     public void ShowHoveredPreview_MissingCache_DoesNotThrow()
     {
         var bookmark = new Bookmark(
@@ -242,5 +258,35 @@ public class AgentScreenPreviewTests
         Assert.True(vm.ShowAllPreviews());
         Assert.True(vm.IsTiledPreview);
         Assert.Equal(new[] { "pane %1", "pane %2" }, vm.PreviewCaptures.Select(capture => capture.Text).ToArray());
+        Assert.Equal(new[] { 1, 2 }, vm.PreviewCaptures.Select(capture => capture.Index).ToArray());
+        Assert.StartsWith("1  ", vm.PreviewCaptures[0].NumberedTitle);
+        Assert.Same(first, vm.BookmarkForPreviewDigit(1));
+        Assert.Same(second, vm.BookmarkForPreviewDigit(2));
+        Assert.Null(vm.BookmarkForPreviewDigit(3));
+    }
+
+    [Fact]
+    public void BookmarkForPreviewDigit_IgnoresShortcutAssignmentWhenPreviewIsOpen()
+    {
+        var first = new Bookmark("tmux:a", "claude", "one", new WslProcessState(1, "claude", TmuxPaneId: "%1", ScreenCapture: "pane %1"));
+        var second = new Bookmark("tmux:b", "codex", "two", new WslProcessState(2, "codex", TmuxPaneId: "%2", ScreenCapture: "pane %2"));
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(new AppSettings(ShowAIAgentShortcut: false), new[] { first, second }));
+        Assert.True(vm.ShowAllPreviews());
+        Assert.False(vm.SelectByDigit(1));
+        Assert.Same(first, vm.BookmarkForPreviewDigit(1));
+    }
+
+    [Fact]
+    public void PreviewFontFamily_UsesPreviewFontThenFallsBackToListFont()
+    {
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(new AppSettings(FontName: "Fira Code"), Array.Empty<Bookmark>()));
+        Assert.Equal("Fira Code", vm.PreviewFontFamily);
+        Assert.Equal(14, vm.PreviewFontSize);
+
+        vm.Load(new BookmarkStore(new AppSettings(FontName: "Fira Code", PreviewFontName: "JetBrains Mono", PreviewFontSize: 18), Array.Empty<Bookmark>()));
+        Assert.Equal("JetBrains Mono", vm.PreviewFontFamily);
+        Assert.Equal(18, vm.PreviewFontSize);
     }
 }

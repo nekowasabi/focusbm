@@ -24,6 +24,14 @@ settings:
   # パネル幅（pixel）。bookmarkListColumns: 2 で未指定の場合 800 が自動適用される
   panelWidth: 800
 
+  # プレビューは対象モニタの最大座標を基準にする。未指定ならモニタ最大。Ctrl+P は中央寄せ
+  previewWidth: 1200
+  previewHeight: 800
+  previewFontSize: 16
+  # 絞り込み画面とプレビューでフォントを分ける。previewFontName 省略時は fontName
+  fontName: "Fira Code"
+  previewFontName: "JetBrains Mono"
+
   # 一覧表示の列数（1: 縦1列 / 2: 横2列）。0, 3, 負数などの不正値は 1 にフォールバック
   bookmarkListColumns: 2
 

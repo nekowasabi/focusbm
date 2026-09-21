@@ -93,6 +93,52 @@ public class CoreModelTests
     [InlineData(9, 2, 0)]
     public void DisplayTarget_OneIsPrimary_InvalidFallsBackToPrimary(int? displayNumber, int count, int expected) =>
         Assert.Equal(expected, DisplayTarget.ResolveIndex(displayNumber, count));
+    [Fact]
+    public void PreviewLayout_OmittedSize_UsesMonitorMaximumAndCenters()
+    {
+        var (width, height) = PreviewLayout.SizeOnMonitor(1920, 1080, null, null);
+        Assert.Equal(1920, width);
+        Assert.Equal(1080, height);
+        var (x, y) = PreviewLayout.CenterOrigin(1920, 1080, width, height);
+        Assert.Equal(0, x);
+        Assert.Equal(0, y);
+    }
+    [Fact]
+    public void PreviewLayout_YamlSize_IsClampedAndCenteredOnMonitor()
+    {
+        var (width, height) = PreviewLayout.SizeOnMonitor(1920, 1080, 800, 600);
+        Assert.Equal(800, width);
+        Assert.Equal(600, height);
+        var (x, y) = PreviewLayout.CenterOrigin(1920, 1080, width, height);
+        Assert.Equal(560, x);
+        Assert.Equal(240, y);
+        var clamped = PreviewLayout.SizeOnMonitor(800, 600, 9999, 9999);
+        Assert.Equal((800d, 600d), clamped);
+    }
+    [Fact]
+    public void PreviewLayout_Tiled_FillsMonitorIgnoringYamlSize()
+    {
+        var size = PreviewLayout.SizeOnMonitor(1920, 1080, 800, 600, fillMonitor: true);
+        Assert.Equal((1920d, 1080d), size);
+        var origin = PreviewLayout.CenterOrigin(1920, 1080, size.Width, size.Height);
+        Assert.Equal((0d, 0d), origin);
+    }
+
+    [Theory]
+    [InlineData("❯ prompt\n\n   \n", "❯ prompt")]
+    [InlineData("line\n", "line")]
+    [InlineData("keep\n\nmiddle\n\n", "keep\n\nmiddle")]
+    [InlineData("\n  \n", "")]
+    public void PreviewLayout_TrimTrailingBlankLines_StopsAtPrompt(string input, string expected) =>
+        Assert.Equal(expected, PreviewLayout.TrimTrailingBlankLines(input));
+    [Fact]
+    public void AppSettings_PreviewFont_FallsBackToListFont()
+    {
+        Assert.Equal(14, new AppSettings().EffectivePreviewFontSize);
+        Assert.Equal(18, new AppSettings(PreviewFontSize: 18).EffectivePreviewFontSize);
+        Assert.Equal("Fira Code", new AppSettings(FontName: "Fira Code").EffectivePreviewFontName);
+        Assert.Equal("JetBrains Mono", new AppSettings(FontName: "Fira Code", PreviewFontName: "JetBrains Mono").EffectivePreviewFontName);
+    }
     [Fact] public void CmdMappingDefault_IsUndecided()
     {
         Assert.Equal(CmdMapping.Undecided, new AppSettings().CmdMapping);

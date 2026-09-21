@@ -353,6 +353,93 @@ import Yams
     #expect(decoded.settings?.fontName == "SF Mono")
 }
 
+// MARK: - preview overlay layout / fonts
+
+@Test func test_previewLayout_omittedSize_usesMonitorMaximumAndCenters() {
+    let size = PreviewLayout.sizeOnMonitor(
+        monitorWidth: 1920, monitorHeight: 1080, previewWidth: nil, previewHeight: nil)
+    #expect(size.width == 1920)
+    #expect(size.height == 1080)
+    let origin = PreviewLayout.centerOrigin(
+        monitorWidth: 1920, monitorHeight: 1080, cardWidth: size.width, cardHeight: size.height)
+    #expect(origin.x == 0)
+    #expect(origin.y == 0)
+}
+
+@Test func test_previewLayout_yamlSize_isClampedAndCentered() {
+    let size = PreviewLayout.sizeOnMonitor(
+        monitorWidth: 1920, monitorHeight: 1080, previewWidth: 800, previewHeight: 600)
+    #expect(size.width == 800)
+    #expect(size.height == 600)
+    let origin = PreviewLayout.centerOrigin(
+        monitorWidth: 1920, monitorHeight: 1080, cardWidth: size.width, cardHeight: size.height)
+    #expect(origin.x == 560)
+    #expect(origin.y == 240)
+    let clamped = PreviewLayout.sizeOnMonitor(
+        monitorWidth: 800, monitorHeight: 600, previewWidth: 9999, previewHeight: 9999)
+    #expect(clamped.width == 800)
+    #expect(clamped.height == 600)
+}
+
+@Test func test_previewLayout_tiled_fillsMonitorIgnoringYamlSize() {
+    let size = PreviewLayout.sizeOnMonitor(
+        monitorWidth: 1920, monitorHeight: 1080, previewWidth: 800, previewHeight: 600, fillMonitor: true)
+    #expect(size.width == 1920)
+    #expect(size.height == 1080)
+    let origin = PreviewLayout.centerOrigin(
+        monitorWidth: 1920, monitorHeight: 1080, cardWidth: size.width, cardHeight: size.height)
+    #expect(origin.x == 0)
+    #expect(origin.y == 0)
+}
+
+@Test func test_appSettings_previewFields_fromYAML() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+      fontName: "Fira Code"
+      previewWidth: 1200
+      previewHeight: 800
+      previewFontSize: 16
+      previewFontName: "JetBrains Mono"
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.previewWidth == 1200)
+    #expect(store.settings?.previewHeight == 800)
+    #expect(store.settings?.previewFontSize == 16)
+    #expect(store.settings?.fontName == "Fira Code")
+    #expect(store.settings?.previewFontName == "JetBrains Mono")
+}
+
+@Test func test_appSettings_previewHight_alias() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+      previewHight: 640
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.previewHeight == 640)
+}
+
+@Test func test_appSettings_previewFields_roundTrip() throws {
+    var store = BookmarkStore()
+    store.settings = AppSettings(
+        previewWidth: 1100,
+        previewHeight: 700,
+        previewFontSize: 15,
+        previewFontName: "SF Mono"
+    )
+    let text = try YAMLEncoder().encode(store)
+    let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
+    #expect(decoded.settings?.previewWidth == 1100)
+    #expect(decoded.settings?.previewHeight == 700)
+    #expect(decoded.settings?.previewFontSize == 15)
+    #expect(decoded.settings?.previewFontName == "SF Mono")
+}
+
 // MARK: - bookmarkListColumns (process-10)
 // Why: AppSettings.bookmarkListColumns は Int? 型で、1/2 のみ有効。
 //      normalizedColumns(_:) が範囲外を nil 化する仕様を YAML round-trip レベルで検証する。

@@ -307,6 +307,13 @@ settings:
     previewAllAgents: "ctrl+v"
   displayNumber: 1
   listFontSize: 15.0   # 省略時はシステム標準 .body (≈13pt)
+  panelWidth: 600
+  panelHeight: 500
+  fontName: "Fira Code"   # 絞り込み画面のフォント
+  previewWidth: 1200      # 省略時は対象モニタの最大幅
+  previewHeight: 800      # 省略時は対象モニタの最大高さ。Ctrl+P は中央寄せ
+  previewFontSize: 16
+  previewFontName: "JetBrains Mono"  # 省略時は fontName
   directNumberKeys: true  # 数字キー単体でブックマークにフォーカス（false: Cmd+数字のみ）
   showAIAgentShortcut: true # AI エージェント行（aiProcess / tmux ペインの AI）に番号を振る（false で非表示）
 
@@ -323,6 +330,11 @@ bookmarks:
 | `settings.hotkey.previewAllAgents` | 文字列 | `"ctrl+v"` | すべての AI エージェント画面を並べて tmux キャプチャ表示。Esc はキャプチャだけ閉じ、パネルは残す |
 | `settings.displayNumber` | 整数 | `1` | パネルを表示するディスプレイ番号（1始まり） |
 | `settings.listFontSize` | 小数 | `nil`（≈13pt）| 候補リストのフォントサイズ（pt）。省略時はシステム標準サイズ |
+| `settings.fontName` | 文字列 | `nil` | 絞り込み画面（候補リスト）のフォント名 |
+| `settings.previewWidth` | 整数 | `nil`（対象モニタの最大幅） | Ctrl+P 単体カードの幅（px）。全体プレビュー（Ctrl+V）はモニタ全体を使う |
+| `settings.previewHeight` | 整数 | `nil`（対象モニタの最大高さ） | Ctrl+P 単体カードの高さ。全体プレビューはモニタ全面 |
+| `settings.previewFontSize` | 小数 | `14` | プレビュー画面のフォントサイズ（pt） |
+| `settings.previewFontName` | 文字列 | `nil`（`fontName` へフォールバック） | プレビュー画面のフォント名 |
 | `settings.directNumberKeys` | 真偽値 | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |
 | `settings.showAIAgentShortcut` | 真偽値? | `nil`（= `true` 相当） | `true`/未指定: AI エージェント行（`aiProcess` と tmux ペインの AI エージェント）にも ⌘1–⌘9 番号を振る（現行動作）。`false`: AI エージェント行には番号を振らず、ブックマーク側の番号が 1,2,3... と詰まる。数字キーによるジャンプも AI 行には効かなくなる |
 

@@ -29,6 +29,8 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     public bool IsPreviewVisible => PreviewCaptures.Count > 0;
     public bool IsTiledPreview { get; private set; }
     public int PreviewColumnCount => IsTiledPreview ? 2 : 1;
+    public string PreviewFontFamily => Settings.EffectivePreviewFontName ?? "Consolas";
+    public double PreviewFontSize => Settings.EffectivePreviewFontSize;
     public AppSettings Settings { get; private set; } = new();
     public string StatusMessage { get; private set; } = "準備完了";
     public string Query { get => _query; set { _query = value ?? string.Empty; Refresh(); OnChanged(nameof(Query)); OnChanged(nameof(ShowShortcuts)); OnChanged(nameof(ShowShortcutBar)); } }
@@ -42,6 +44,8 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
         RebuildShortcuts();
         Refresh();
         OnChanged(nameof(Settings));
+        OnChanged(nameof(PreviewFontFamily));
+        OnChanged(nameof(PreviewFontSize));
         if (announce) SetStatus($"{_all.Count} 件のブックマークを読み込みました");
     }
 
@@ -258,21 +262,30 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     private void SetPreview(IReadOnlyList<AgentScreenCapture> captures, bool tiled)
     {
         PreviewCaptures.Clear();
-        foreach (var capture in captures) PreviewCaptures.Add(capture);
+        var index = 1;
+        foreach (var capture in captures)
+            PreviewCaptures.Add(capture with { Index = index++ });
         IsTiledPreview = tiled;
         OnChanged(nameof(IsPreviewVisible));
         OnChanged(nameof(IsTiledPreview));
         OnChanged(nameof(PreviewColumnCount));
     }
 
+    public Bookmark? BookmarkForPreviewDigit(int number)
+    {
+        if (number < 1 || number > PreviewCaptures.Count) return null;
+        var id = PreviewCaptures[number - 1].Id;
+        return _all.FirstOrDefault(bookmark => string.Equals(bookmark.Id, id, StringComparison.Ordinal));
+    }
+
     private static AgentScreenCapture? CaptureFromCache(Bookmark bookmark)
     {
         if (!bookmark.IsAIAgent) return null;
-        var cached = bookmark.State switch
+        var cached = PreviewLayout.TrimTrailingBlankLines(bookmark.State switch
         {
             WslProcessState process => process.ScreenCapture,
             _ => null
-        };
+        });
         var paneId = bookmark.State switch
         {
             WslProcessState process => process.TmuxPaneId,

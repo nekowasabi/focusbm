@@ -24,7 +24,7 @@ public sealed class WslTmuxService : ITmuxService, IWslNvimService
         [ -n "$tmux_bin" ] || exit 127
         for socket in /run/user/*/tmux-*/* /tmp/tmux-*/*; do
           if [ -S "$socket" ]; then
-            if "$tmux_bin" -S "$socket" capture-pane -p -t "$1" -S -30 2>/dev/null; then exit 0; fi
+            if "$tmux_bin" -S "$socket" capture-pane -p -t "$1" 2>/dev/null; then exit 0; fi
           fi
         done
         exit 1

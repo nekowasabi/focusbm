@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Diagnostics;
 using FocusBM.Core;
 using Forms = System.Windows.Forms;
@@ -20,6 +21,11 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         viewModel.AutoExecuteRequested += () => Dispatcher.Invoke(() => _ = RestoreAndMaybeHideAsync());
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SearchPanelViewModel.IsPreviewVisible))
+                SyncPreviewChrome();
+        };
         IsVisibleChanged += (_, _) =>
         {
             FocusBmLog.Write("panel", IsVisible ? "shown" : "hidden");
@@ -77,6 +83,7 @@ public partial class MainWindow : Window
     }
 
     private int? _displayNumber;
+    private bool _previewExpanded;
 
     public void Present()
     {
@@ -154,6 +161,78 @@ public partial class MainWindow : Window
         return ordered[DisplayTarget.ResolveIndex(displayNumber, ordered.Length)];
     }
 
+    private void SyncPreviewChrome()
+    {
+        if (ViewModel.IsPreviewVisible)
+            ExpandToMonitorForPreview();
+        else if (_previewExpanded)
+            RestorePanelFromPreview();
+    }
+
+    private void PreviewScroll_OnLoaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ScrollViewer viewer) return;
+        viewer.Dispatcher.BeginInvoke(() => viewer.ScrollToEnd());
+    }
+
+    private void ExpandToMonitorForPreview()
+    {
+        var screen = ResolveScreen(_displayNumber);
+        if (screen is null) return;
+        var bounds = screen.Bounds;
+        var hwnd = new WindowInteropHelper(this).EnsureHandle();
+        SetWindowPos(hwnd, IntPtr.Zero, bounds.Left, bounds.Top, bounds.Width, bounds.Height, SwpNozorder | SwpNoactivate);
+        var (monitorDipW, monitorDipH) = PixelsToDip(bounds.Width, bounds.Height);
+        var (cardW, cardH) = PreviewLayout.SizeOnMonitor(
+            monitorDipW, monitorDipH, ViewModel.Settings.PreviewWidth, ViewModel.Settings.PreviewHeight,
+            fillMonitor: ViewModel.IsTiledPreview);
+        PreviewCard.Width = cardW;
+        PreviewCard.Height = cardH;
+        _previewExpanded = true;
+    }
+
+    private void RestorePanelFromPreview()
+    {
+        ApplyPanelLayout(ViewModel.Settings);
+        var screen = ResolveScreen(_displayNumber);
+        if (screen is null)
+        {
+            _previewExpanded = false;
+            return;
+        }
+        var (pixelW, pixelH) = DipToPixels(Width, Height);
+        var wa = screen.WorkingArea;
+        var x = wa.Left + (wa.Width - pixelW) / 2;
+        var y = wa.Top + (wa.Height - pixelH) / 2;
+        var hwnd = new WindowInteropHelper(this).EnsureHandle();
+        SetWindowPos(hwnd, IntPtr.Zero, x, y, pixelW, pixelH, SwpNozorder | SwpNoactivate);
+        _previewExpanded = false;
+    }
+
+    private (double Width, double Height) PixelsToDip(int pixelsX, int pixelsY)
+    {
+        var (sx, sy) = DeviceScale();
+        return (pixelsX / sx, pixelsY / sy);
+    }
+
+    private (int Width, int Height) DipToPixels(double dipX, double dipY)
+    {
+        var (sx, sy) = DeviceScale();
+        return ((int)Math.Round(dipX * sx), (int)Math.Round(dipY * sy));
+    }
+
+    private (double ScaleX, double ScaleY) DeviceScale()
+    {
+        var source = PresentationSource.FromVisual(this);
+        if (source is null)
+        {
+            var hwnd = new WindowInteropHelper(this).EnsureHandle();
+            source = HwndSource.FromHwnd(hwnd);
+        }
+        var m = source?.CompositionTarget?.TransformToDevice;
+        return (m?.M11 ?? 1.0, m?.M22 ?? 1.0);
+    }
+
     private void FocusResults()
     {
         if (ViewModel.Results.Count == 0) return;
@@ -205,6 +284,7 @@ public partial class MainWindow : Window
             await DismissPanelAsync();
             return;
         }
+        if (await TryActivatePreviewByDigitAsync(e)) return;
         if (TryShowAgentPreview(e)) return;
         if (await TryHandleEmptyQueryLaunchAsync(e)) return;
     }
@@ -354,6 +434,18 @@ public partial class MainWindow : Window
         {
             ViewModel.SetStatus($"プルリクエストを開けません: {ex.Message}");
         }
+        return true;
+    }
+
+    private async Task<bool> TryActivatePreviewByDigitAsync(System.Windows.Input.KeyEventArgs e)
+    {
+        if (!ViewModel.IsPreviewVisible) return false;
+        if (DigitFromKey(e.Key) is not int digit) return false;
+        if (digit < 1 || digit > 9) return false;
+        if (!NumberModifiersOk(e.KeyboardDevice.Modifiers)) return false;
+        e.Handled = true;
+        if (ViewModel.BookmarkForPreviewDigit(digit) is { } bookmark)
+            await RestoreAndMaybeHideAsync(bookmark);
         return true;
     }
 

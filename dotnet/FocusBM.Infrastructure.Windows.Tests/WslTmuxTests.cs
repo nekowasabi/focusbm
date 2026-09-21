@@ -106,6 +106,7 @@ public class WslTmuxTests
         Assert.True(result.Succeeded);
         Assert.Equal(TmuxAgentStatus.Running, Assert.Single(result.Panes).AgentStatus);
         Assert.Contains("capture-pane", runner.Calls[1].Arguments[9]);
+        Assert.DoesNotContain("-S -30", runner.Calls[1].Arguments[9], StringComparison.Ordinal);
     }
 
     [Fact]

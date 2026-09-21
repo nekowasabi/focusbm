@@ -56,6 +56,8 @@ public sealed class WslAgentDiscoveryService : IDisposable
           ps_ok=0
           unset PPID_OF; declare -A PPID_OF=()
           row_pid=(); row_ppid=(); row_cmd=(); row_agent=()
+          row_cwd=(); row_pane=(); row_term=()
+          unset AGENT_PANES; declare -A AGENT_PANES=()
           if psout=$(ps -e -w -o pid=,ppid=,args= 2>/dev/null); then
             ps_ok=1
             while read -r pid ppid command; do
@@ -90,6 +92,22 @@ public sealed class WslAgentDiscoveryService : IDisposable
             done <<< "$psout"
           fi
 
+          if [ "$ps_ok" = 1 ]; then
+            for i in "${!row_pid[@]}"; do
+              cwd=""; pane=""; terminal=""
+              if [ "${row_agent[$i]}" = 1 ]; then
+                cwd=$(cd -P "/proc/${row_pid[$i]}/cwd" 2>/dev/null && printf '%s' "$PWD")
+                probe_environ "${row_pid[$i]}" 1
+                pane=$PROBE_PANE
+                terminal=$PROBE_TERM
+                [ -n "$pane" ] && AGENT_PANES[$pane]=1
+              fi
+              row_cwd[$i]="$cwd"
+              row_pane[$i]="$pane"
+              row_term[$i]="$terminal"
+            done
+          fi
+
           echo "@PANES"
           tmux_bin=""
           panes_ok=0
@@ -114,17 +132,18 @@ public sealed class WslAgentDiscoveryService : IDisposable
 
           echo "@CAPTURES"
           if [ "$panes_ok" = 1 ] && [ -n "$tmux_bin" ] && [ -n "$capture_socket" ]; then
-            printf '%s\n' "$pane_dump" | while IFS="$(printf '\t')" read -r sess win paneid cmd title path wname; do
+            while IFS="$(printf '\t')" read -r sess win paneid cmd title path wname; do
               [ -n "$paneid" ] || continue
               capture=0
               case "$cmd" in
-                claude|aider|gemini|copilot|codex|devin|hermes|opencode|pi|grok|grok-*|cursor-agent|agent|node) capture=1 ;;
+                claude|aider|gemini|copilot|codex|devin|hermes|opencode|pi|grok|grok-*|cursor-agent|agent|node|deno|bun|npx|python|python3|python3.*|uv|uvx|jev-routing) capture=1 ;;
               esac
+              [ -n "${AGENT_PANES[$paneid]+x}" ] && capture=1
               [ "$capture" = 1 ] || continue
               printf '<<PANE %s>>\n' "$paneid"
-              "$tmux_bin" -S "$capture_socket" capture-pane -p -t "$paneid" -S -30 2>/dev/null || true
+              "$tmux_bin" -S "$capture_socket" capture-pane -p -t "$paneid" 2>/dev/null || true
               printf '\n<<END>>\n'
-            done
+            done < <(printf '%s\n' "$pane_dump")
           fi
 
           echo "@CLIENTS"
@@ -145,14 +164,7 @@ public sealed class WslAgentDiscoveryService : IDisposable
           if [ "$ps_ok" = 1 ]; then
             proc_out=""
             for i in "${!row_pid[@]}"; do
-              cwd=""; pane=""; terminal=""
-              if [ "${row_agent[$i]}" = 1 ]; then
-                cwd=$(cd -P "/proc/${row_pid[$i]}/cwd" 2>/dev/null && printf '%s' "$PWD")
-                probe_environ "${row_pid[$i]}" 1
-                pane=$PROBE_PANE
-                terminal=$PROBE_TERM
-              fi
-              proc_out+="${row_pid[$i]}	${row_ppid[$i]}	$cwd	$pane	$terminal	${row_cmd[$i]}
+              proc_out+="${row_pid[$i]}	${row_ppid[$i]}	${row_cwd[$i]}	${row_pane[$i]}	${row_term[$i]}	${row_cmd[$i]}
         "
             done
             printf '%s' "$proc_out"

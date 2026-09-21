@@ -9,6 +9,42 @@ public enum PanelDefaults {
     public static let height: CGFloat = 400
 }
 
+public enum PreviewLayout {
+    public static func sizeOnMonitor(
+        monitorWidth: Double,
+        monitorHeight: Double,
+        previewWidth: Double?,
+        previewHeight: Double?,
+        fillMonitor: Bool = false
+    ) -> (width: Double, height: Double) {
+        if fillMonitor {
+            return (max(0, monitorWidth), max(0, monitorHeight))
+        }
+        let width: Double
+        if let previewWidth, previewWidth > 0 {
+            width = min(previewWidth, monitorWidth)
+        } else {
+            width = monitorWidth
+        }
+        let height: Double
+        if let previewHeight, previewHeight > 0 {
+            height = min(previewHeight, monitorHeight)
+        } else {
+            height = monitorHeight
+        }
+        return (max(0, width), max(0, height))
+    }
+
+    public static func centerOrigin(
+        monitorWidth: Double,
+        monitorHeight: Double,
+        cardWidth: Double,
+        cardHeight: Double
+    ) -> (x: Double, y: Double) {
+        ((monitorWidth - cardWidth) / 2, (monitorHeight - cardHeight) / 2)
+    }
+}
+
 // アプリ固有の状態（Tagged Union で型安全に表現）
 public enum AppState: Codable {
     case browser(urlPattern: String, title: String, tabIndex: Int?, urlPrefix: String?)
@@ -239,6 +275,14 @@ public struct AppSettings: Codable, Equatable {
     public var panelHeight: Double?
     /// フォント名（デフォルト nil → system monospaced）
     public var fontName: String?
+    /// プレビューカード幅（デフォルト nil → 対象モニタの最大幅）
+    public var previewWidth: Double?
+    /// プレビューカード高さ（デフォルト nil → 対象モニタの最大高さ）
+    public var previewHeight: Double?
+    /// プレビューのフォントサイズ（デフォルト nil → 14）
+    public var previewFontSize: Double?
+    /// プレビューのフォント名（デフォルト nil → fontName、それも無ければ system monospaced）
+    public var previewFontName: String?
     /// 優先ターミナル（bundleIdentifier 形式、例: "com.github.wez.wezterm"）
     public var preferredTerminal: String?
     /// 絞り込み結果が1件になったとき自動実行する（デフォルト: false）
@@ -262,6 +306,10 @@ public struct AppSettings: Codable, Equatable {
         panelWidth: Double? = nil,
         panelHeight: Double? = nil,
         fontName: String? = nil,
+        previewWidth: Double? = nil,
+        previewHeight: Double? = nil,
+        previewFontSize: Double? = nil,
+        previewFontName: String? = nil,
         preferredTerminal: String? = nil,
         autoExecuteOnSingleResult: Bool? = nil,
         autoExecuteDelay: Double? = nil,
@@ -276,6 +324,10 @@ public struct AppSettings: Codable, Equatable {
         self.panelWidth = panelWidth
         self.panelHeight = panelHeight
         self.fontName = fontName
+        self.previewWidth = previewWidth
+        self.previewHeight = previewHeight
+        self.previewFontSize = previewFontSize
+        self.previewFontName = previewFontName
         self.preferredTerminal = preferredTerminal
         self.autoExecuteOnSingleResult = autoExecuteOnSingleResult
         self.autoExecuteDelay = autoExecuteDelay
@@ -293,6 +345,14 @@ public struct AppSettings: Codable, Equatable {
         panelWidth = try container.decodeIfPresent(Double.self, forKey: .panelWidth)
         panelHeight = try container.decodeIfPresent(Double.self, forKey: .panelHeight)
         fontName = try container.decodeIfPresent(String.self, forKey: .fontName)
+        previewWidth = try container.decodeIfPresent(Double.self, forKey: .previewWidth)
+        previewHeight = try container.decodeIfPresent(Double.self, forKey: .previewHeight)
+        if previewHeight == nil {
+            let alias = try decoder.container(keyedBy: PreviewHeightAliasKeys.self)
+            previewHeight = try alias.decodeIfPresent(Double.self, forKey: .previewHight)
+        }
+        previewFontSize = try container.decodeIfPresent(Double.self, forKey: .previewFontSize)
+        previewFontName = try container.decodeIfPresent(String.self, forKey: .previewFontName)
         preferredTerminal = try container.decodeIfPresent(String.self, forKey: .preferredTerminal)
         autoExecuteOnSingleResult = try container.decodeIfPresent(Bool.self, forKey: .autoExecuteOnSingleResult)
         autoExecuteDelay = try container.decodeIfPresent(Double.self, forKey: .autoExecuteDelay)
@@ -302,6 +362,10 @@ public struct AppSettings: Codable, Equatable {
         // Why: normalizedColumns で {1,2} 以外を nil に正規化。
         // UIは最大2列グリッドのみサポートするため、それ以外の値は未指定扱いとする。
         bookmarkListColumns = AppSettings.normalizedColumns(rawColumns)
+    }
+
+    private enum PreviewHeightAliasKeys: String, CodingKey {
+        case previewHight
     }
 
     // Why: private static helper に切り出してテスト可能性を確保。

@@ -234,4 +234,35 @@ public class HotkeySettingsRoundTripTests
         Assert.IsType<WslNvimState>(store.Bookmarks[1].State);
         Assert.Equal(2, Assert.IsType<BrowserAppState>(store.Bookmarks[2].State).TabIndex);
     }
+
+    [Fact] public void PreviewOverlayYamlSettings_AreReadAndSerialized()
+    {
+        var yaml = """
+            settings:
+              fontName: "Fira Code"
+              previewWidth: 1200
+              previewHeight: 800
+              previewFontSize: 16
+              previewFontName: "JetBrains Mono"
+            bookmarks: []
+            """;
+        var store = new BookmarkYamlSerializer().Deserialize(yaml);
+        var s = store.Settings!;
+        Assert.Equal(1200, s.PreviewWidth);
+        Assert.Equal(800, s.PreviewHeight);
+        Assert.Equal(16, s.PreviewFontSize);
+        Assert.Equal("Fira Code", s.FontName);
+        Assert.Equal("JetBrains Mono", s.PreviewFontName);
+
+        var alias = new BookmarkYamlSerializer().Deserialize("settings:\n  previewHight: 640\nbookmarks: []\n");
+        Assert.Equal(640, alias.Settings!.PreviewHeight);
+
+        var round = new BookmarkYamlSerializer().Serialize(store);
+        Assert.Contains("previewWidth: 1200", round);
+        Assert.Contains("previewHeight: 800", round);
+        Assert.Contains("previewFontSize: 16", round);
+        Assert.Contains("previewFontName:", round);
+        Assert.Contains("JetBrains Mono", round);
+        Assert.Contains("fontName:", round);
+    }
 }

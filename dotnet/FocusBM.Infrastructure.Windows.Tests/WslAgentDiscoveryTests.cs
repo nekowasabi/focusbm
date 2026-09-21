@@ -1,3 +1,4 @@
+using System.Reflection;
 using FocusBM.Core;
 using FocusBM.Infrastructure.Windows.Wsl;
 using Xunit;
@@ -135,5 +136,45 @@ public sealed class WslAgentDiscoveryTests
         var process = Assert.Single(snapshot.Processes);
         Assert.Equal(42, process.Pid);
         Assert.Equal("%3", process.TmuxPaneId);
+    }
+
+    [Fact]
+    public void Parse_AttachesCaptureForJevRoutingHostedCodexPane()
+    {
+        const string output = """
+            @PANES
+            dash	2	%1	jev-routing	Respond to hello | jev-routing	/tmp/jev	jev-routing
+            @CAPTURES
+            <<PANE %1>>
+            OpenAI Codex (v0.156.0)
+            <<END>>
+            @CLIENTS
+            dash	WezTerm
+            @PROCESSES
+            20	1	/tmp/jev	%1	WezTerm	node /opt/bin/codex --yolo
+            @STATUS	1	1	1
+            
+            """;
+
+        var snapshot = WslAgentDiscoveryService.Parse(output);
+
+        var pane = Assert.Single(snapshot.Panes);
+        Assert.Equal("jev-routing", pane.CurrentCommand);
+        Assert.Contains("OpenAI Codex", pane.CaptureText);
+    }
+
+    [Fact]
+    public void WorkerScript_CapturesAgentMappedPanesIndependentOfPaneCommand()
+    {
+        var script = typeof(WslAgentDiscoveryService)
+            .GetField("WorkerScript", BindingFlags.NonPublic | BindingFlags.Static)
+            ?.GetRawConstantValue() as string;
+
+        Assert.False(string.IsNullOrEmpty(script));
+        Assert.Contains("AGENT_PANES[$pane]", script, StringComparison.Ordinal);
+        Assert.Contains("[ -n \"${AGENT_PANES[$paneid]+x}\" ] && capture=1", script, StringComparison.Ordinal);
+        Assert.Contains("jev-routing", script, StringComparison.Ordinal);
+        Assert.Contains("capture-pane -p -t \"$paneid\"", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("capture-pane -p -t \"$paneid\" -S -30", script, StringComparison.Ordinal);
     }
 }

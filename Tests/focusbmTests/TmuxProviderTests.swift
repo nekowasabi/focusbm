@@ -474,6 +474,22 @@ import AppKit
     #expect(pane.isAIAgent == true)
 }
 
+@Test func test_isAIAgent_codexHostedByJevRouting_withoutResolved_isFalse() {
+    let pane = TmuxPane(paneId: "%1", sessionName: "main", windowIndex: 2,
+                        windowName: "jev-routing", command: "jev-routing",
+                        title: "Respond to hello | jev-routing", currentPath: "/tmp")
+    #expect(pane.isAIAgent == false)
+}
+
+@Test func test_isAIAgent_codexHostedByJevRouting_withResolved() {
+    var pane = TmuxPane(paneId: "%1", sessionName: "main", windowIndex: 2,
+                        windowName: "jev-routing", command: "jev-routing",
+                        title: "Respond to hello | jev-routing", currentPath: "/tmp")
+    pane.resolvedNodeCommand = "codex"
+    #expect(pane.isAIAgent == true)
+    #expect(pane.aiAgentReason == "resolved(codex)")
+}
+
 @Test func test_isAIAgent_codexExited_shellCommand_zsh() {
     let pane = TmuxPane(paneId: "%11", sessionName: "main", windowIndex: 0,
                         windowName: "codex", command: "zsh", title: "codex cli", currentPath: "/tmp")

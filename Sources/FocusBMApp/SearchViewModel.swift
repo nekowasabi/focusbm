@@ -25,6 +25,10 @@ class SearchViewModel: ObservableObject {
     private var agentStatusRefreshGeneration = 0
     @Published var listFontSize: Double? = nil
     @Published var fontName: String? = nil
+    @Published var previewWidth: Double? = nil
+    @Published var previewHeight: Double? = nil
+    @Published var previewFontSize: Double? = nil
+    @Published var previewFontName: String? = nil
 
     // パネル表示時に enumerate() の結果をキャッシュ（キーストロークごとの AX IPC を回避）
     private var floatingWindowCache: [String: [FloatingWindowEntry]] = [:]
@@ -68,6 +72,10 @@ class SearchViewModel: ObservableObject {
         appSettings = store.settings
         listFontSize = store.settings?.listFontSize
         fontName = store.settings?.fontName
+        previewWidth = store.settings?.previewWidth
+        previewHeight = store.settings?.previewHeight
+        previewFontSize = store.settings?.previewFontSize
+        previewFontName = store.settings?.previewFontName
         showTmuxAgents = store.settings?.showTmuxAgents ?? true
         updateItems()
     }
@@ -623,6 +631,14 @@ class SearchViewModel: ObservableObject {
         appSettings?.hotkey.previewAllAgents ?? DEFAULT_PREVIEW_ALL_HOTKEY
     }
 
+    func previewItem(forDigit number: Int) -> SearchItem? {
+        guard let preview = screenPreview else { return nil }
+        let captures = preview.captures
+        guard number >= 1, number <= captures.count else { return nil }
+        let id = captures[number - 1].id
+        return searchItems.first { $0.id == id }
+    }
+
     func previewTargetItem() -> SearchItem? {
         if let hovered = hoveredIndex,
            hovered >= 0,
@@ -644,7 +660,8 @@ class SearchViewModel: ObservableObject {
     @discardableResult
     func showHoveredAgentPreview() -> Bool {
         guard let item = previewTargetItem(), let capture = captureScreen(for: item) else { return false }
-        screenPreview = .single(capture)
+        screenPreview = .single(AgentScreenCapture(
+            id: capture.id, title: capture.title, text: capture.text, index: 1))
         return true
     }
 
@@ -653,6 +670,10 @@ class SearchViewModel: ObservableObject {
         let captures = searchItems.compactMap { item -> AgentScreenCapture? in
             guard item.isAIAgent else { return nil }
             return captureScreen(for: item)
+        }
+        .enumerated()
+        .map { offset, capture in
+            AgentScreenCapture(id: capture.id, title: capture.title, text: capture.text, index: offset + 1)
         }
         guard !captures.isEmpty else { return false }
         screenPreview = captures.count == 1 ? .single(captures[0]) : .tiled(captures)
@@ -665,11 +686,12 @@ class SearchViewModel: ObservableObject {
             let text = paneScreenCaptureProvider(pane.paneId)
                 ?? pane.statusContent
                 ?? ""
-            let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmed = trimTrailingBlankLines(text)
+            let body = trimmed.trimmingCharacters(in: .whitespacesAndNewlines)
             return AgentScreenCapture(
                 id: pane.paneId,
                 title: pane.displayNameWithoutEmoji,
-                text: body.isEmpty ? "キャプチャできませんでした" : text
+                text: body.isEmpty ? "キャプチャできませんでした" : trimmed
             )
         case .aiProcess(let process):
             return AgentScreenCapture(
@@ -680,6 +702,15 @@ class SearchViewModel: ObservableObject {
         default:
             return nil
         }
+    }
+
+    // Why: tmux capture-pane pads the pane with blank rows below the prompt.
+    private func trimTrailingBlankLines(_ text: String) -> String {
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        while let last = lines.last, last.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            lines.removeLast()
+        }
+        return lines.joined(separator: "\n")
     }
 
     func canResolveSessionPullRequest(for item: SearchItem) -> Bool {

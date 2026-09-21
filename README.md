@@ -310,7 +310,11 @@ settings:
   listFontSize: 15.0   # Defaults to system .body size (≈13pt) if omitted
   panelWidth: 600         # 検索パネルの幅（デフォルト: 500）
   panelHeight: 500        # 検索パネルの高さ（デフォルト: 400）
-  fontName: "Fira Code"   # フォント名（省略時: system monospaced）
+  fontName: "Fira Code"   # 絞り込み画面（候補リスト）のフォント名（省略時: system monospaced）
+  previewWidth: 1200      # プレビューカード幅（省略時: 対象モニタの最大幅）
+  previewHeight: 800      # プレビューカード高さ（省略時: 対象モニタの最大高さ）。Ctrl+P は中央寄せ
+  previewFontSize: 16     # プレビューのフォントサイズ（省略時: 14）
+  previewFontName: "JetBrains Mono"  # プレビューのフォント（省略時: fontName）
   preferredTerminal: "com.github.wez.wezterm"  # 優先ターミナル（bundleId 形式）
   directNumberKeys: true    # 数字キー単体でブックマークにフォーカス（false: Cmd+数字のみ）
   showAIAgentShortcut: true # AI エージェント行（aiProcess / tmux ペインの AI）に番号を振る（false で非表示）
@@ -330,7 +334,11 @@ bookmarks:
 | `settings.listFontSize` | float | `nil` (≈13pt) | Font size (pt) for the candidate list. Uses system default if omitted |
 | `settings.panelWidth` | integer | `500` | 検索パネルの幅（px） |
 | `settings.panelHeight` | integer | `400` | 検索パネルの高さ（px） |
-| `settings.fontName` | string | `nil`（システム等幅フォント） | リスト表示のフォント名。省略時はシステムの等幅フォントを使用 |
+| `settings.fontName` | string | `nil`（システム等幅フォント） | 絞り込み画面（候補リスト）のフォント名。省略時はシステムの等幅フォントを使用 |
+| `settings.previewWidth` | integer | `nil`（対象モニタの最大幅） | Ctrl+P 単体カードの幅（px）。全体プレビュー（Ctrl+V）はモニタ全体を使う |
+| `settings.previewHeight` | integer | `nil`（対象モニタの最大高さ） | Ctrl+P 単体カードの高さ（px）。単体はモニタ中央、全体プレビューは全面 |
+| `settings.previewFontSize` | float | `14` | プレビュー画面のフォントサイズ（pt） |
+| `settings.previewFontName` | string | `nil`（`fontName` へフォールバック） | プレビュー画面のフォント名 |
 | `settings.preferredTerminal` | string | `nil` | tmux ペインを開く際に使用するターミナルの bundleId（例: `"com.github.wez.wezterm"`）。設定すると自動検出より優先される |
 | `settings.directNumberKeys` | bool | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |
 | `settings.showAIAgentShortcut` | bool? | `nil`（= `true` 相当） | `true`/未指定: AI エージェント行（`aiProcess` および tmux ペインの AI エージェント）にも ⌘1–⌘9 番号を振る（現行動作）。`false`: AI エージェント行に番号を振らず、ブックマーク側の番号が 1,2,3... と詰まる。数字キーによるジャンプも AI 行には効かなくなる |
