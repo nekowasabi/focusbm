@@ -1,13 +1,16 @@
 # focusbm
 
-A bookmark tool for macOS app focus management. Define app switching targets in YAML and instantly restore them with a **CLI tool** and a **menu bar app**.
+A bookmark tool for app focus management. The macOS **CLI** and **menu bar app** are the primary implementation. Windows is a .NET port in `dotnet/` (WPF tray + CLI).
 
 ## Overview
 
 | Tool | Type | Description |
 |---|---|---|
-| `focusbm` | CLI | Add, restore, and manage bookmarks via subcommands |
-| `FocusBMApp` | Menu bar app | Floating search panel invoked by a global hotkey |
+| `focusbm` | CLI (macOS) | Add, restore, and manage bookmarks via subcommands |
+| `FocusBMApp` | Menu bar app (macOS) | Floating search panel invoked by a global hotkey |
+| `FocusBM.Cli` / `FocusBM.exe` | CLI + tray (Windows) | Same YAML bookmarks, built from `dotnet/` |
+
+`make` with no target follows `$PC`: `PC=wsl` runs `make release` (Windows `FocusBM.exe` into `release/`); any other value (including unset, typical on a Mac) runs `scripts/dev-relaunch.sh`. Windows install and smoke steps: [README_win.md](./README_win.md).
 
 ---
 
@@ -154,25 +157,33 @@ On first launch or if restoration fails, grant permission as follows:
 
 ## Requirements
 
-- macOS 13 (Ventura) or later
+- macOS 13 (Ventura) or later (Swift app)
 - Swift 6.0 or later
 - Xcode (for running tests)
 - fzf (for the CLI `switch` command)
 - GitHub CLI (`gh`, used to resolve pull requests)
+- Windows / WSL: .NET 8 SDK (`PC=wsl make` or `make release`)
 
 ---
 
 ## Building
 
 ```sh
+# Default: macOS relaunch, or Windows release when PC=wsl
+make
+
 # Debug build (builds both CLI and menu bar app)
 swift build
 
 # Run tests
 swift test
 
-# Release build
+# Release build (macOS binaries)
 swift build -c release
+
+# Windows unit tests / self-contained exe (also the default when PC=wsl)
+make win-test
+make release
 ```
 
 ## Installation
@@ -208,8 +219,12 @@ cp .build/release/focusbm /usr/local/bin/focusbm
 Bookmarks and settings are stored in YAML format at the following path:
 
 ```
-~/.config/focusbm/bookmarks.yml
+~/.config/focusbm/bookmarks.yml          # macOS
+release/bookmarks.yml                    # Windows, next to FocusBM.exe after make release
+%AppData%/focusbm/bookmarks.yml          # Windows fallback
 ```
+
+Examples: [`bookmarks.example.yml`](./bookmarks.example.yml) (macOS) and [`bookmarks.example.windows.yml`](./bookmarks.example.windows.yml) (Windows). Override the Windows path with `FOCUSBM_YAML`.
 
 If a legacy V1 `bookmarks.yml` exists, it will be automatically migrated to V2 format on first load (the original file is preserved as `.bak`).
 
@@ -451,6 +466,10 @@ focusbm tmux-list
 
 ```
 focusbm/
+├── Makefile                     # PC=wsl → release, else macOS relaunch
+├── bookmarks.example.yml        # macOS YAML schema
+├── bookmarks.example.windows.yml
+├── dotnet/                      # Windows .NET 8 solution (FocusBM.sln)
 ├── Package.swift
 ├── Sources/
 │   ├── FocusBMLib/              # Shared library (core logic)
@@ -502,7 +521,7 @@ focusbm/
 - `←→` / `hl`: 左右移動（1 列: 無効 / 2 列: ±1 境界クランプ）
 - `1`〜`9`: 直接実行（2 列レイアウトでも正しい項目に対応）
 
-設定例は [`bookmarks.example.yml`](./bookmarks.example.yml) を参照してください。
+設定例は [`bookmarks.example.yml`](./bookmarks.example.yml)（macOS）と [`bookmarks.example.windows.yml`](./bookmarks.example.windows.yml)（Windows）を参照してください。
 
 ---
 

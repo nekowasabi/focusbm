@@ -1,13 +1,21 @@
-# focusbm 設定例
+# focusbm macOS 設定例
 # 配置先: ~/.config/focusbm/bookmarks.yml
 #
 # このファイルをコピーして bookmarks.yml にリネームし、
 # `bookmarks` 配列を自分の用途に合わせて編集してください。
+#
+# 実スキーマは id / appName / bundleIdPattern / context / state / createdAt です。
+# type: iterm2 は使いません（V1 の iterm2 は app に移行されます）。
+# Windows 用の例は bookmarks.example.windows.yml を参照してください。
 
 settings:
   hotkey:
-    # 選択中のClaude Codeセッションに記録されたGitHubプルリクエストを開く
+    # 検索パネルを呼び出すグローバルホットキー（既定: cmd+ctrl+b）
+    togglePanel: "cmd+ctrl+b"
+    # 選択中の Claude Code セッションに記録された GitHub PR を開く（既定: cmd+p）
     openSessionPullRequest: "cmd+p"
+    # AI エージェント一覧を手動更新する（既定: cmd+ctrl+r）
+    forceReloadAgents: "cmd+ctrl+r"
 
   # パネル幅（pixel）。bookmarkListColumns: 2 で未指定の場合 800 が自動適用される
   panelWidth: 800
@@ -15,41 +23,37 @@ settings:
   # 一覧表示の列数（1: 縦1列 / 2: 横2列）。0, 3, 負数などの不正値は 1 にフォールバック
   bookmarkListColumns: 2
 
-  # AI エージェント行（aiProcess / tmux ペインの AI エージェント）に番号を振るか。
-  # 未指定時は true（現行動作: AI 行にも番号を振る）。
-  # false にすると AI 行に番号を振らず、ブックマーク側の番号が 1,2,3... と詰まる。
-  # 数字キーによるジャンプも AI 行には効かなくなる。
+  # AI エージェント行に番号を振るか。未指定時は true。
   # showAIAgentShortcut: false
 
-# ブックマーク一覧
-# 実ファイルのスキーマは id / appName / bundleIdPattern / context / state です。
-# type: iterm2 は使いません（V1 の iterm2 は app に移行されます）。
-#
-# iTerm2 + tmux + nvim 専用（他ターミナル・tmux 外 nvim は対象外）:
-# - workingDirectory: 省略可。指定時だけ pane_current_path と一致する候補を優先
-# - exCommand: 省略可。指定するなら先頭コロンなしの一行
-# - command がちょうど nvim でクライアントが iTerm2 のペインにフォーカス
-# - 複数候補は list-panes 列挙の先頭だけ
 bookmarks:
-  - title: GitHub
-    url: https://github.com
-    priority: high
-  - title: Apple Developer
-    url: https://developer.apple.com
-    priority: high
-  - title: Stack Overflow
-    url: https://stackoverflow.com
-  - title: Hacker News
-    url: https://news.ycombinator.com
-    priority: low
+  - id: github
+    appName: Google Chrome
+    bundleIdPattern: com.google.Chrome
+    context: work
+    state:
+      type: browser
+      urlPattern: github.com
+      title: GitHub
+    createdAt: "2026-08-15T00:00:00Z"
 
-  # 実スキーマの itermNvim 例（上記の title/url 簡易例とは別形式）
+  - id: notes
+    appName: Notes
+    bundleIdPattern: com.apple.Notes
+    context: personal
+    state:
+      type: app
+      windowTitle: ""
+    createdAt: "2026-08-15T00:00:00Z"
+
+  # iTerm2 + tmux + nvim 専用（他ターミナル・tmux 外 nvim は対象外）:
+  # - workingDirectory: 省略可。指定時だけ pane_current_path と一致する候補を優先
+  # - exCommand: 省略可。指定するなら先頭コロンなしの一行
+  # パネル表示中に togglePanel を再押下したとき、executeOnToggleRepress の先着1件を実行する
   - id: project-nvim
     appName: iTerm2
     bundleIdPattern: com.googlecode.iterm2
     context: work
-    # パネル表示中に togglePanel ホットキー（既定: cmd+ctrl+b）を再押下したとき
-    # このブックマークを実行する。複数指定時は先着1件のみ有効
     executeOnToggleRepress: true
     state:
       type: itermNvim

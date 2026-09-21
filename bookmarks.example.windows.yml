@@ -1,0 +1,55 @@
+# focusbm Windows 設定例
+# 配置先（優先順）:
+#   1. 環境変数 FOCUSBM_YAML
+#   2. FocusBM.exe と同じディレクトリの bookmarks.yml
+#   3. %AppData%/focusbm/bookmarks.yml
+#
+# make release 後は release/bookmarks.yml がスモーク用の同居設定になる。
+# macOS 用の例は bookmarks.example.yml を参照してください。
+
+settings:
+  # 検索パネルを呼び出すグローバルホットキー
+  hotkey:
+    togglePanel: "ctrl+alt+space"
+
+  panelWidth: 800
+  bookmarkListColumns: 2
+
+  # C# シリアライザは PR / エージェント再読込キーを settings 直下に書く
+  openSessionPullRequest: "ctrl+p"
+  forceReloadAgents: "ctrl+alt+r"
+
+  showWslAgents: true
+  virtuawinEnabled: true
+  imeRestoreEnabled: false
+
+  wslEnabled: true
+  wslDistribution: Ubuntu
+
+  # browserCdpEnabled: true
+  # browserCdpEndpoint: "http://127.0.0.1:9222"
+
+bookmarks:
+  - id: github
+    appName: Google Chrome
+    context: work
+    state:
+      type: browser
+      urlPattern: github.com
+      title: GitHub
+
+  - id: notepad
+    appName: Notepad
+    context: personal
+    state:
+      type: app
+      windowTitle: ""
+
+  # WSL 上の nvim（itermNvim も読み取り互換で wslNvim になる）
+  - id: project-nvim
+    appName: Windows Terminal
+    context: work
+    executeOnToggleRepress: true
+    state:
+      type: wslNvim
+      workingDirectory: /home/takets/repos/focusbm

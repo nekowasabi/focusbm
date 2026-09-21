@@ -1,13 +1,16 @@
 # focusbm
 
-macOS アプリフォーカスのブックマークツール。YAML でアプリの切り替え先を定義し、一発で復元できる **CLI ツール** および **メニューバー常駐アプリ** のセット。
+macOS アプリフォーカスのブックマークツール。YAML でアプリの切り替え先を定義し、一発で復元できる **CLI ツール** および **メニューバー常駐アプリ** が正本。Windows は `dotnet/` の .NET 移植（WPF トレイ + CLI）。
 
 ## 機能概要
 
 | ツール | 形態 | 概要 |
 |---|---|---|
-| `focusbm` | CLI | サブコマンドでブックマークの追加・復元・管理 |
-| `FocusBMApp` | メニューバーアプリ | グローバルホットキーで呼び出せるフローティング検索パネル |
+| `focusbm` | CLI（macOS） | サブコマンドでブックマークの追加・復元・管理 |
+| `FocusBMApp` | メニューバーアプリ（macOS） | グローバルホットキーで呼び出せるフローティング検索パネル |
+| `FocusBM.Cli` / `FocusBM.exe` | CLI + トレイ（Windows） | 同じ YAML ブックマーク。`dotnet/` からビルド |
+
+引数なしの `make` は `$PC` に従う。`PC=wsl` なら `make release`（`release/FocusBM.exe`）、それ以外（Mac の `private` / `work` を含む）は `scripts/dev-relaunch.sh`。Windows の導入手順は [README_win.md](./README_win.md)。
 
 ---
 
@@ -153,25 +156,33 @@ YAML の `settings` セクションで変更できます（後述）。
 
 ## 必要環境
 
-- macOS 13 (Ventura) 以上
+- macOS 13 (Ventura) 以上（Swift アプリ）
 - Swift 6.0 以上
 - Xcode（テスト実行時）
 - fzf（CLI の `switch` コマンド使用時）
 - GitHub CLI（`gh`、PRの解決に使用）
+- Windows / WSL: .NET 8 SDK（`PC=wsl make` または `make release`）
 
 ---
 
 ## ビルド方法
 
 ```sh
+# 既定: macOS 再起動。PC=wsl なら Windows release
+make
+
 # デバッグビルド（CLI + メニューバーアプリ両方ビルドされる）
 swift build
 
 # テスト実行
 swift test
 
-# リリースビルド
+# リリースビルド（macOS バイナリ）
 swift build -c release
+
+# Windows 自動テスト / 単体 exe（PC=wsl の既定もこれ）
+make win-test
+make release
 ```
 
 ## インストール
@@ -207,8 +218,12 @@ cp .build/release/focusbm /usr/local/bin/focusbm
 ブックマークと設定は YAML 形式で以下のパスに保存される。
 
 ```
-~/.config/focusbm/bookmarks.yml
+~/.config/focusbm/bookmarks.yml          # macOS
+release/bookmarks.yml                    # Windows（make release 後、exe と同じディレクトリ）
+%AppData%/focusbm/bookmarks.yml          # Windows フォールバック
 ```
+
+設定例は [`bookmarks.example.yml`](./bookmarks.example.yml)（macOS）と [`bookmarks.example.windows.yml`](./bookmarks.example.windows.yml)（Windows）。Windows のパスは `FOCUSBM_YAML` で上書きできる。
 
 旧形式（V1）の `bookmarks.yml` が存在する場合は、初回読み込み時に自動的に V2 形式へ変換する（元ファイルは `.bak` として保持）。
 
@@ -409,6 +424,10 @@ tmux ペインをフォーカスするときは、対象の session/window を�
 
 ```
 focusbm/
+├── Makefile                     # PC=wsl → release、それ以外は macOS relaunch
+├── bookmarks.example.yml        # macOS YAML
+├── bookmarks.example.windows.yml
+├── dotnet/                      # Windows .NET 8（FocusBM.sln）
 ├── Package.swift
 ├── Sources/
 │   ├── FocusBMLib/              # 共有ライブラリ（ロジック集約）
