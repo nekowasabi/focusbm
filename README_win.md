@@ -55,7 +55,7 @@ Failed: 0
 
 ### Makefile を使う場合（WSL/Linux 推奨）
 
-リポジトリ直下の `Makefile` でも同等の操作ができます。既定の `WIN_CONFIG` は `Debug` です。
+リポジトリ直下の `Makefile` でも同等の操作ができます。既定の `WIN_CONFIG` は `Release` です（`WIN_CONFIG=Debug` で上書き可能）。
 
 ```powershell
 make win-build

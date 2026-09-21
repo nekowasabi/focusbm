@@ -28,6 +28,7 @@ macOS アプリフォーカスのブックマークツール。YAML でアプリ
 | `switch` | fzf でブックマークを絞り込み選択して復元 |
 | `list` | ブックマーク一覧を表示 |
 | `delete <name>` | 指定したブックマークを削除 |
+| `tmux-list` | tmux 内で動作中の AI エージェントセッションを一覧表示（tmux 連携参照） |
 
 ### 使い方
 
@@ -161,7 +162,7 @@ YAML の `settings` セクションで変更できます（後述）。
 - Xcode（テスト実行時）
 - fzf（CLI の `switch` コマンド使用時）
 - GitHub CLI（`gh`、PRの解決に使用）
-- Windows / WSL: .NET 8 SDK（`PC=wsl make` または `make release`）
+- Windows / WSL: .NET 8 SDK 以降（`PC=wsl make` または `make release`）。WSL の .NET 10 SDK など新しい SDK でも、Makefile がエクスポートする `DOTNET_ROLL_FORWARD=LatestMajor` で動作
 
 ---
 
@@ -174,15 +175,27 @@ make
 # デバッグビルド（CLI + メニューバーアプリ両方ビルドされる）
 swift build
 
-# テスト実行
-swift test
+# テスト実行（scripts/test.sh は中断時に残るテスト子プロセスを掃除する。
+# 単純な `swift test` でも可）
+./scripts/test.sh
 
 # リリースビルド（macOS バイナリ）
 swift build -c release
 
-# Windows 自動テスト / 単体 exe（PC=wsl の既定もこれ）
+# Windows: .NET ソリューションの restore/build/test
+make win-build
 make win-test
+
+# Windows: artifacts/ へ publish（framework 依存）または self-contained 単一ファイル
+make win-publish
+make win-exe
+
+# Windows: 単一ファイル release/FocusBM.exe を生成（PC=wsl の既定もこれ）
 make release
+
+# 全ターゲット一覧 / dotnet 生成物の削除
+make help
+make win-clean
 ```
 
 ## インストール
@@ -411,6 +424,9 @@ tmux ペインをフォーカスするときは、対象の session/window を�
 ### サポート対象 AI エージェント
 
 - Claude Code (`claude`)
+- Codex (`codex`)
+- Copilot (`copilot`)
+- Devin CLI (`devin`)
 - Aider (`aider`)
 - Gemini (`gemini`)
 - Hermes (`hermes`)
@@ -418,16 +434,32 @@ tmux ペインをフォーカスするときは、対象の session/window を�
 - Pi (`pi`)
 - Grok Build (`grok`)
 
+OpenCode の `serve`、Codex の `app-server` / `mcp-server`、Chrome Native Host などの非対話ヘルパープロセスは一覧から除外します。バージョン付き Grok 実体や Node.js / Python 経由の起動も検出します。
+
 ---
 
 ## プロジェクト構成
 
 ```
 focusbm/
-├── Makefile                     # PC=wsl → release、それ以外は macOS relaunch
+├── .github/workflows/           # windows-smoke-not-feasibility CI（dotnet test + 証跡 lint）
+├── Makefile                     # PC=wsl → release（Windows exe）、それ以外は macOS relaunch
 ├── bookmarks.example.yml        # macOS YAML
-├── bookmarks.example.windows.yml
+├── bookmarks.example.windows.yml # Windows YAML
+├── README_win.md                # Windows 導入・スモーク手順
 ├── dotnet/                      # Windows .NET 8（FocusBM.sln）
+│   ├── FocusBM.Core/            # プラットフォーム非依存のモデル/検索/ストレージ
+│   ├── FocusBM.Infrastructure.Windows/ # Windows OS 連携（前面化・WSL・CDP）
+│   ├── FocusBM.Cli/             # Windows CLI（FocusBM.Cli.exe）
+│   ├── FocusBM.App.Wpf/         # トレイ + 検索パネルの WPF アプリ（FocusBM.App.Wpf.exe）
+│   ├── FocusBM.Windows.Spikes/  # 実現性検証 spike
+│   └── *.Tests/                 # Core/Cli/App.Wpf/Infrastructure.Windows のテスト
+├── scripts/
+│   ├── test.sh                  # 孤児テストプロセスを掃除しつつ swift test
+│   ├── dev-relaunch.sh          # macOS アプリ再ビルド＋再起動
+│   ├── bundle.sh                # macOS .app バンドル生成
+│   ├── release-evidence-lint.ps1 # Windows リリースゲート証跡 lint
+│   └── windows/                 # publish/起動/スモーク/CDP の PowerShell 群
 ├── Package.swift
 ├── Sources/
 │   ├── FocusBMLib/              # 共有ライブラリ（ロジック集約）
@@ -435,15 +467,25 @@ focusbm/
 │   │   ├── BookmarkRestorer.swift  # ブックマーク復元ロジック
 │   │   ├── AppleScriptBridge.swift # AppleScript / System Events ブリッジ
 │   │   ├── FloatingWindowProvider.swift # LSUIElement アプリの floating window 列挙
+│   │   ├── TmuxProvider.swift   # tmux ペイン列挙・AI エージェント検出
+│   │   ├── ProcessProvider.swift # AI エージェントプロセス検出
+│   │   ├── ProcessSnapshot.swift # プロセススナップショットキャッシュ（絞り込み高速化）
+│   │   ├── NvimTmuxRestorer.swift # iTerm2+tmux+Neovim 復元（itermNvim）
+│   │   ├── SessionPullRequestResolver.swift / ClaudeSessionPullRequestResolver.swift
+│   │   ├── GitHubPullRequestCLI.swift # gh による PR URL 解決
+│   │   ├── ActivationTarget.swift
+│   │   ├── AppIconProvider.swift
 │   │   └── YAMLStorage.swift    # YAML 読み書き・マイグレーション
 │   ├── focusbm/                 # CLI エントリポイント
 │   │   └── focusbm.swift
 │   └── FocusBMApp/              # メニューバーアプリ
 │       ├── main.swift           # エントリポイント
 │       ├── FocusBMApp.swift     # AppDelegate・メニューバー常駐
+│       ├── BackgroundRefreshService.swift # エージェント一覧の定期更新
 │       ├── SearchPanel.swift    # フローティングパネルウィンドウ
 │       ├── SearchView.swift     # SwiftUI 検索 UI
 │       ├── SearchViewModel.swift # 検索ロジック・状態管理
+│       ├── ShortcutBarView.swift # ショートカットキーアイコンバー
 │       └── BookmarkRow.swift    # ブックマーク行コンポーネント
 └── Tests/
     └── focusbmTests/

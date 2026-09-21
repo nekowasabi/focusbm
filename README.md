@@ -28,6 +28,7 @@ A bookmark tool for app focus management. The macOS **CLI** and **menu bar app**
 | `switch` | Filter and select a bookmark using fzf, then restore |
 | `list` | Display the list of bookmarks |
 | `delete <name>` | Delete the specified bookmark |
+| `tmux-list` | List AI agent sessions running in tmux (see tmux Integration) |
 
 ### Usage
 
@@ -162,7 +163,7 @@ On first launch or if restoration fails, grant permission as follows:
 - Xcode (for running tests)
 - fzf (for the CLI `switch` command)
 - GitHub CLI (`gh`, used to resolve pull requests)
-- Windows / WSL: .NET 8 SDK (`PC=wsl make` or `make release`)
+- Windows / WSL: .NET 8 SDK or later (`PC=wsl make` or `make release`). Newer SDKs (e.g. .NET 10 on WSL) work via `DOTNET_ROLL_FORWARD=LatestMajor`, exported by the Makefile
 
 ---
 
@@ -175,15 +176,27 @@ make
 # Debug build (builds both CLI and menu bar app)
 swift build
 
-# Run tests
-swift test
+# Run tests (scripts/test.sh cleans up orphaned test-runner processes
+# left behind by interrupted runs; plain `swift test` also works)
+./scripts/test.sh
 
 # Release build (macOS binaries)
 swift build -c release
 
-# Windows unit tests / self-contained exe (also the default when PC=wsl)
+# Windows: restore/build/test the .NET solution
+make win-build
 make win-test
+
+# Windows: publish to artifacts/ (framework-dependent) or self-contained single-file
+make win-publish
+make win-exe
+
+# Windows: single-file release/FocusBM.exe (also the default when PC=wsl)
 make release
+
+# List all targets / remove dotnet build artifacts
+make help
+make win-clean
 ```
 
 ## Installation
@@ -416,12 +429,19 @@ focusbm now supports discovering and focusing tmux panes running AI agents.
 ### Supported AI agents
 
 - Claude Code (`claude`)
+- Codex (`codex`)
+- Copilot (`copilot`)
+- Devin CLI (`devin`)
 - Aider (`aider`)
 - Gemini (`gemini`)
 - Hermes (`hermes`)
 - OpenCode (`opencode`)
 - Pi (`pi`)
 - Grok Build (`grok`)
+
+Non-interactive helper processes are excluded: OpenCode `serve`, Codex
+`app-server` / `mcp-server`, and Chrome Native Host. Versioned Grok binaries
+and agents launched via Node.js / Python runtimes are also detected.
 
 ### Status indicators
 
@@ -466,10 +486,24 @@ focusbm tmux-list
 
 ```
 focusbm/
-├── Makefile                     # PC=wsl → release, else macOS relaunch
+├── .github/workflows/           # windows-smoke-not-feasibility CI (dotnet test + evidence lint)
+├── Makefile                     # PC=wsl → release (Windows exe), else macOS relaunch
 ├── bookmarks.example.yml        # macOS YAML schema
-├── bookmarks.example.windows.yml
+├── bookmarks.example.windows.yml # Windows YAML schema
+├── README_win.md                # Windows install & smoke-test walkthrough
 ├── dotnet/                      # Windows .NET 8 solution (FocusBM.sln)
+│   ├── FocusBM.Core/            # Platform-independent models/search/storage
+│   ├── FocusBM.Infrastructure.Windows/ # Windows OS integration (activation, WSL, CDP)
+│   ├── FocusBM.Cli/             # Windows CLI (FocusBM.Cli.exe)
+│   ├── FocusBM.App.Wpf/         # Tray + search panel WPF app (FocusBM.App.Wpf.exe)
+│   ├── FocusBM.Windows.Spikes/  # Feasibility spikes
+│   └── *.Tests/                 # Core/Cli/App.Wpf/Infrastructure.Windows test projects
+├── scripts/
+│   ├── test.sh                  # swift test with orphan test-process cleanup
+│   ├── dev-relaunch.sh          # macOS app rebuild + relaunch
+│   ├── bundle.sh                # macOS .app bundling
+│   ├── release-evidence-lint.ps1 # Windows release-gate evidence lint
+│   └── windows/                 # publish/run/smoke/CDP PowerShell helpers
 ├── Package.swift
 ├── Sources/
 │   ├── FocusBMLib/              # Shared library (core logic)
@@ -477,15 +511,25 @@ focusbm/
 │   │   ├── BookmarkRestorer.swift  # Bookmark restoration logic
 │   │   ├── AppleScriptBridge.swift # AppleScript / System Events bridge
 │   │   ├── FloatingWindowProvider.swift # Floating window enumeration for LSUIElement apps
+│   │   ├── TmuxProvider.swift   # tmux pane enumeration + AI agent detection
+│   │   ├── ProcessProvider.swift # AI agent process detection
+│   │   ├── ProcessSnapshot.swift # Process snapshot cache (fast filtering UI)
+│   │   ├── NvimTmuxRestorer.swift # iTerm2+tmux+Neovim state restore (itermNvim)
+│   │   ├── SessionPullRequestResolver.swift / ClaudeSessionPullRequestResolver.swift
+│   │   ├── GitHubPullRequestCLI.swift # PR URL resolution via gh
+│   │   ├── ActivationTarget.swift
+│   │   ├── AppIconProvider.swift
 │   │   └── YAMLStorage.swift    # YAML read/write and migration
 │   ├── focusbm/                 # CLI entry point
 │   │   └── focusbm.swift
 │   └── FocusBMApp/              # Menu bar app
 │       ├── main.swift           # Entry point
 │       ├── FocusBMApp.swift     # AppDelegate and menu bar management
+│       ├── BackgroundRefreshService.swift # Periodic agent-list refresh
 │       ├── SearchPanel.swift    # Floating panel window
 │       ├── SearchView.swift     # SwiftUI search UI
 │       ├── SearchViewModel.swift # Search logic and state management
+│       ├── ShortcutBarView.swift # Shortcut-key icon bar
 │       └── BookmarkRow.swift    # Bookmark row component
 └── Tests/
     └── focusbmTests/
