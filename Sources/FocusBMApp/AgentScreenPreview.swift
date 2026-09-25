@@ -86,7 +86,9 @@ struct AgentScreenPreviewOverlay: View {
         return LazyVGrid(columns: columns, spacing: 8) {
             ForEach(state.captures) { capture in
                 captureView(capture, showTitle: true)
-                    .frame(minHeight: cellHeight, maxHeight: .infinity, alignment: .topLeading)
+                    // Why: fixed height instead of minHeight/maxHeight: .infinity — LazyVGrid does not
+                    // propagate a height limit, so rows grew to fit the capture text and pushed tiles off-screen.
+                    .frame(height: cellHeight, alignment: .topLeading)
             }
         }
     }
