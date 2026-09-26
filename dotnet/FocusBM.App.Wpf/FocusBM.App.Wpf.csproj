@@ -13,6 +13,8 @@
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="tray-dark.ico" LogicalName="tray-dark.ico" />
+    <EmbeddedResource Include="tray-light.ico" LogicalName="tray-light.ico" />
     <ProjectReference Include="..\FocusBM.Core\FocusBM.Core.csproj" />
     <ProjectReference Include="..\FocusBM.Infrastructure.Windows\FocusBM.Infrastructure.Windows.csproj" />
   </ItemGroup>

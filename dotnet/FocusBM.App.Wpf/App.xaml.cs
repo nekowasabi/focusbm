@@ -187,10 +187,12 @@ public partial class App : System.Windows.Application
 
     private void SetupTray()
     {
+        // Why: mac uses the template symbol bookmark.fill, which follows menu bar light/dark; pick the matching glyph for the taskbar theme.
+        var trayIconName = Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "SystemUsesLightTheme", 0) is 1 ? "tray-light.ico" : "tray-dark.ico";
         _notifyIcon = new Forms.NotifyIcon
         {
             Text = "focusBM",
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = new System.Drawing.Icon(typeof(App).Assembly.GetManifestResourceStream(trayIconName)!, Forms.SystemInformation.SmallIconSize),
             Visible = true,
             ContextMenuStrip = new Forms.ContextMenuStrip()
         };
