@@ -272,7 +272,7 @@ import Yams
         terminalBundleId: nil, terminalAppName: nil, terminalEmoji: "👻", title: ""
     )
     let item = SearchItem.aiProcess(process)
-    #expect(item.agentEmoji == "🤖")
+    #expect(item.agentEmoji == "π")
 }
 
 @Test func test_agentEmoji_tmuxPane_opencode() {
@@ -286,7 +286,7 @@ import Yams
     let pane = TmuxPane(paneId: "%51", sessionName: "s", windowIndex: 0,
                         windowName: "w", command: "pi", title: "", currentPath: "/tmp")
     let item = SearchItem.tmuxPane(pane)
-    #expect(item.agentEmoji == "🤖")
+    #expect(item.agentEmoji == "π")
 }
 
 @Test func test_agentEmoji_aiProcess_grok() {

@@ -1256,7 +1256,7 @@ final class MockRunningApp: RunningAppProtocol {
 }
 
 @Test func test_agentCommandToEmoji_pi() {
-    #expect(TmuxProvider.agentCommandToEmoji("pi") == "🤖")
+    #expect(TmuxProvider.agentCommandToEmoji("pi") == "π")
 }
 
 @Test func test_isAIAgent_nodeCommand_withResolvedOpencode() {

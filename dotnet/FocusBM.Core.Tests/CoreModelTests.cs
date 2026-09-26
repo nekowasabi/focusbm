@@ -63,6 +63,8 @@ public class CoreModelTests
     [InlineData("grok-1.0.4-linux-x64", "🔫")]
     [InlineData("cursor-agent", "➡️")]
     [InlineData("/usr/bin/cursor-agent --use-system-ca index.js --yolo", "➡️")]
+    [InlineData("pi", "π")]
+    [InlineData("node /usr/local/bin/pi", "π")]
     public void AgentEmoji_IdentifiesClaudeCodexAndGrok(string command, string emoji)
     {
         var bm = new Bookmark("wsl:1", "agent", "", new WslProcessState(1, command));

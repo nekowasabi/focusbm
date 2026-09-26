@@ -377,9 +377,11 @@ public struct TmuxProvider {
         case "hermes":  return "📨"
         case "grok":    return "🔫"
         case "devin":   return "☕"
+        case "pi":      return "π"
         default:
             // Why: pane_current_command は comm 16文字制限で `grok-1.0.4-maco` になる。
             if command.hasPrefix("grok-") { return "🔫" }
+            if command.hasPrefix("pi-") { return "π" }
             return "🤖"
         }
     }
