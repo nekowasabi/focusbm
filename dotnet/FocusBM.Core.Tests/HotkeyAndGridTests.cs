@@ -22,6 +22,16 @@ public class HotkeyAndGridTests
         Assert.Equal(2, GridNavigator.Move(0, 5, 2, NavigationCommand.Down));
         Assert.Equal(0, GridNavigator.Move(1, 5, 2, NavigationCommand.Up));
     }
+
+    [Theory]
+    [InlineData(0, 5, 1, true)]
+    [InlineData(1, 5, 1, false)]
+    [InlineData(0, 5, 2, true)]
+    [InlineData(1, 5, 2, true)]
+    [InlineData(2, 5, 2, false)]
+    [InlineData(0, 0, 1, true)]
+    public void FirstRow_IsTheSearchBoxReturnBoundary(int index, int count, int columns, bool expected) =>
+        Assert.Equal(expected, GridNavigator.IsOnFirstRow(index, count, columns));
     [Fact] public void ShortcutDuplicate_FirstExplicitWins()
     {
         var items = new [] { new Bookmark("a", "App", "", Shortcut:"g"), new Bookmark("b", "App", "", Shortcut:"g") };

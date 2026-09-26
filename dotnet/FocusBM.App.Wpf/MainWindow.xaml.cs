@@ -62,11 +62,11 @@ public partial class MainWindow : Window
         _ => null
     };
 
-    public void FocusSearchBox()
+    public void FocusSearchBox(bool selectAll = true)
     {
         SearchBox.Focus();
         Keyboard.Focus(SearchBox);
-        SearchBox.SelectAll();
+        if (selectAll) SearchBox.SelectAll();
     }
 
     public void ApplyPanelLayout(AppSettings settings)
@@ -102,7 +102,7 @@ public partial class MainWindow : Window
         if (hwnd != IntPtr.Zero) SetForegroundWindow(hwnd);
         Activate();
         FocusSearchBox();
-        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, FocusSearchBox);
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () => FocusSearchBox());
     }
 
     private void Header_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -275,6 +275,12 @@ public partial class MainWindow : Window
         return direct ? none || onlyControl : onlyControl;
     }
 
+    private bool IsFindSearchHotkey(System.Windows.Input.KeyEventArgs e) =>
+        e.Key == Key.F && e.KeyboardDevice.Modifiers == ModifierKeys.Control;
+
+    private bool IsOnFirstResultRow() =>
+        GridNavigator.IsOnFirstRow(ViewModel.SelectedIndex, ViewModel.Results.Count, ViewModel.Settings.NormalizedColumns);
+
     private async void Window_OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == Key.Escape)
@@ -282,6 +288,12 @@ public partial class MainWindow : Window
             e.Handled = true;
             if (ViewModel.DismissPreview()) return;
             await DismissPanelAsync();
+            return;
+        }
+        if (!ViewModel.IsPreviewVisible && IsFindSearchHotkey(e))
+        {
+            e.Handled = true;
+            FocusSearchBox();
             return;
         }
         if (await TryActivatePreviewByDigitAsync(e)) return;
@@ -350,7 +362,7 @@ public partial class MainWindow : Window
                 await DismissPanelAsync();
                 break;
             case Key.Up:
-                MoveResult(NavigationCommand.Up);
+                ViewModel.Move(NavigationCommand.Up);
                 e.Handled = true;
                 break;
             case Key.Down:
@@ -382,7 +394,8 @@ public partial class MainWindow : Window
                 await DismissPanelAsync();
                 break;
             case Key.Up:
-                ViewModel.Move(NavigationCommand.Up);
+                if (IsOnFirstResultRow()) FocusSearchBox(selectAll: false);
+                else ViewModel.Move(NavigationCommand.Up);
                 e.Handled = true;
                 break;
             case Key.Down:

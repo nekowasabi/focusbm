@@ -20,4 +20,16 @@ public static class GridNavigator
             _ => i
         };
     }
+
+    /// <summary>
+    /// True when the current cell is on the first grid row, including an empty list.
+    /// Up from this row should return keyboard focus to the search box.
+    /// </summary>
+    public static bool IsOnFirstRow(int currentIndex, int itemCount, int columns)
+    {
+        if (itemCount <= 0) return true;
+        var cols = columns <= 1 ? 1 : 2;
+        var i = Math.Clamp(currentIndex, 0, itemCount - 1);
+        return i < cols;
+    }
 }
