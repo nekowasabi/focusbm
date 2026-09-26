@@ -66,6 +66,8 @@ win-exe: ## Windows 単体実行 exe を生成する (self-contained/single-file
 # Why: Do not wipe RELEASE_DIR — colocated bookmarks.yml and focusbm.log live there.
 release: ## FocusBM.exe を RELEASE_DIR（既定 C:\takeda\tools\focusbm）に framework 依存で生成する
 	mkdir -p $(RELEASE_DIR)
+	# Why: 起動中の FocusBM.exe が DLL をロックし publish のコピーが Access denied になるため先に止める
+	-taskkill.exe /IM FocusBM.exe /F >/dev/null 2>&1
 	$(DOTNET) publish $(APP_PROJ) -c Release -r $(WIN_RID) --self-contained false \
 		-p:PublishSingleFile=false \
 		-p:DebugType=None \
@@ -74,6 +76,8 @@ release: ## FocusBM.exe を RELEASE_DIR（既定 C:\takeda\tools\focusbm）に f
 	mv -f $(RELEASE_DIR)/FocusBM.App.Wpf.exe $(RELEASE_DIR)/FocusBM.exe
 	[ -f $(RELEASE_DIR)/bookmarks.yml ] || [ ! -f release/bookmarks.yml ] || cp release/bookmarks.yml $(RELEASE_DIR)/bookmarks.yml
 	[ -f $(RELEASE_DIR)/bookmarks.yml ] || cp bookmarks.example.windows.yml $(RELEASE_DIR)/bookmarks.yml
+	# Why: 冒頭の taskkill で止めたアプリを戻す。cwd を RELEASE_DIR にして UNC ではなくローカルディスクから起動する
+	cd $(RELEASE_DIR) && powershell.exe -NoProfile -Command "Start-Process -FilePath .\FocusBM.exe"
 
 win-clean: ## Windows 版のビルド生成物を削除する
 	$(DOTNET) clean $(WIN_SLN) -c $(WIN_CONFIG)
