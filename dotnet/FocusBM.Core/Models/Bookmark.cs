@@ -29,6 +29,22 @@ public sealed record Bookmark(
         if (directory is null) return appName;
         return appName.EndsWith($" — {directory}", StringComparison.Ordinal) ? appName : $"{appName} — {directory}";
     }
+    /// <summary>絞り込み表の「名前」列。エージェントは作業ディレクトリ名、それ以外は DisplayLabel。</summary>
+    public string ListName => State is WslProcessState process && AgentIdentity.DirectoryLeaf(process.WorkingDirectory) is { } directory
+        ? directory
+        : DisplayLabel;
+
+    /// <summary>絞り込み表の「アプリ／端末」列。名前列と重複する末尾の " — ディレクトリ" は落とす。</summary>
+    public string ListDetail
+    {
+        get
+        {
+            var suffix = $" — {ListName}";
+            var detail = AppName.EndsWith(suffix, StringComparison.Ordinal) ? AppName[..^suffix.Length] : AppName;
+            return detail == ListName ? string.Empty : detail;
+        }
+    }
+
     public TmuxAgentStatus? AgentStatus => (State as WslProcessState)?.AgentStatus;
     public string? AgentEmoji => AgentIdentity.Emoji((State as WslProcessState)?.Command);
     public bool IsAIAgent => State is WslProcessState or TmuxPaneState;

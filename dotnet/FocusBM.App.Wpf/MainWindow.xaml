@@ -14,7 +14,6 @@
     <local:AgentStatusDisplayConverter x:Key="AgentStatusDisplayConverter" />
     <local:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
     <local:AppIconConverter x:Key="AppIconConverter" />
-    <local:PanelItemWidthConverter x:Key="PanelItemWidthConverter" />
     <local:ScaledListFontConverter x:Key="ScaledListFontConverter" />
     <BooleanToVisibilityConverter x:Key="BoolToVis" />
   </Window.Resources>
@@ -83,29 +82,32 @@
           </Grid>
         </Grid>
       </Border>
+      <Border DockPanel.Dock="Top" BorderBrush="#EEEEEE" BorderThickness="0,0,0,1" Padding="10,8,10,6">
+        <Grid TextElement.FontSize="11.5" TextElement.FontWeight="SemiBold" TextElement.Foreground="#888888">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="52" />
+            <ColumnDefinition Width="120" />
+            <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="2*" />
+            <ColumnDefinition Width="2*" />
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Text="キー" HorizontalAlignment="Center" />
+          <TextBlock Grid.Column="1" Text="状態" />
+          <TextBlock Grid.Column="2" Text="名前" />
+          <TextBlock Grid.Column="3" Text="アプリ／端末" />
+          <TextBlock Grid.Column="4" Text="PR／URL" />
+        </Grid>
+      </Border>
       <ListBox x:Name="ResultList" ItemsSource="{Binding Results}" SelectedIndex="{Binding SelectedIndex}"
-               BorderThickness="0" Background="Transparent"
+               BorderThickness="0" Background="Transparent" Padding="0"
                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                MouseDoubleClick="ResultList_OnMouseDoubleClick" PreviewKeyDown="ResultList_OnPreviewKeyDown">
-        <ListBox.ItemsPanel>
-          <ItemsPanelTemplate>
-            <WrapPanel />
-          </ItemsPanelTemplate>
-        </ListBox.ItemsPanel>
         <ListBox.ItemContainerStyle>
           <Style TargetType="ListBoxItem">
             <EventSetter Event="MouseEnter" Handler="ResultItem_OnMouseEnter"/>
             <Setter Property="Padding" Value="0" />
-            <Setter Property="Margin" Value="2" />
+            <Setter Property="Margin" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Width">
-              <Setter.Value>
-                <MultiBinding Converter="{StaticResource PanelItemWidthConverter}">
-                  <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=ListBox}" />
-                  <Binding Path="DataContext.Settings.NormalizedColumns" RelativeSource="{RelativeSource AncestorType=ListBox}" />
-                </MultiBinding>
-              </Setter.Value>
-            </Setter>
             <Setter Property="Template">
               <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
@@ -117,7 +119,7 @@
         </ListBox.ItemContainerStyle>
         <ListBox.ItemTemplate>
           <DataTemplate>
-            <Border CornerRadius="6" Padding="8,6">
+            <Border Padding="10,7" BorderBrush="#EEEEEE" BorderThickness="0,0,0,1">
               <Border.Style>
                 <Style TargetType="Border">
                   <Setter Property="Background" Value="Transparent" />
@@ -130,98 +132,85 @@
               </Border.Style>
               <Grid>
                 <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="16" />
-                  <ColumnDefinition Width="Auto" />
-                  <ColumnDefinition Width="Auto" />
-                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="52" />
+                  <ColumnDefinition Width="120" />
+                  <ColumnDefinition Width="3*" />
+                  <ColumnDefinition Width="2*" />
+                  <ColumnDefinition Width="2*" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Foreground="#1A73E8" VerticalAlignment="Center">
-                  <TextBlock.FontSize>
-                    <Binding Path="DataContext.Settings.EffectiveListFontSize" RelativeSource="{RelativeSource AncestorType=ListBox}" />
-                  </TextBlock.FontSize>
-                  <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                      <Setter Property="Text" Value=" " />
+                <Rectangle Grid.Column="0" Width="3" HorizontalAlignment="Left" Margin="-10,-7,0,-7" Fill="#1A73E8">
+                  <Rectangle.Style>
+                    <Style TargetType="Rectangle">
+                      <Setter Property="Visibility" Value="Collapsed" />
                       <Style.Triggers>
                         <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}" Value="True">
-                          <Setter Property="Text" Value="▸" />
+                          <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Rectangle.Style>
+                </Rectangle>
+                <TextBlock Grid.Column="0" FontFamily="Consolas" FontWeight="Bold"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           FontSize="{Binding DataContext.Settings.EffectiveListFontSize, RelativeSource={RelativeSource AncestorType=ListBox}}">
+                  <TextBlock.Text>
+                    <MultiBinding Converter="{StaticResource ShortcutBadgeConverter}">
+                      <Binding />
+                      <Binding Path="DataContext.Shortcuts" RelativeSource="{RelativeSource AncestorType=ListBox}" />
+                    </MultiBinding>
+                  </TextBlock.Text>
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="Foreground" Value="#5F6368" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}" Value="True">
+                          <Setter Property="Foreground" Value="#1A73E8" />
                         </DataTrigger>
                       </Style.Triggers>
                     </Style>
                   </TextBlock.Style>
                 </TextBlock>
-                <Grid Grid.Column="1" Width="20" Height="20" Margin="0,0,8,0" VerticalAlignment="Top">
-                  <TextBlock Text="{Binding AgentEmoji}" FontFamily="Segoe UI Emoji" FontSize="16"
-                             HorizontalAlignment="Center" VerticalAlignment="Center"
-                             Visibility="{Binding AgentEmoji, Converter={StaticResource NullToVisibilityConverter}}" />
-                  <Image Source="{Binding AppName, Converter={StaticResource AppIconConverter}}" Width="20" Height="20"
-                         Visibility="{Binding AgentEmoji, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=invert}" />
-                </Grid>
-                <Border Grid.Column="2" MinWidth="20" Height="20" CornerRadius="4" Background="#E8F0FE" VerticalAlignment="Top" Margin="0,0,8,0" Padding="4,0">
-                  <TextBlock Foreground="#5F6368" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock.FontSize>
-                      <Binding Path="DataContext.Settings.EffectiveListFontSize" RelativeSource="{RelativeSource AncestorType=ListBox}"
-                               Converter="{StaticResource ScaledListFontConverter}" ConverterParameter="0.85" />
-                    </TextBlock.FontSize>
-                    <TextBlock.Text>
-                      <MultiBinding Converter="{StaticResource ShortcutBadgeConverter}">
-                        <Binding />
-                        <Binding Path="DataContext.Shortcuts" RelativeSource="{RelativeSource AncestorType=ListBox}" />
-                      </MultiBinding>
-                    </TextBlock.Text>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                  <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center"
+                           Fill="{Binding AgentStatus, Converter={StaticResource AgentStatusDisplayConverter}, ConverterParameter=color}"
+                           Visibility="{Binding AgentStatus, Converter={StaticResource NullToVisibilityConverter}}" />
+                  <TextBlock Text="{Binding AgentStatus, Converter={StaticResource AgentStatusDisplayConverter}, ConverterParameter=label}"
+                             VerticalAlignment="Center"
+                             FontSize="{Binding DataContext.Settings.EffectiveListFontSize, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource ScaledListFontConverter}, ConverterParameter=0.85}">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="#5F6368" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding AgentStatus}" Value="{x:Null}">
+                            <Setter Property="Foreground" Value="#AAAAAA" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
                   </TextBlock>
-                </Border>
-                <StackPanel Grid.Column="3">
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="{Binding AgentEmoji}" FontFamily="Segoe UI Emoji" Margin="0,0,4,0"
-                               Visibility="{Binding AgentEmoji, Converter={StaticResource NullToVisibilityConverter}}">
-                      <TextBlock.FontSize>
-                        <Binding Path="DataContext.Settings.EffectiveListFontSize" RelativeSource="{RelativeSource AncestorType=ListBox}" />
-                      </TextBlock.FontSize>
-                    </TextBlock>
-                    <TextBlock Text="{Binding AgentStatus, Converter={StaticResource AgentStatusDisplayConverter}}"
-                               Foreground="{Binding AgentStatus, Converter={StaticResource AgentStatusDisplayConverter}, ConverterParameter=color}"
-                               FontWeight="Bold" Margin="0,0,4,0">
-                      <TextBlock.FontSize>
-                        <Binding Path="DataContext.Settings.EffectiveListFontSize" RelativeSource="{RelativeSource AncestorType=ListBox}" />
-                      </TextBlock.FontSize>
-                    </TextBlock>
-                    <TextBlock Text="{Binding DisplayLabel}" FontFamily="Consolas" FontWeight="Bold"
-                               Foreground="{Binding AgentStatus, Converter={StaticResource AgentStatusDisplayConverter}, ConverterParameter=color}">
-                      <TextBlock.FontSize>
-                        <Binding Path="DataContext.Settings.EffectiveListFontSize" RelativeSource="{RelativeSource AncestorType=ListBox}" />
-                      </TextBlock.FontSize>
-                    </TextBlock>
-                  </StackPanel>
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="{Binding AppName}" Foreground="#888888">
-                      <TextBlock.FontSize>
-                        <Binding Path="DataContext.Settings.EffectiveListFontSize" RelativeSource="{RelativeSource AncestorType=ListBox}"
-                                 Converter="{StaticResource ScaledListFontConverter}" ConverterParameter="0.85" />
-                      </TextBlock.FontSize>
-                    </TextBlock>
-                    <TextBlock Text=" — " Foreground="#AAAAAA"
-                               Visibility="{Binding UrlHint, Converter={StaticResource NullToVisibilityConverter}}">
-                      <TextBlock.FontSize>
-                        <Binding Path="DataContext.Settings.EffectiveListFontSize" RelativeSource="{RelativeSource AncestorType=ListBox}"
-                                 Converter="{StaticResource ScaledListFontConverter}" ConverterParameter="0.85" />
-                      </TextBlock.FontSize>
-                    </TextBlock>
-                    <TextBlock Text="{Binding UrlHint}" Foreground="#AAAAAA"
-                               Visibility="{Binding UrlHint, Converter={StaticResource NullToVisibilityConverter}}">
-                      <TextBlock.FontSize>
-                        <Binding Path="DataContext.Settings.EffectiveListFontSize" RelativeSource="{RelativeSource AncestorType=ListBox}"
-                                 Converter="{StaticResource ScaledListFontConverter}" ConverterParameter="0.85" />
-                      </TextBlock.FontSize>
-                    </TextBlock>
-                    <TextBlock Text="{Binding PullRequestLabel}" Foreground="#0078D4" Margin="6,0,0,0">
-                      <TextBlock.FontSize>
-                        <Binding Path="DataContext.Settings.EffectiveListFontSize" RelativeSource="{RelativeSource AncestorType=ListBox}"
-                                 Converter="{StaticResource ScaledListFontConverter}" ConverterParameter="0.85" />
-                      </TextBlock.FontSize>
-                    </TextBlock>
-                  </StackPanel>
                 </StackPanel>
+                <DockPanel Grid.Column="2" VerticalAlignment="Center">
+                  <Grid DockPanel.Dock="Left" Width="20" Height="20" Margin="0,0,8,0">
+                    <TextBlock Text="{Binding AgentEmoji}" FontFamily="Segoe UI Emoji" FontSize="16"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Visibility="{Binding AgentEmoji, Converter={StaticResource NullToVisibilityConverter}}" />
+                    <Image Source="{Binding AppName, Converter={StaticResource AppIconConverter}}" Width="20" Height="20"
+                           Visibility="{Binding AgentEmoji, Converter={StaticResource NullToVisibilityConverter}, ConverterParameter=invert}" />
+                  </Grid>
+                  <TextBlock Text="{Binding ListName}" FontWeight="SemiBold" Foreground="#222222"
+                             TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                             FontSize="{Binding DataContext.Settings.EffectiveListFontSize, RelativeSource={RelativeSource AncestorType=ListBox}}" />
+                </DockPanel>
+                <TextBlock Grid.Column="3" Text="{Binding ListDetail}" Foreground="#888888"
+                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,8,0"
+                           FontSize="{Binding DataContext.Settings.EffectiveListFontSize, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource ScaledListFontConverter}, ConverterParameter=0.85}" />
+                <DockPanel Grid.Column="4" VerticalAlignment="Center">
+                  <TextBlock DockPanel.Dock="Left" Text="{Binding PullRequestLabel}" Foreground="#0078D4" FontWeight="SemiBold" Margin="0,0,6,0"
+                             Visibility="{Binding PullRequestLabel, Converter={StaticResource NullToVisibilityConverter}}"
+                             FontSize="{Binding DataContext.Settings.EffectiveListFontSize, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource ScaledListFontConverter}, ConverterParameter=0.85}" />
+                  <TextBlock Text="{Binding UrlHint}" Foreground="#AAAAAA" TextTrimming="CharacterEllipsis"
+                             FontSize="{Binding DataContext.Settings.EffectiveListFontSize, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource ScaledListFontConverter}, ConverterParameter=0.85}" />
+                </DockPanel>
               </Grid>
             </Border>
           </DataTemplate>

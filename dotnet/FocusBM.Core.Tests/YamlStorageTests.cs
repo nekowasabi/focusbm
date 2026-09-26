@@ -265,4 +265,16 @@ public class HotkeySettingsRoundTripTests
         Assert.Contains("JetBrains Mono", round);
         Assert.Contains("fontName:", round);
     }
+
+    [Fact] public void FilteredNumberKeys_DefaultsFalse_ParsesAndRoundTrips()
+    {
+        Assert.False(new AppSettings().EffectiveFilteredNumberKeys);
+        var serializer = new BookmarkYamlSerializer();
+        var store = serializer.Deserialize("settings:\n  filteredNumberKeys: true\nbookmarks: []\n");
+        Assert.True(store.Settings!.EffectiveFilteredNumberKeys);
+
+        var round = serializer.Serialize(store);
+        Assert.Contains("filteredNumberKeys: true", round);
+        Assert.True(serializer.Deserialize(round).Settings!.EffectiveFilteredNumberKeys);
+    }
 }

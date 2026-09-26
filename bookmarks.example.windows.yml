@@ -33,6 +33,8 @@ settings:
   showWslAgents: true
   virtuawinEnabled: true
   imeRestoreEnabled: false
+  # true: 絞り込み中（候補2件以上）も数字キー単体で番号を選ぶ（既定: 数字は検索語として入力）
+  filteredNumberKeys: false
 
   wslEnabled: true
   wslDistribution: Ubuntu

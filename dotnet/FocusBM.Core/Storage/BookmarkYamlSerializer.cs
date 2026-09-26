@@ -29,6 +29,7 @@ public sealed class BookmarkYamlSerializer
         if (settings.AutoExecuteOnSingleResult is not null) sb.AppendLine($"  autoExecuteOnSingleResult: {settings.AutoExecuteOnSingleResult.Value.ToString().ToLowerInvariant()}");
         if (settings.AutoExecuteDelay is not null) sb.AppendLine($"  autoExecuteDelay: {settings.AutoExecuteDelay.Value.ToString(CultureInfo.InvariantCulture)}");
         if (settings.DirectNumberKeys is not null) sb.AppendLine($"  directNumberKeys: {settings.DirectNumberKeys.Value.ToString().ToLowerInvariant()}");
+        if (settings.FilteredNumberKeys is not null) sb.AppendLine($"  filteredNumberKeys: {settings.FilteredNumberKeys.Value.ToString().ToLowerInvariant()}");
         if (settings.ShowAIAgentShortcut is not null) sb.AppendLine($"  showAIAgentShortcut: {settings.ShowAIAgentShortcut.Value.ToString().ToLowerInvariant()}");
         sb.AppendLine($"  showTmuxAgents: {settings.EffectiveShowTmuxAgents.ToString().ToLowerInvariant()}");
         sb.AppendLine($"  showWslAgents: {settings.EffectiveShowWslAgents.ToString().ToLowerInvariant()}");
@@ -165,6 +166,7 @@ public sealed class BookmarkYamlSerializer
                         "autoExecuteOnSingleResult" => settings with { AutoExecuteOnSingleResult = ParseBool(s.Value) },
                         "autoExecuteDelay" => settings with { AutoExecuteDelay = double.TryParse(Uq(s.Value), NumberStyles.Float, CultureInfo.InvariantCulture, out var ad) ? ad : settings.AutoExecuteDelay },
                         "directNumberKeys" => settings with { DirectNumberKeys = ParseBool(s.Value) },
+                        "filteredNumberKeys" => settings with { FilteredNumberKeys = ParseBool(s.Value) },
                         "showAIAgentShortcut" => settings with { ShowAIAgentShortcut = ParseBool(s.Value) },
                         "showTmuxAgents" => settings with { ShowTmuxAgents = ParseBool(s.Value) },
                         "showWslAgents" => settings with { ShowWslAgents = ParseBool(s.Value) },

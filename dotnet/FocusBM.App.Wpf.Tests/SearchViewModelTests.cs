@@ -15,6 +15,15 @@ public class SearchViewModelTests
     }
 
     [Fact]
+    public void MoveDown_WithTwoColumnSetting_MovesOneRow()
+    {
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(new AppSettings(BookmarkListColumns: 2), new[] { new Bookmark("a", "Chrome", ""), new Bookmark("b", "Code", ""), new Bookmark("c", "Slack", "") }));
+        vm.Move(NavigationCommand.Down);
+        Assert.Equal(1, vm.SelectedIndex);
+    }
+
+    [Fact]
     public void ClearQuery_RestoresUnfilteredList()
     {
         var vm = new SearchPanelViewModel();
@@ -153,6 +162,53 @@ public class ShortcutViewModelTests
         Assert.Equal("firefox-2", vm.SelectedBookmark!.Id);
         Assert.True(vm.SelectByDigit(1));
         Assert.Equal("focusbm-nvim", vm.SelectedBookmark!.Id);
+    }
+
+    private static readonly AppSettings NoAIShortcutSettings = new(ShowAIAgentShortcut: false);
+
+    private static Bookmark[] RenumberBookmarks() => new[]
+    {
+        new Bookmark("dev-docs", "Docs", "work", Shortcut: "^a"),
+        new Bookmark("claude-dev", "claude @ WezTerm — dev", "", new WslProcessState(42, "claude", "WezTerm", WorkingDirectory: "/home/u/dev")),
+        new Bookmark("dev-notes", "Notes", "work"),
+        new Bookmark("slack", "Slack", "chat"),
+    };
+
+    private static (Bookmark, string?)[] Expected(IEnumerable<ShortcutAssignment> assignments) =>
+        assignments.Where(a => a.Shortcut is not null).Select(a => (a.Bookmark, a.Shortcut)).ToArray();
+
+    [Fact]
+    public void FilteringToMultipleResults_RenumbersVisibleResults()
+    {
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(NoAIShortcutSettings, RenumberBookmarks()));
+        vm.Query = "dev";
+        Assert.Equal(3, vm.Results.Count);
+        for (var i = 0; i < vm.Results.Count; i++)
+            Assert.Equal((i + 1).ToString(), vm.Shortcuts.Single(a => a.Bookmark == vm.Results[i]).Shortcut);
+        Assert.True(vm.SelectByDigit(2));
+        Assert.Same(vm.Results[1], vm.SelectedBookmark);
+    }
+
+    [Fact]
+    public void EmptyQuery_KeepsAssignerShortcuts()
+    {
+        var bookmarks = RenumberBookmarks();
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(NoAIShortcutSettings, bookmarks));
+        Assert.Equal(Expected(ShortcutAssigner.Assign(bookmarks, NoAIShortcutSettings)), Expected(vm.Shortcuts));
+        Assert.Contains(vm.Shortcuts, a => a.Bookmark.Id == "dev-docs" && a.Shortcut == "^a");
+    }
+
+    [Fact]
+    public void FilteringToSingleResult_KeepsOriginalAssignment()
+    {
+        var bookmarks = RenumberBookmarks();
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(NoAIShortcutSettings, bookmarks));
+        vm.Query = "slack";
+        Assert.Single(vm.Results);
+        Assert.Equal(Expected(ShortcutAssigner.Assign(bookmarks, NoAIShortcutSettings)), Expected(vm.Shortcuts));
     }
 
     [Fact]

@@ -278,8 +278,9 @@ public partial class MainWindow : Window
     private bool IsFindSearchHotkey(System.Windows.Input.KeyEventArgs e) =>
         e.Key == Key.F && e.KeyboardDevice.Modifiers == ModifierKeys.Control;
 
+    // Why: 絞り込み画面は1行1件の表なので、列数設定に関わらず先頭行は先頭の1件
     private bool IsOnFirstResultRow() =>
-        GridNavigator.IsOnFirstRow(ViewModel.SelectedIndex, ViewModel.Results.Count, ViewModel.Settings.NormalizedColumns);
+        GridNavigator.IsOnFirstRow(ViewModel.SelectedIndex, ViewModel.Results.Count, 1);
 
     private async void Window_OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
@@ -299,6 +300,23 @@ public partial class MainWindow : Window
         if (await TryActivatePreviewByDigitAsync(e)) return;
         if (TryShowAgentPreview(e)) return;
         if (await TryHandleEmptyQueryLaunchAsync(e)) return;
+        if (await TryHandleFilteredDigitAsync(e)) return;
+    }
+
+    private async Task<bool> TryHandleFilteredDigitAsync(System.Windows.Input.KeyEventArgs e)
+    {
+        // Why: 絞り込み中は振り直した番号を Ctrl+数字で選ぶ。filteredNumberKeys: true なら候補2件以上の
+        // 絞り込み中は素の数字でも振り直した番号を選ぶ。既定は検索語として入力
+        if (string.IsNullOrEmpty(ViewModel.Query)) return false;
+        if (DigitFromKey(e.Key) is not (int digit and >= 1 and <= 9)) return false;
+        var mods = e.KeyboardDevice.Modifiers;
+        var plainSelect = ViewModel.Settings.EffectiveFilteredNumberKeys
+            && ViewModel.Results.Count >= 2
+            && NumberModifiersOk(mods);
+        if (mods != ModifierKeys.Control && !plainSelect) return false;
+        e.Handled = true;
+        if (ViewModel.SelectByDigit(digit)) await RestoreAndMaybeHideAsync();
+        return true;
     }
 
     private async Task DismissPanelAsync()

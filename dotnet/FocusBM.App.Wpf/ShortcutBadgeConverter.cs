@@ -21,6 +21,10 @@ public sealed class AgentStatusDisplayConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
+        if (string.Equals(parameter?.ToString(), "label", StringComparison.OrdinalIgnoreCase))
+        {
+            return value is not TmuxAgentStatus labelStatus ? "—" : AgentStatusText.Label(labelStatus);
+        }
         if (value is not TmuxAgentStatus status)
         {
             return string.Equals(parameter?.ToString(), "color", StringComparison.OrdinalIgnoreCase)
@@ -97,17 +101,4 @@ public sealed class ScaledListFontConverter : IValueConverter
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
-}
-
-public sealed class PanelItemWidthConverter : IMultiValueConverter
-{
-    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
-    {
-        var width = values.Length > 0 && values[0] is double d ? d : 800;
-        var columns = values.Length > 1 && values[1] is int n ? n : 1;
-        var gutter = 8;
-        return Math.Max(0, columns <= 1 ? width - gutter : width / 2 - gutter);
-    }
-
-    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) => throw new NotSupportedException();
 }

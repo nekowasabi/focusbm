@@ -51,7 +51,8 @@ public sealed record AppSettings(
     int? DisplayNumber = null,
     bool? AutoExecuteOnSingleResult = null,
     double? AutoExecuteDelay = null,
-    bool? DirectNumberKeys = null)
+    bool? DirectNumberKeys = null,
+    bool? FilteredNumberKeys = null)
 {
     public HotkeySettings EffectiveHotkey => Hotkey ?? new HotkeySettings();
     public int NormalizedColumns => BookmarkListColumns <= 1 ? 1 : 2;
@@ -65,6 +66,7 @@ public sealed record AppSettings(
         : null;
     public double EffectiveAutoExecuteDelay => AutoExecuteDelay is > 0 ? AutoExecuteDelay.Value : 0.3;
     public bool EffectiveDirectNumberKeys => DirectNumberKeys ?? true;
+    public bool EffectiveFilteredNumberKeys => FilteredNumberKeys ?? false;
     public bool EffectiveShowAIAgentShortcut => ShowAIAgentShortcut ?? true;
     public bool EffectiveShowTmuxAgents => ShowTmuxAgents ?? true;
     public bool EffectiveShowWslAgents => ShowWslAgents ?? true;

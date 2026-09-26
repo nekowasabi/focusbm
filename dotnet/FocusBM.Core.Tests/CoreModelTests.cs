@@ -150,6 +150,20 @@ public class CoreModelTests
         Assert.Equal(1, new AppSettings(BookmarkListColumns: 0).NormalizedColumns);
         Assert.Equal(2, new AppSettings(BookmarkListColumns: 3).NormalizedColumns);
     }
+    [Fact] public void ListNameAndDetail_SplitAgentDirectoryFromTerminal()
+    {
+        var agent = new Bookmark("wsl:1", "claude @ WezTerm — focusbm", "", new WslProcessState(1, "claude", "WezTerm", WorkingDirectory: "/home/u/repos/focusbm"));
+        Assert.Equal("focusbm", agent.ListName);
+        Assert.Equal("claude @ WezTerm", agent.ListDetail);
+
+        var browser = new Bookmark("gh-focusbm", "chrome", "", new BrowserAppState("https://github.com"));
+        Assert.Equal("gh-focusbm", browser.ListName);
+        Assert.Equal("chrome", browser.ListDetail);
+
+        var noDirectory = new Bookmark("wsl:2", "codex @ WSL", "", new WslProcessState(2, "codex"));
+        Assert.Equal("codex @ WSL", noDirectory.ListName);
+        Assert.Equal("", noDirectory.ListDetail);
+    }
 }
 
 public class PanelVisibilityTests

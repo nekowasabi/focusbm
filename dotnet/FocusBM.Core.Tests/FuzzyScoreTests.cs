@@ -212,4 +212,56 @@ public class FilterTests
         var result = BookmarkSearcher.Filter(new[] { agent }, "process");
         Assert.Empty(result);
     }
+
+    private static Bookmark RunningTmuxAgent() => new(
+        "tmux:s:1:%1",
+        "claude @ WezTerm — focusbm",
+        "",
+        new WslProcessState(1, "claude", "WezTerm", "%1", "s", "1", "/home/u/repos/focusbm", TmuxAgentStatus.Running));
+
+    // 状態列の表示ラベル・enum 名、語順を入れ替えた複数語でも tmux agent に当たる。
+    [Theory]
+    [InlineData("実行中")]
+    [InlineData("running")]
+    [InlineData("focusbm wez")]
+    public void Filter_TmuxAgent_MatchesStatusTerminalAndAnyWordOrder(string query)
+    {
+        Assert.Single(BookmarkSearcher.Filter(new[] { RunningTmuxAgent() }, query));
+    }
+
+    [Fact]
+    public void Filter_TmuxAgent_OtherStatusDoesNotMatch()
+    {
+        Assert.Empty(BookmarkSearcher.Filter(new[] { RunningTmuxAgent() }, "idle"));
+    }
+
+    [Fact]
+    public void Filter_ByStatusLabel_ReturnsOnlyAgentsInThatStatus()
+    {
+        var idle = new Bookmark(
+            "tmux:t:2:%2",
+            "codex @ Windows Terminal — other",
+            "",
+            new WslProcessState(2, "codex", "Windows Terminal", "%2", "t", "2", "/home/u/repos/other", TmuxAgentStatus.Idle));
+        var result = BookmarkSearcher.Filter(new[] { RunningTmuxAgent(), idle }, "入力待ち");
+        Assert.Same(idle, Assert.Single(result));
+    }
+
+    [Fact]
+    public void Filter_TmuxAgent_MatchesSubsequenceAcrossRowColumns()
+    {
+        var agent = new Bookmark(
+            "tmux:s:1:%1",
+            "claude @ WezTerm — focusbm",
+            "",
+            new WslProcessState(1, "claude", "WezTerm", "%1", "s", "1", "/home/u/repos/focusbm", TmuxAgentStatus.PlanMode));
+        Assert.Single(BookmarkSearcher.Filter(new[] { agent }, "plafocuclaude"));
+    }
+
+    [Fact]
+    public void Filter_NonAgent_MatchesSubsequenceAcrossRowColumns()
+    {
+        var bm = new Bookmark("gh-focusbm", "chrome", "", new BrowserAppState("https://github.com/takets/focusbm"));
+        Assert.Single(BookmarkSearcher.Filter(new[] { bm }, "ghchromegithub"));
+    }
 }

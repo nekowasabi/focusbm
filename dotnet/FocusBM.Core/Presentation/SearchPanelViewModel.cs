@@ -41,7 +41,7 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     {
         Settings = store.Settings ?? new AppSettings();
         _all = store.Bookmarks;
-        RebuildShortcuts();
+        RebuildShortcutBar();
         Refresh();
         OnChanged(nameof(Settings));
         OnChanged(nameof(PreviewFontFamily));
@@ -66,9 +66,26 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
             : filtered;
         foreach (var bm in visible) Results.Add(bm);
         SelectedIndex = Results.Count == 0 ? -1 : Math.Clamp(SelectedIndex, 0, Results.Count - 1);
+        RebuildNumberShortcuts();
         OnChanged(nameof(Results));
         OnChanged(nameof(SelectedIndex));
+        OnChanged(nameof(Shortcuts));
+        OnChanged(nameof(ShowShortcuts));
         ScheduleAutoExecute();
+    }
+
+    private void RebuildNumberShortcuts()
+    {
+        Shortcuts.Clear();
+        if (!string.IsNullOrEmpty(_query) && Results.Count >= 2)
+        {
+            // Why: 絞り込み中は表示中の候補だけに 1〜9 を振り直し、YAML 指定や AI 抑止に関係なく全候補を数字で選べるようにする（10件目以降は数字なし）
+            for (var i = 0; i < Math.Min(9, Results.Count); i++)
+                Shortcuts.Add(new ShortcutAssignment(Results[i], (i + 1).ToString(), true));
+            return;
+        }
+        foreach (var assignment in ShortcutAssigner.Assign(_all, Settings).Where(a => a.Shortcut is not null))
+            Shortcuts.Add(assignment);
     }
 
     public event Action? AutoExecuteRequested;
@@ -109,16 +126,13 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
         return false;
     }
 
-    private void RebuildShortcuts()
+    private void RebuildShortcutBar()
     {
-        Shortcuts.Clear();
         ShortcutBar.Clear();
         foreach (var assignment in ShortcutAssigner.Assign(_all, Settings).Where(a => a.Shortcut is not null))
         {
-            Shortcuts.Add(assignment);
             if (!string.IsNullOrWhiteSpace(assignment.Bookmark.Shortcut)) ShortcutBar.Add(assignment);
         }
-        OnChanged(nameof(Shortcuts));
         OnChanged(nameof(ShortcutBar));
         OnChanged(nameof(ShowShortcuts));
         OnChanged(nameof(ShowShortcutBar));
@@ -152,7 +166,8 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
 
     public void Move(NavigationCommand command)
     {
-        SelectedIndex = GridNavigator.Move(SelectedIndex, Results.Count, Settings.NormalizedColumns, command);
+        // Why: 絞り込み画面は1行1件の表なので、bookmarkListColumns に関わらず↑↓は1件ずつ動かす
+        SelectedIndex = GridNavigator.Move(SelectedIndex, Results.Count, 1, command);
         OnChanged(nameof(SelectedIndex));
     }
 
