@@ -1,7 +1,7 @@
 # focusBM build targets
 #
 # Default `make` follows $PC (see ~/.dotfiles zsh env):
-#   PC=wsl      → Windows self-contained FocusBM.exe in release/
+#   PC=wsl      → Windows FocusBM.exe (framework-dependent) in C:\takeda\tools\focusbm
 #   otherwise   → macOS app rebuild + relaunch (scripts/dev-relaunch.sh)
 #
 # Windows 版 (.NET 8) は dotnet/FocusBM.sln 配下のプロジェクト群でビルドする。
@@ -17,7 +17,8 @@ WIN_SLN    := dotnet/FocusBM.sln
 WIN_CONFIG ?= Release
 WIN_RID    ?= win-x64
 ARTIFACTS  := artifacts
-RELEASE_DIR := release
+# Why: Run from local disk, not \\wsl.localhost — AV heuristics (Surfshark Drop.Win64.FakeProgSelfRun) flag UNC-launched exes.
+RELEASE_DIR ?= /mnt/c/takeda/tools/focusbm
 CLI_PROJ   := dotnet/FocusBM.Cli/FocusBM.Cli.csproj
 APP_PROJ   := dotnet/FocusBM.App.Wpf/FocusBM.App.Wpf.csproj
 
@@ -61,20 +62,19 @@ win-exe: ## Windows 単体実行 exe を生成する (self-contained/single-file
 	$(DOTNET) publish $(CLI_PROJ) -c $(WIN_CONFIG) -r $(WIN_RID) --self-contained $(WIN_SELF_CONTAINED) -p:PublishSingleFile=$(WIN_SINGLE_FILE) -o $(ARTIFACTS)/focusbm-cli-exe
 	$(DOTNET) publish $(APP_PROJ) -c $(WIN_CONFIG) -r $(WIN_RID) --self-contained $(WIN_SELF_CONTAINED) -p:PublishSingleFile=$(WIN_SINGLE_FILE) -o $(ARTIFACTS)/focusbm-app-exe
 
-# Why: AssemblyName=FocusBM collides in this solution; rename the published WinExe instead.
-# Why: Do not wipe release/ — colocated bookmarks.yml is the Windows smoke-test config.
-release: ## 単体実行 FocusBM.exe を release/ に生成する
+# Why: Framework-dependent folder publish, not self-extracting single-file — self-extraction looked like a dropper to AV.
+# Why: Do not wipe RELEASE_DIR — colocated bookmarks.yml and focusbm.log live there.
+release: ## FocusBM.exe を RELEASE_DIR（既定 C:\takeda\tools\focusbm）に framework 依存で生成する
 	mkdir -p $(RELEASE_DIR)
-	$(DOTNET) publish $(APP_PROJ) -c Release -r $(WIN_RID) --self-contained true \
-		-p:PublishSingleFile=true \
+	$(DOTNET) publish $(APP_PROJ) -c Release -r $(WIN_RID) --self-contained false \
+		-p:PublishSingleFile=false \
 		-p:DebugType=None \
 		-p:CopyOutputSymbolsToPublishDirectory=false \
 		-o $(RELEASE_DIR)
 	mv -f $(RELEASE_DIR)/FocusBM.App.Wpf.exe $(RELEASE_DIR)/FocusBM.exe
-	find $(RELEASE_DIR) -type f ! -name 'FocusBM.exe' ! -name 'bookmarks.yml' ! -name 'focusbm.log' ! -name 'focusbm.log.old' -delete
-	[ -f $(RELEASE_DIR)/bookmarks.yml ] || [ ! -f artifacts/focusbm-app-exe/bookmarks.yml ] || cp artifacts/focusbm-app-exe/bookmarks.yml $(RELEASE_DIR)/bookmarks.yml
+	[ -f $(RELEASE_DIR)/bookmarks.yml ] || [ ! -f release/bookmarks.yml ] || cp release/bookmarks.yml $(RELEASE_DIR)/bookmarks.yml
 	[ -f $(RELEASE_DIR)/bookmarks.yml ] || cp bookmarks.example.windows.yml $(RELEASE_DIR)/bookmarks.yml
 
 win-clean: ## Windows 版のビルド生成物を削除する
 	$(DOTNET) clean $(WIN_SLN) -c $(WIN_CONFIG)
-	rm -rf $(ARTIFACTS)/focusbm-cli $(ARTIFACTS)/focusbm-app $(ARTIFACTS)/focusbm-cli-exe $(ARTIFACTS)/focusbm-app-exe $(RELEASE_DIR)
+	rm -rf $(ARTIFACTS)/focusbm-cli $(ARTIFACTS)/focusbm-app $(ARTIFACTS)/focusbm-cli-exe $(ARTIFACTS)/focusbm-app-exe
