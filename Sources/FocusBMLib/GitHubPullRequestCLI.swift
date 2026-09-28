@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 public enum GitHubPullRequestCLI {
     public static let timeoutSeconds: TimeInterval = 5
@@ -80,7 +81,11 @@ public enum GitHubPullRequestCLI {
             if process.isRunning {
                 process.terminate()
             }
-            completion.wait()
+            if completion.wait(timeout: .now() + 1) == .timedOut, process.isRunning {
+                // Why: Bound cleanup when the CLI does not exit after SIGTERM.
+                Darwin.kill(process.processIdentifier, SIGKILL)
+                completion.wait()
+            }
             return nil
         }
 
