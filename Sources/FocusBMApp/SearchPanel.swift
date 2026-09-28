@@ -304,6 +304,17 @@ class SearchPanel: NSPanel {
                     }
                     return nil
                 }
+                // Why: Instead of plain digits, adopted Ctrl+digit while filtering. Reason: plain digits must still type into the field.
+                // filteredNumberKeys=true の場合は絞り込み結果2件以上かつ isBareOrCmd でも同様に選択+実行する。
+                if !self.viewModel.query.isEmpty {
+                    let filtered = self.viewModel.appSettings?.filteredNumberKeys ?? false
+                    if flags == .control || (filtered && self.viewModel.mainListAssignments.count >= 2 && isBareOrCmd) {
+                        if self.viewModel.selectByDigit(number), let item = self.viewModel.selectedItem() {
+                            self.executeItem(item)
+                        }
+                        return nil
+                    }
+                }
             }
 
             // アルファベットショートカット: query が空かつ shortcutBarItems に登録済みキーで発動
@@ -327,12 +338,6 @@ class SearchPanel: NSPanel {
                 return nil
             case 125: // Down arrow
                 self.viewModel.moveDown()
-                return nil
-            case 123: // Left arrow
-                self.viewModel.moveLeft()
-                return nil
-            case 124: // Right arrow
-                self.viewModel.moveRight()
                 return nil
             case 53: // Escape
                 if self.viewModel.dismissScreenPreview() {

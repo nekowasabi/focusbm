@@ -833,3 +833,30 @@ private final class AutoExecuteProbe {
     try await Task.sleep(nanoseconds: 500_000_000)
     #expect(probe.didFire == false, "⌘R 相当の明示 cancel 後は予約が発火しない")
 }
+
+// MARK: - Filtered renumbering
+
+/// 絞り込み中は YAML shortcut / noShortcut を無視し、表示順に 1〜9 を振り直すこと
+@Test func test_withQuery_renumbersVisibleItemsInDisplayOrder() {
+    let vm = SearchViewModel()
+    vm.bookmarks = (0..<12).map { i in
+        makeBookmark(name: "item\(i)", appName: "app", noShortcut: i == 1, shortcut: i == 0 ? "a" : nil)
+    }
+    vm.query = "item"
+    vm.updateItems()
+
+    #expect(vm.mainListAssignments.map(\.label) == ["1", "2", "3", "4", "5", "6", "7", "8", "9", nil, nil, nil])
+    #expect(vm.mainListAssignments.map(\.item.id) == vm.searchItems.map(\.id))
+    #expect(vm.selectByDigit(1))
+    #expect(vm.selectedItem()?.id == vm.searchItems[0].id)
+}
+
+/// 絞り込みで1件になった場合は通常の割り当てに戻ること
+@Test func test_withQuery_singleResult_keepsNormalAssignment() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [makeBookmark(name: "ghostty", appName: "app", shortcut: "g"), makeBookmark(name: "chrome", appName: "app")]
+    vm.query = "ghostty"
+    vm.updateItems()
+
+    #expect(vm.mainListAssignments.map(\.label) == ["g"])
+}

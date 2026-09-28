@@ -430,3 +430,63 @@ import Yams
     #expect(!(display?.nameWithoutEmoji.contains("○") ?? false))
     #expect(!(display?.nameWithoutEmoji.contains("●") ?? false))
 }
+
+// MARK: - SearchItem table columns
+
+@Test func test_tmuxAgentStatus_label() {
+    #expect(TmuxAgentStatus.running.label == "実行中")
+    #expect(TmuxAgentStatus.planMode.label == "Plan")
+    #expect(TmuxAgentStatus.acceptEdits.label == "Accept edits")
+    #expect(TmuxAgentStatus.idle.label == "入力待ち")
+}
+
+@Test func test_tableColumns_bookmark() {
+    let bm = Bookmark(id: "work", appName: "Safari", bundleIdPattern: nil, context: "",
+                      state: .app(windowTitle: ""), createdAt: "2024-01-01T00:00:00Z")
+    let item = SearchItem.bookmark(bm)
+    #expect(item.agentStatus == nil)
+    #expect(item.listName == "work")
+    #expect(item.listDetail == "Safari")
+}
+
+@Test func test_tableColumns_bookmark_detailEqualToNameIsEmpty() {
+    let bm = Bookmark(id: "Safari", appName: "Safari", bundleIdPattern: nil, context: "",
+                      state: .app(windowTitle: ""), createdAt: "2024-01-01T00:00:00Z")
+    #expect(SearchItem.bookmark(bm).listDetail == "")
+}
+
+@Test func test_tableColumns_floatingWindow() {
+    let entry = FloatingWindowEntry(id: "alter", appName: "Alter", windowTitle: "Search",
+                                    displayName: "Alter - Search", pid: 1)
+    let item = SearchItem.floatingWindow(entry)
+    #expect(item.listName == "Alter - Search")
+    #expect(item.listDetail == "Alter")
+}
+
+@Test func test_tableColumns_tmuxPane() {
+    let pane = TmuxPane(paneId: "%1", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "claude", title: "", currentPath: "/repos/focusbm")
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.agentStatus == pane.agentStatus)
+    #expect(item.listName == "focusbm")
+    #expect(item.listDetail == "\(pane.terminalEmoji) \(pane.agentName)")
+}
+
+@Test func test_tableColumns_tmuxPane_emptyPathFallsBackToDisplayName() {
+    let pane = TmuxPane(paneId: "%2", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "claude", title: "", currentPath: "")
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.listName == pane.displayNameWithoutEmoji)
+    #expect(item.listDetail == "")
+}
+
+@Test func test_tableColumns_aiProcess() {
+    let process = ProcessProvider.AIProcess(
+        pid: 9, command: "hermes", workingDirectory: "/repos/focusbm",
+        terminalBundleId: nil, terminalAppName: nil, terminalEmoji: "👻", title: ""
+    )
+    let item = SearchItem.aiProcess(process)
+    #expect(item.agentStatus == nil)
+    #expect(item.listName == "focusbm")
+    #expect(item.listDetail == "👻 Hermes")
+}

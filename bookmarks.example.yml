@@ -32,11 +32,14 @@ settings:
   fontName: "Fira Code"
   previewFontName: "JetBrains Mono"
 
-  # 一覧表示の列数（1: 縦1列 / 2: 横2列）。0, 3, 負数などの不正値は 1 にフォールバック
+  # 2 を指定すると panelWidth 未指定時のパネル幅が 800 になる（一覧は常に表形式の 1 列）
   bookmarkListColumns: 2
 
   # AI エージェント行に番号を振るか。未指定時は true。
   # showAIAgentShortcut: false
+
+  # true: 絞り込み中（候補2件以上）も数字キー単体で番号を選ぶ（既定: 数字は検索語として入力）
+  # filteredNumberKeys: false
 
 bookmarks:
   - id: github

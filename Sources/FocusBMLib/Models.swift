@@ -291,6 +291,8 @@ public struct AppSettings: Codable, Equatable {
     public var autoExecuteDelay: Double?
     /// 数字キー単体でブックマークにフォーカスする（デフォルト: true）
     public var directNumberKeys: Bool?
+    /// 絞り込み中も数字キー単体で振り直した番号を選択する（デフォルト: false）
+    public var filteredNumberKeys: Bool?
     /// 1=縦列（デフォルト）、2=横2列、他=nil扱い
     public var bookmarkListColumns: Int?
     /// AIエージェント行にショートカット番号を割り当てるか（デフォルト: true）
@@ -314,6 +316,7 @@ public struct AppSettings: Codable, Equatable {
         autoExecuteOnSingleResult: Bool? = nil,
         autoExecuteDelay: Double? = nil,
         directNumberKeys: Bool? = nil,
+        filteredNumberKeys: Bool? = nil,
         bookmarkListColumns: Int? = nil,
         showAIAgentShortcut: Bool? = nil
     ) {
@@ -332,6 +335,7 @@ public struct AppSettings: Codable, Equatable {
         self.autoExecuteOnSingleResult = autoExecuteOnSingleResult
         self.autoExecuteDelay = autoExecuteDelay
         self.directNumberKeys = directNumberKeys
+        self.filteredNumberKeys = filteredNumberKeys
         self.bookmarkListColumns = bookmarkListColumns
         self.showAIAgentShortcut = showAIAgentShortcut
     }
@@ -357,6 +361,7 @@ public struct AppSettings: Codable, Equatable {
         autoExecuteOnSingleResult = try container.decodeIfPresent(Bool.self, forKey: .autoExecuteOnSingleResult)
         autoExecuteDelay = try container.decodeIfPresent(Double.self, forKey: .autoExecuteDelay)
         directNumberKeys = try container.decodeIfPresent(Bool.self, forKey: .directNumberKeys)
+        filteredNumberKeys = try container.decodeIfPresent(Bool.self, forKey: .filteredNumberKeys)
         showAIAgentShortcut = try container.decodeIfPresent(Bool.self, forKey: .showAIAgentShortcut)
         let rawColumns = try container.decodeIfPresent(Int.self, forKey: .bookmarkListColumns)
         // Why: normalizedColumns で {1,2} 以外を nil に正規化。
@@ -447,14 +452,29 @@ public struct BookmarkSearcher {
         return score
     }
 
+    /// 空白区切りの各トークンを texts のいずれかに fuzzy マッチさせる AND スコア（トークンごとの最大値の合計）
+    public static func score(texts: [String], query: String) -> Int? {
+        var total = 0
+        for token in query.split(whereSeparator: \.isWhitespace) {
+            guard let best = texts.compactMap({ fuzzyScore(text: $0, query: String(token)) }).max() else { return nil }
+            total += best
+        }
+        return total
+    }
+
+    /// 絞り込み中（query 非空・2件以上）は表示順に "1"〜"9" を振り直す。nil は通常の割り当てを使う
+    public static func filteredNumberLabels(query: String, count: Int) -> [String?]? {
+        guard !query.isEmpty, count >= 2 else { return nil }
+        return (0..<count).map { $0 < 9 ? String($0 + 1) : nil }
+    }
+
     /// fuzzy フィルタ + スコア順ソート
     public static func filter(bookmarks: [Bookmark], query: String) -> [Bookmark] {
         guard !query.isEmpty else { return bookmarks }
         return bookmarks
             .compactMap { bm -> (Bookmark, Int)? in
-                let texts = [bm.id, bm.appName, bm.context]
-                let maxScore = texts.compactMap { fuzzyScore(text: $0, query: query) }.max()
-                return maxScore.map { (bm, $0) }
+                let texts = [bm.id, bm.appName, bm.context, SearchItem.bookmark(bm).rowText()]
+                return score(texts: texts, query: query).map { (bm, $0) }
             }
             .sorted { $0.1 > $1.1 }
             .map { $0.0 }
@@ -588,6 +608,50 @@ public enum SearchItem: Identifiable {
         case .bookmark, .floatingWindow, .aiProcess:
             return nil
         }
+    }
+
+    // Why: Instead of gating on isAIAgent, adopted every tmuxPane. Reason: matches agentDisplay's existing rule.
+    public var agentStatus: TmuxAgentStatus? {
+        if case .tmuxPane(let pane) = self { return pane.agentStatus }
+        return nil
+    }
+
+    /// Filter table "名前" column. Agents show their working directory leaf.
+    public var listName: String {
+        switch self {
+        case .bookmark(let b): return b.id
+        case .floatingWindow(let f): return f.displayName
+        case .tmuxPane(let p):
+            return p.currentPath.isEmpty
+                ? p.displayNameWithoutEmoji
+                : URL(fileURLWithPath: p.currentPath).lastPathComponent
+        case .aiProcess(let p): return URL(fileURLWithPath: p.workingDirectory).lastPathComponent
+        }
+    }
+
+    /// Filter table "アプリ／端末" column, without the trailing " — <listName>" already shown in the name column.
+    public var listDetail: String {
+        let base: String
+        switch self {
+        case .bookmark, .floatingWindow: base = appName
+        case .tmuxPane(let p): base = p.displayNameWithoutEmoji
+        case .aiProcess: base = displayName
+        }
+        let suffix = " — \(listName)"
+        let detail = base.hasSuffix(suffix) ? String(base.dropLast(suffix.count)) : base
+        return detail == listName ? "" : detail
+    }
+
+    /// 状態列の検索用テキスト（表示ラベル＋case 名）
+    public var statusText: String {
+        agentStatus.map { "\($0.label) \($0)" } ?? ""
+    }
+
+    /// 表の1行を表示順に連結した検索用テキスト（列をまたいだ曖昧検索用）
+    public func rowText(prLabel: String? = nil) -> String {
+        [statusText, listName, listDetail, prLabel ?? "", urlPattern ?? ""]
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
     }
 
     /// AI エージェントプロセスかどうか

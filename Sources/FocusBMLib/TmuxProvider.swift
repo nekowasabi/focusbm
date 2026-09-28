@@ -74,6 +74,15 @@ public enum TmuxInputError: Error, LocalizedError, Equatable {
 
 public enum TmuxAgentStatus {
     case running, planMode, acceptEdits, idle
+
+    public var label: String {
+        switch self {
+        case .running: return "実行中"
+        case .planMode: return "Plan"
+        case .acceptEdits: return "Accept edits"
+        case .idle: return "入力待ち"
+        }
+    }
 }
 
 public struct TmuxPane {

@@ -6,35 +6,41 @@ struct SearchView: View {
     @FocusState private var isSearchFieldFocused: Bool
     weak var panel: SearchPanel?
 
-    // Why: GridItem 定義を static let に抽出。LazyVGrid 使用時のみ参照し、
-    //      列数判定は VM に集約することで View は描画選択のみを担う
-    private static let twoColumnGrid = [GridItem(.flexible()), GridItem(.flexible())]
-
     private func bookmarkRow(
         index: Int,
-        pair: (item: SearchItem, label: String?)
+        pair: (item: SearchItem, label: String?),
+        columns: TableColumns
     ) -> some View {
         BookmarkRow(
             searchItem: pair.item,
             isSelected: index == viewModel.selectedIndex,
             shortcutLabel: pair.label,
+            columns: columns,
             directNumberKeys: viewModel.appSettings?.directNumberKeys ?? true,
             fontSize: viewModel.listFontSize,
             fontName: viewModel.fontName,
             prLabel: viewModel.prLabel(for: pair.item)
         )
-        .id(pair.item.id)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
+        .padding(.horizontal, TableColumns.horizontalPadding)
+        .padding(.vertical, 7)
         .background(
-            RoundedRectangle(cornerRadius: 6)
+            Rectangle()
                 .fill(index == viewModel.selectedIndex
                     ? Color.accentColor.opacity(
                         viewModel.isAutoExecuteHighlighted && viewModel.mainListAssignments.count == 1
                             ? 0.5 : 0.2)
                     : Color.clear)
         )
+        .overlay(alignment: .leading) {
+            if index == viewModel.selectedIndex {
+                Rectangle()
+                    .fill(Color.accentColor)
+                    .frame(width: 3)
+            }
+        }
+        .overlay(alignment: .bottom) { Divider() }
+        .id(pair.item.id)
         .contentShape(Rectangle())
         .onHover { hovering in
             if hovering {
@@ -47,6 +53,23 @@ struct SearchView: View {
             viewModel.selectedIndex = index
             panel?.executeItem(pair.item)
         }
+    }
+
+    private func tableHeader(columns: TableColumns) -> some View {
+        HStack(spacing: 0) {
+            Text("キー").frame(width: columns.key, alignment: .center)
+            Text("状態").frame(width: columns.status, alignment: .leading)
+            Text("名前").frame(width: columns.name, alignment: .leading)
+            Text("アプリ／端末").frame(width: columns.detail, alignment: .leading)
+            Text("PR／URL").frame(width: columns.pr, alignment: .leading)
+        }
+        .font(.system(size: 11.5, weight: .semibold))
+        .foregroundColor(.secondary)
+        .lineLimit(1)
+        .padding(.horizontal, TableColumns.horizontalPadding)
+        .padding(.top, 8)
+        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     var body: some View {
@@ -72,39 +95,33 @@ struct SearchView: View {
 
             Divider()
 
-            // Item list
-            if viewModel.mainListAssignments.isEmpty {
-                Text("No bookmarks found")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        // Why: LazyVStack と LazyVGrid を viewModel.columns で切替。
-                        //      列数の判定ロジックは VM に集約し、View は描画選択のみ担う
-                        if viewModel.columns == 2 {
-                            LazyVGrid(columns: Self.twoColumnGrid, spacing: 2) {
-                                ForEach(Array(viewModel.mainListAssignments.enumerated()), id: \.element.item.id) { index, pair in
-                                    bookmarkRow(index: index, pair: pair)
+            GeometryReader { geo in
+                let columns = TableColumns(totalWidth: geo.size.width)
+                VStack(spacing: 0) {
+                    tableHeader(columns: columns)
+                    Divider()
+
+                    // Item list
+                    if viewModel.mainListAssignments.isEmpty {
+                        Text("No bookmarks found")
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ScrollViewReader { proxy in
+                            ScrollView {
+                                LazyVStack(spacing: 0) {
+                                    ForEach(Array(viewModel.mainListAssignments.enumerated()), id: \.element.item.id) { index, pair in
+                                        bookmarkRow(index: index, pair: pair, columns: columns)
+                                    }
                                 }
                             }
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 4)
-                        } else {
-                            LazyVStack(spacing: 2) {
-                                ForEach(Array(viewModel.mainListAssignments.enumerated()), id: \.element.item.id) { index, pair in
-                                    bookmarkRow(index: index, pair: pair)
+                            .onChange(of: viewModel.selectedIndex) { newIndex in
+                                // Why: mainListAssignments[safe: newIndex]?.item を参照。理由: selectedIndex はメインリストのみを追跡する新契約
+                                if let item = viewModel.mainListAssignments[safe: newIndex]?.item {
+                                    withAnimation {
+                                        proxy.scrollTo(item.id, anchor: .bottom)
+                                    }
                                 }
-                            }
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 4)
-                        }
-                    }
-                    .onChange(of: viewModel.selectedIndex) { newIndex in
-                        // Why: mainListAssignments[safe: newIndex]?.item を参照。理由: selectedIndex はメインリストのみを追跡する新契約
-                        if let item = viewModel.mainListAssignments[safe: newIndex]?.item {
-                            withAnimation {
-                                proxy.scrollTo(item.id, anchor: .bottom)
                             }
                         }
                     }

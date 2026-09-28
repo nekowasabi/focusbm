@@ -396,14 +396,18 @@ class SearchViewModel: ObservableObject {
                 return true
             }
             items += BookmarkSearcher.filter(bookmarks: regular, query: query).map { .bookmark($0) }
-            // tmux ペインを displayName で fuzzy フィルタ
-            items += tmuxPaneCache.filter {
-                BookmarkSearcher.fuzzyScore(text: $0.displayName, query: query) != nil
+            // tmux ペインを displayName・端末名・状態・行テキストで fuzzy フィルタ
+            items += tmuxPaneCache.filter { pane in
+                let item = SearchItem.tmuxPane(pane)
+                let texts = [pane.displayName, pane.terminalAppName ?? "", item.statusText, item.rowText(prLabel: prLabel(for: item))]
+                return BookmarkSearcher.score(texts: texts, query: query) != nil
             }.map { .tmuxPane($0) }
-            // tmux外のAIプロセスを displayName で fuzzy フィルタ
-            items += aiProcessCache.filter {
-                let searchable = "\($0.command) \($0.workingDirectory) \($0.terminalAppName ?? "")"
-                return BookmarkSearcher.fuzzyScore(text: searchable, query: query) != nil
+            // tmux外のAIプロセスを "command cwd terminal"・端末名・行テキストで fuzzy フィルタ
+            items += aiProcessCache.filter { process in
+                let item = SearchItem.aiProcess(process)
+                let searchable = "\(process.command) \(process.workingDirectory) \(process.terminalAppName ?? "")"
+                let texts = [searchable, process.terminalAppName ?? "", item.rowText(prLabel: prLabel(for: item))]
+                return BookmarkSearcher.score(texts: texts, query: query) != nil
             }.map { .aiProcess($0) }
             // クエリあり: lowPriority を末尾に移動（ショートカット番号の連続性維持）
             items = items.filter { !$0.lowPriority } + items.filter { $0.lowPriority }
@@ -514,6 +518,14 @@ class SearchViewModel: ObservableObject {
 
     /// shortcutBarItems を除いたメインリスト用アサインメント
     var mainListAssignments: [(item: SearchItem, label: String?)] {
+        // Why: Instead of keeping bar items out of the list while filtering, adopted listing every match.
+        // Reason: the bar is hidden when query is non-empty, so excluded YAML-shortcut matches were unreachable.
+        if !query.isEmpty {
+            guard let labels = BookmarkSearcher.filteredNumberLabels(query: query, count: searchItems.count) else {
+                return shortcutAssignments
+            }
+            return zip(searchItems, labels).map { (item: $0, label: $1) }
+        }
         let barItemIds = Set(shortcutBarItems.map { $0.item.id })
         return shortcutAssignments.filter { !barItemIds.contains($0.item.id) }
     }
@@ -540,51 +552,12 @@ class SearchViewModel: ObservableObject {
         return result
     }
 
-    // Why: 1D インデックスを内部表現として維持する。理由: mainListAssignments は 1D 配列ビューであり、
-    // selectedIndex との整合性を保つためには 2D を計算で導出する方が変換コストが低い。
-
-    /// bookmarkListColumns に基づく列数。nil または未設定の場合は 1 列扱い
-    var columns: Int { appSettings?.bookmarkListColumns ?? 1 }
-
-    /// 1D インデックスを (row, col) に変換する
-    func indexToGrid(_ index: Int) -> (row: Int, col: Int) {
-        let cols = max(1, columns)
-        return (row: index / cols, col: index % cols)
-    }
-
-    /// (row, col) を 1D インデックスに変換する。存在しないセル（奇数件最終行右セル等）は nil
-    func gridToIndex(row: Int, col: Int) -> Int? {
-        let cols = max(1, columns)
-        let index = row * cols + col
-        guard index >= 0, index < mainListAssignments.count else { return nil }
-        return index
-    }
-
-    func moveLeft() {
-        guard columns >= 2 else { return }
-        let (_, col) = indexToGrid(selectedIndex)
-        guard col > 0 else { return }  // 行頭は no-op
+    func moveUp() {
         selectedIndex = clampIndex(selectedIndex - 1)
     }
 
-    func moveRight() {
-        guard columns >= 2 else { return }
-        let (row, col) = indexToGrid(selectedIndex)
-        guard col < columns - 1 else { return }  // 行末は no-op
-        // 奇数件最終行右セルが存在しない場合も no-op
-        guard gridToIndex(row: row, col: col + 1) != nil else { return }
-        selectedIndex = clampIndex(selectedIndex + 1)
-    }
-
-    func moveUp() {
-        let newIndex = selectedIndex - columns
-        selectedIndex = clampIndex(newIndex)
-    }
-
     func moveDown() {
-        // Why: mainListAssignments を直接参照。理由: selectedIndex はメインリストのみを追跡する新契約
-        let newIndex = selectedIndex + columns
-        selectedIndex = clampIndex(newIndex)
+        selectedIndex = clampIndex(selectedIndex + 1)
     }
 
     /// 数字キーに対応する selectedIndex を設定する。成功時 true を返す

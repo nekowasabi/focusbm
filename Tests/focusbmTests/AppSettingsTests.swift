@@ -604,3 +604,28 @@ import Yams
     let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
     #expect(decoded.settings?.showAIAgentShortcut == false)
 }
+
+// MARK: - filteredNumberKeys
+
+@Test func test_appSettings_filteredNumberKeys_omitted() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.filteredNumberKeys == nil)
+}
+
+@Test func test_appSettings_filteredNumberKeys_fromYAML_true() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+      filteredNumberKeys: true
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.filteredNumberKeys == true)
+}

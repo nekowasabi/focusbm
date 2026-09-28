@@ -317,7 +317,7 @@ settings:
   previewFontName: "JetBrains Mono"  # プレビューのフォント（省略時: fontName）
   preferredTerminal: "com.github.wez.wezterm"  # 優先ターミナル（bundleId 形式）
   directNumberKeys: true    # 数字キー単体でブックマークにフォーカス（false: Cmd+数字のみ）
-  # filteredNumberKeys: false # (Windows 版のみ) true: 絞り込み中（候補2件以上）も数字キー単体で番号を選ぶ
+  # filteredNumberKeys: false # true: 絞り込み中（候補2件以上）も数字キー単体で番号を選ぶ
   showAIAgentShortcut: true # AI エージェント行（aiProcess / tmux ペインの AI）に番号を振る（false で非表示）
 
 bookmarks:
@@ -342,7 +342,7 @@ bookmarks:
 | `settings.previewFontName` | string | `nil`（`fontName` へフォールバック） | プレビュー画面のフォント名 |
 | `settings.preferredTerminal` | string | `nil` | tmux ペインを開く際に使用するターミナルの bundleId（例: `"com.github.wez.wezterm"`）。設定すると自動検出より優先される |
 | `settings.directNumberKeys` | bool | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |
-| `settings.filteredNumberKeys` | bool | `false` | (Windows 版のみ) `true`: 絞り込み中で候補が2件以上なら数字キー単体でも振り直した番号を選ぶ。`false`: 数字は検索語として入力され、番号選択は Ctrl+数字のみ |
+| `settings.filteredNumberKeys` | bool | `false` | `true`: 絞り込み中で候補が2件以上なら数字キー単体でも振り直した番号を選ぶ。`false`: 数字は検索語として入力され、番号選択は Ctrl+数字のみ |
 | `settings.showAIAgentShortcut` | bool? | `nil`（= `true` 相当） | `true`/未指定: AI エージェント行（`aiProcess` および tmux ペインの AI エージェント）にも ⌘1–⌘9 番号を振る（現行動作）。`false`: AI エージェント行に番号を振らず、ブックマーク側の番号が 1,2,3... と詰まる。数字キーによるジャンプも AI 行には効かなくなる |
 
 ### Field Descriptions
@@ -558,26 +558,12 @@ focusbm/
 
 ## Bookmark List Layout (List Columns)
 
-`~/.config/focusbm/bookmarks.yml` の `bookmarkListColumns` キーで、メニューバーアプリの一覧表示を 1 列／2 列に切替できます。
-
-### 設定値
-
-| 値 | 動作 |
-|----|------|
-| 未指定 | 縦 1 列（既存動作） |
-| 1 | 縦 1 列 |
-| 2 | 横 2 列（推奨 panelWidth: 800 以上） |
-| その他（0, 3, 負数） | 縦 1 列にフォールバック（WARN ログ） |
-
-### 推奨 panelWidth
-
-2 列表示時に `panelWidth` を未指定にすると 800px が自動適用されます。明示指定した場合はユーザー値を優先します。
+絞り込み画面は常に表形式（キー／状態／名前／アプリ／端末／PR／URL）の 1 列で表示します。`~/.config/focusbm/bookmarks.yml` の `bookmarkListColumns` キーは互換のため残しており、`2` を指定して `panelWidth` を未指定にすると 800px のパネル幅が自動適用されます。明示指定した場合はユーザー値を優先します。
 
 ### キー操作
 
-- `↑↓` / `kj`: 上下移動（1 列: ±1 / 2 列: ±列数）
-- `←→` / `hl`: 左右移動（1 列: 無効 / 2 列: ±1 境界クランプ）
-- `1`〜`9`: 直接実行（2 列レイアウトでも正しい項目に対応）
+- `↑↓`: 上下移動（±1）
+- `1`〜`9`: 直接実行
 
 設定例は [`bookmarks.example.yml`](./bookmarks.example.yml)（macOS）と [`bookmarks.example.windows.yml`](./bookmarks.example.windows.yml)（Windows）を参照してください。
 

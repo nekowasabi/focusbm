@@ -18,7 +18,7 @@ private func bookmarkRowItem() -> SearchItem {
 @Test func bookmarkRow_prLabelDefaultsToNil() {
     let row = BookmarkRow(
         searchItem: bookmarkRowItem(), isSelected: false, shortcutLabel: nil,
-        directNumberKeys: true, fontSize: nil, fontName: nil
+        columns: TableColumns(totalWidth: 800), directNumberKeys: true, fontSize: nil, fontName: nil
     )
     #expect(row.prLabel == nil)
 }
@@ -27,7 +27,14 @@ private func bookmarkRowItem() -> SearchItem {
 @Test func bookmarkRow_prLabelAcceptsFormattedString() {
     let row = BookmarkRow(
         searchItem: bookmarkRowItem(), isSelected: false, shortcutLabel: nil,
-        directNumberKeys: true, fontSize: nil, fontName: nil, prLabel: "#123"
+        columns: TableColumns(totalWidth: 800), directNumberKeys: true, fontSize: nil, fontName: nil, prLabel: "#123"
     )
     #expect(row.prLabel == "#123")
+}
+
+@Test func tableColumns_splitsRemainingWidth3to2to2() {
+    let c = TableColumns(totalWidth: 52 + 120 + 20 + 700)
+    #expect(c.name == 300)
+    #expect(c.detail == 200)
+    #expect(c.pr == 200)
 }

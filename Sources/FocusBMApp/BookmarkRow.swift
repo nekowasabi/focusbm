@@ -1,10 +1,28 @@
 import SwiftUI
 import FocusBMLib
 
+// Why: Instead of HStack flexible frames, adopted widths precomputed from the panel width. Reason: HStack cannot split space 3:2:2, and the header and every row must share identical column edges.
+struct TableColumns {
+    static let horizontalPadding: CGFloat = 10
+    let key: CGFloat = 52
+    let status: CGFloat = 120
+    let name: CGFloat
+    let detail: CGFloat
+    let pr: CGFloat
+
+    init(totalWidth: CGFloat) {
+        let remaining = max(0, totalWidth - 52 - 120 - Self.horizontalPadding * 2)
+        name = remaining * 3 / 7
+        detail = remaining * 2 / 7
+        pr = remaining * 2 / 7
+    }
+}
+
 struct BookmarkRow: View {
     let searchItem: SearchItem
     let isSelected: Bool
     let shortcutLabel: String?
+    let columns: TableColumns
     let directNumberKeys: Bool
     let fontSize: Double?
     let fontName: String?
@@ -14,6 +32,7 @@ struct BookmarkRow: View {
         searchItem: SearchItem,
         isSelected: Bool,
         shortcutLabel: String?,
+        columns: TableColumns,
         directNumberKeys: Bool,
         fontSize: Double?,
         fontName: String?,
@@ -22,6 +41,7 @@ struct BookmarkRow: View {
         self.searchItem = searchItem
         self.isSelected = isSelected
         self.shortcutLabel = shortcutLabel
+        self.columns = columns
         self.directNumberKeys = directNumberKeys
         self.fontSize = fontSize
         self.fontName = fontName
@@ -63,74 +83,70 @@ struct BookmarkRow: View {
     }
 
     var body: some View {
-        HStack {
-            // Selection indicator
-            Text(isSelected ? "▸" : " ")
-                .font(resolvedBodyFont)
-                .foregroundColor(.accentColor)
-                .frame(width: 16)
+        HStack(spacing: 0) {
+            Text(shortcutLabel.map { directNumberKeys ? $0 : "⌘\($0)" } ?? "")
+                .font(resolvedBodyFont.monospaced())
+                .fontWeight(.bold)
+                .foregroundColor(isSelected ? .accentColor : .secondary)
+                .frame(width: columns.key, alignment: .center)
 
-            // App icon
-            if searchItem.isAIAgent {
-                Text(searchItem.agentEmoji)
-                    .font(.system(size: 16))
-                    .frame(width: 20, height: 20)
-            } else {
-                Image(nsImage: AppIconProvider.shared.icon(forAppName: searchItem.appName))
-                    .resizable()
-                    .frame(width: 20, height: 20)
-            }
-
-            // Shortcut badge (fixed width to keep displayName aligned)
-            ZStack {
-                if let label = shortcutLabel {
-                    Text(directNumberKeys ? label : "⌘\(label)")
-                        .font(resolvedCaptionFont)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.1))
-                        .cornerRadius(4)
-                }
-            }
-            .frame(width: 32)
-
-            // Item info
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    if let agent = searchItem.agentDisplay {
-                        Text("\(agent.emoji) \(agent.nameWithoutEmoji)")
-                            .foregroundColor(statusColor(for: agent.status))
-                            .font(resolvedBodyFont)
-                            .fontWeight(isSelected ? .bold : .semibold)
-                    } else {
-                        Text(searchItem.displayName)
-                            .font(resolvedBodyFont)
-                            .fontWeight(isSelected ? .bold : .regular)
-                    }
-                    Spacer()
-                }
-
-                HStack {
-                    Text(searchItem.appName)
-                        .font(resolvedCaptionFont)
-                        .foregroundColor(.secondary)
-
-                    if let url = searchItem.urlPattern {
-                        Text("— \(url)")
+            Group {
+                if let status = searchItem.agentStatus {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(statusColor(for: status))
+                            .frame(width: 10, height: 10)
+                        Text(status.label)
                             .font(resolvedCaptionFont)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
+                            .foregroundColor(.secondary)
                     }
-
-                    if let prLabel {
-                        Text(prLabel)
-                            .font(resolvedCaptionFont)
-                            .foregroundColor(.accentColor)
-                    }
+                } else {
+                    Text("—")
+                        .font(resolvedCaptionFont)
+                        .foregroundStyle(.tertiary)
                 }
             }
+            .lineLimit(1)
+            .frame(width: columns.status, alignment: .leading)
+
+            HStack(spacing: 6) {
+                if searchItem.isAIAgent {
+                    Text(searchItem.agentEmoji)
+                        .font(.system(size: 16))
+                        .frame(width: 20, height: 20)
+                } else {
+                    Image(nsImage: AppIconProvider.shared.icon(forAppName: searchItem.appName))
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
+                Text(searchItem.listName)
+                    .font(resolvedBodyFont)
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .frame(width: columns.name, alignment: .leading)
+
+            Text(searchItem.listDetail)
+                .font(resolvedCaptionFont)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+                .frame(width: columns.detail, alignment: .leading)
+
+            HStack(spacing: 6) {
+                if let prLabel {
+                    Text(prLabel)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.accentColor)
+                }
+                if let url = searchItem.urlPattern {
+                    Text(url)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .font(resolvedCaptionFont)
+            .lineLimit(1)
+            .frame(width: columns.pr, alignment: .leading)
         }
-        .padding(.vertical, 2)
     }
 }
