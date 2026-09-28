@@ -48,6 +48,9 @@ struct BookmarkRow: View {
         self.prLabel = prLabel
     }
 
+    // Why: This column renders prLabel only. urlPattern stays off the PR／URL cell.
+    var prColumnText: String? { prLabel }
+
     private var resolvedBodyFont: Font {
         if let name = fontName {
             let size = fontSize ?? NSFont.systemFontSize
@@ -134,14 +137,10 @@ struct BookmarkRow: View {
                 .frame(width: columns.detail, alignment: .leading)
 
             HStack(spacing: 6) {
-                if let prLabel {
-                    Text(prLabel)
+                if let prColumnText {
+                    Text(prColumnText)
                         .fontWeight(.semibold)
                         .foregroundColor(.accentColor)
-                }
-                if let url = searchItem.urlPattern {
-                    Text(url)
-                        .foregroundStyle(.tertiary)
                 }
             }
             .font(resolvedCaptionFont)
