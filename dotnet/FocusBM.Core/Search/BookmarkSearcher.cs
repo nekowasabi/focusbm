@@ -49,6 +49,11 @@ public static class BookmarkSearcher
             WslProcessState state => new[] { bm.Id, bm.AppName, $"{state.Command} {state.WorkingDirectory} {state.Terminal}", bm.Shortcut ?? string.Empty, state.Terminal ?? string.Empty, StatusText(state), RowText(bm) },
             _ => new[] { bm.Id, bm.AppName, bm.Context, bm.Shortcut ?? string.Empty, RowText(bm) },
         };
+        return ScoreTexts(texts, query);
+    }
+
+    public static int? ScoreTexts(IReadOnlyList<string> texts, string query)
+    {
         // Why: 状態・端末・ディレクトリを別フィールドに持つため、"wez 実行中" のように語順を問わず AND で絞り込めるようにする
         var tokens = query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         if (tokens.Length == 0) return 0;

@@ -77,11 +77,11 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     private void RebuildNumberShortcuts()
     {
         Shortcuts.Clear();
-        if (!string.IsNullOrEmpty(_query) && Results.Count >= 2)
+        // Why: 絞り込み中は表示中の候補だけに 1〜9 を振り直し、YAML 指定や AI 抑止に関係なく全候補を数字で選べるようにする（10件目以降は数字なし）
+        if (ShortcutAssigner.FilteredNumberLabels(_query, Results.Count) is { } labels)
         {
-            // Why: 絞り込み中は表示中の候補だけに 1〜9 を振り直し、YAML 指定や AI 抑止に関係なく全候補を数字で選べるようにする（10件目以降は数字なし）
-            for (var i = 0; i < Math.Min(9, Results.Count); i++)
-                Shortcuts.Add(new ShortcutAssignment(Results[i], (i + 1).ToString(), true));
+            for (var i = 0; i < labels.Count; i++)
+                if (labels[i] is { } label) Shortcuts.Add(new ShortcutAssignment(Results[i], label, true));
             return;
         }
         foreach (var assignment in ShortcutAssigner.Assign(_all, Settings).Where(a => a.Shortcut is not null))

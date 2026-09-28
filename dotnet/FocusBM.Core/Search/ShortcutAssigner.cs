@@ -8,6 +8,13 @@ public sealed record ShortcutAssignment(Bookmark Bookmark, string? Shortcut, boo
 
 public static class ShortcutAssigner
 {
+    /// <summary>絞り込み中（query 非空・2件以上）は表示順に "1"〜"9" を振り直す。null は通常の割り当てを使う。</summary>
+    public static IReadOnlyList<string?>? FilteredNumberLabels(string? query, int count)
+    {
+        if (string.IsNullOrEmpty(query) || count < 2) return null;
+        return Enumerable.Range(0, count).Select(i => i < 9 ? (i + 1).ToString() : null).ToList();
+    }
+
     public static IReadOnlyList<ShortcutAssignment> Assign(IReadOnlyList<Bookmark> bookmarks, AppSettings? settings = null)
     {
         var skipAI = settings?.ShowAIAgentShortcut == false;

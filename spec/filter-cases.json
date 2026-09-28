@@ -1,0 +1,37 @@
+{
+  "fuzzy": [
+    {"name": "empty query", "text": "anything", "query": "", "expected": 0},
+    {"name": "no match", "text": "abc", "query": "zz", "expected": null},
+    {"name": "prefix bonus", "text": "document", "query": "doc", "expected": 13},
+    {"name": "dash boundary", "text": "swift-lang", "query": "l", "expected": 6},
+    {"name": "space boundary", "text": "foo bar", "query": "b", "expected": 6},
+    {"name": "underscore boundary", "text": "a_b", "query": "b", "expected": 6},
+    {"name": "mid word", "text": "xdyozc", "query": "doc", "expected": 3},
+    {"name": "case insensitive", "text": "Document", "query": "DOC", "expected": 13},
+    {"name": "order matters", "text": "abc", "query": "cba", "expected": null},
+    {"name": "japanese exact", "text": "実行中 running", "query": "実行中", "expected": 13},
+    {"name": "japanese mid", "text": "入力待ち", "query": "待ち", "expected": 2},
+    {"name": "empty text", "text": "", "query": "a", "expected": null}
+  ],
+  "rows": [
+    {"name": "single token", "texts": ["Claude — focusbm", "WezTerm"], "query": "focusbm", "expected": 12},
+    {"name": "max over texts", "texts": ["Claude — focusbm", "WezTerm", "実行中 running", "実行中 running focusbm Claude #42"], "query": "wez", "expected": 13},
+    {"name": "token and both hit", "texts": ["Claude — focusbm", "WezTerm", "実行中 running", "実行中 running focusbm Claude #42"], "query": "wez 実行中", "expected": 26},
+    {"name": "token order independent", "texts": ["Claude — focusbm", "WezTerm", "実行中 running", "実行中 running focusbm Claude #42"], "query": "実行中 wez", "expected": 26},
+    {"name": "token and one miss", "texts": ["Claude — focusbm", "WezTerm", "実行中 running", "実行中 running focusbm Claude #42"], "query": "wez zzz", "expected": null},
+    {"name": "cross column row text", "texts": ["platform", "focusbm", "claude", "実行中 running platform focusbm claude #42"], "query": "plafocuclaude", "expected": 23},
+    {"name": "cross column without row text", "texts": ["platform", "focusbm", "claude"], "query": "plafocuclaude", "expected": null},
+    {"name": "extra whitespace", "texts": ["Claude — focusbm", "WezTerm", "実行中 running", "実行中 running focusbm Claude #42"], "query": "  wez   focus ", "expected": 23},
+    {"name": "whitespace only query", "texts": ["anything"], "query": "   ", "expected": 0},
+    {"name": "empty texts", "texts": [], "query": "a", "expected": null},
+    {"name": "status case name", "texts": ["入力待ち idle"], "query": "idle", "expected": 9}
+  ],
+  "renumber": [
+    {"name": "empty query", "query": "", "count": 5, "labels": null},
+    {"name": "single result", "query": "a", "count": 1, "labels": null},
+    {"name": "no results", "query": "a", "count": 0, "labels": null},
+    {"name": "two results", "query": "a", "count": 2, "labels": ["1", "2"]},
+    {"name": "nine results", "query": "a", "count": 9, "labels": ["1", "2", "3", "4", "5", "6", "7", "8", "9"]},
+    {"name": "twelve results", "query": "a", "count": 12, "labels": ["1", "2", "3", "4", "5", "6", "7", "8", "9", null, null, null]}
+  ]
+}
