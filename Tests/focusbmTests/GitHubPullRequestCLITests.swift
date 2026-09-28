@@ -31,10 +31,11 @@ import Testing
         workingDirectory: FileManager.default.currentDirectoryPath,
         timeout: 0.05,
         executableURL: URL(fileURLWithPath: "/bin/sh"),
-        arguments: ["-c", "sleep 1"]
+        arguments: ["-c", "sleep 5"]
     )
     #expect(value == nil)
-    #expect(Date().timeIntervalSince(startedAt) < 0.5)
+    // Why: sleep 1 / <0.5s cannot distinguish load jitter from an unbounded child wait.
+    #expect(Date().timeIntervalSince(startedAt) < 2.0)
 }
 
 /// Verifies launchd-style PATH holes are avoided by preferring an absolute gh binary.
