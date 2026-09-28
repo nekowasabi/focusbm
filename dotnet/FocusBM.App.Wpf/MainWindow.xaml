@@ -204,13 +204,10 @@
                 <TextBlock Grid.Column="3" Text="{Binding ListDetail}" Foreground="#888888"
                            TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,8,0"
                            FontSize="{Binding DataContext.Settings.EffectiveListFontSize, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource ScaledListFontConverter}, ConverterParameter=0.85}" />
-                <DockPanel Grid.Column="4" VerticalAlignment="Center">
-                  <TextBlock DockPanel.Dock="Left" Text="{Binding PullRequestLabel}" Foreground="#0078D4" FontWeight="SemiBold" Margin="0,0,6,0"
-                             Visibility="{Binding PullRequestLabel, Converter={StaticResource NullToVisibilityConverter}}"
-                             FontSize="{Binding DataContext.Settings.EffectiveListFontSize, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource ScaledListFontConverter}, ConverterParameter=0.85}" />
-                  <TextBlock Text="{Binding UrlHint}" Foreground="#AAAAAA" TextTrimming="CharacterEllipsis"
-                             FontSize="{Binding DataContext.Settings.EffectiveListFontSize, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource ScaledListFontConverter}, ConverterParameter=0.85}" />
-                </DockPanel>
+                <TextBlock Grid.Column="4" Text="{Binding PullRequestLabel}" Foreground="#0078D4" FontWeight="SemiBold"
+                           VerticalAlignment="Center"
+                           Visibility="{Binding PullRequestLabel, Converter={StaticResource NullToVisibilityConverter}}"
+                           FontSize="{Binding DataContext.Settings.EffectiveListFontSize, RelativeSource={RelativeSource AncestorType=ListBox}, Converter={StaticResource ScaledListFontConverter}, ConverterParameter=0.85}" />
               </Grid>
             </Border>
           </DataTemplate>
