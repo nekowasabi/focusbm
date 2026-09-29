@@ -54,7 +54,6 @@ private func bookmarkRow(
     let url = "github.com/myorg/pull"
     let item = bookmarkRowWithURL(url)
     let row = bookmarkRow(item: item, prLabel: "#123")
-    #expect(item.urlPattern == url)
     #expect(row.prLabel == "#123")
     #expect(row.prColumnText == "#123")
     #expect(row.prColumnText != url)
@@ -64,7 +63,6 @@ private func bookmarkRow(
     let url = "github.com/myorg/pull"
     let item = bookmarkRowWithURL(url)
     let row = bookmarkRow(item: item)
-    #expect(item.urlPattern == url)
     #expect(row.prLabel == nil)
     #expect(row.prColumnText == nil)
 }

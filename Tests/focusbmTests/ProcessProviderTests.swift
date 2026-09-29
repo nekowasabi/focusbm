@@ -192,20 +192,6 @@ import AppKit
     #expect(item.context == "process")
 }
 
-@Test func test_searchItem_aiProcess_urlPattern_isNil() {
-    let proc = ProcessProvider.AIProcess(
-        pid: 1,
-        command: "claude",
-        workingDirectory: "/tmp",
-        terminalBundleId: nil,
-        terminalAppName: nil,
-        terminalEmoji: "❓",
-        title: "claude (pid: 1)"
-    )
-    let item = SearchItem.aiProcess(proc)
-    #expect(item.urlPattern == nil)
-}
-
 @Test func test_searchItem_aiProcess_appName_withTerminal() {
     let proc = ProcessProvider.AIProcess(
         pid: 1,

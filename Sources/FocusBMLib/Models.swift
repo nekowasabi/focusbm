@@ -566,21 +566,6 @@ public enum SearchItem: Identifiable {
         }
     }
 
-    /// browser 状態の場合のみ URL パターンを返す
-    public var urlPattern: String? {
-        switch self {
-        case .bookmark(let b):
-            if case .browser(let url, _, _, _) = b.state { return url }
-            return nil
-        case .floatingWindow:
-            return nil
-        case .tmuxPane:
-            return nil
-        case .aiProcess:
-            return nil
-        }
-    }
-
     /// AIエージェントツール固有の絵文字
     public var agentEmoji: String {
         switch self {
