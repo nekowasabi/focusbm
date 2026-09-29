@@ -74,6 +74,6 @@ public static class BookmarkSearcher
         string.Join(" ", new[]
         {
             bm.State is WslProcessState state ? StatusText(state) : null,
-            bm.ListName, bm.ListDetail, bm.PullRequestLabel, bm.UrlHint,
+            bm.ListName, bm.ListDetail, bm.PullRequestLabel,
         }.Where(p => !string.IsNullOrEmpty(p)));
 }

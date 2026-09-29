@@ -48,9 +48,6 @@ public sealed record Bookmark(
     public TmuxAgentStatus? AgentStatus => (State as WslProcessState)?.AgentStatus;
     public string? AgentEmoji => AgentIdentity.Emoji((State as WslProcessState)?.Command);
     public bool IsAIAgent => State is WslProcessState or TmuxPaneState;
-    public string? UrlHint => State is BrowserAppState browser
-        ? browser.UrlPattern ?? (string.IsNullOrWhiteSpace(browser.Url) ? null : browser.Url)
-        : null;
     public string? PullRequestLabel => GitHubPullRequest.Validate(PullRequestUrl) is { AbsolutePath: var path }
         ? $"#{path.Split('/', StringSplitOptions.RemoveEmptyEntries).Last()}"
         : null;

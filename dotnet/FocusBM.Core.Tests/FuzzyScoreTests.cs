@@ -262,6 +262,14 @@ public class FilterTests
     public void Filter_NonAgent_MatchesSubsequenceAcrossRowColumns()
     {
         var bm = new Bookmark("gh-focusbm", "chrome", "", new BrowserAppState("https://github.com/takets/focusbm"));
-        Assert.Single(BookmarkSearcher.Filter(new[] { bm }, "ghchromegithub"));
+        Assert.Single(BookmarkSearcher.Filter(new[] { bm }, "ghchrome"));
+    }
+
+    [Fact]
+    public void Filter_NonAgent_IgnoresHiddenUrl()
+    {
+        // URL column is no longer displayed, so it must not be searchable
+        var bm = new Bookmark("gh-focusbm", "chrome", "", new BrowserAppState("https://github.com/takets/focusbm"));
+        Assert.Empty(BookmarkSearcher.Filter(new[] { bm }, "ghchromegithub"));
     }
 }

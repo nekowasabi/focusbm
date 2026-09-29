@@ -649,7 +649,7 @@ public enum SearchItem: Identifiable {
 
     /// 表の1行を表示順に連結した検索用テキスト（列をまたいだ曖昧検索用）
     public func rowText(prLabel: String? = nil) -> String {
-        [statusText, listName, listDetail, prLabel ?? "", urlPattern ?? ""]
+        [statusText, listName, listDetail, prLabel ?? ""]
             .filter { !$0.isEmpty }
             .joined(separator: " ")
     }
