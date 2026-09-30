@@ -423,6 +423,8 @@ public partial class MainWindow : Window
             && ViewModel.ShortcutBar.Any(a => string.Equals(a.Shortcut, label, StringComparison.Ordinal)))
         {
             e.Handled = true;
+            // Why: While the preview is visible, shortcut-bar keys must not launch a bookmark behind it; swallow the key instead.
+            if (ViewModel.IsPreviewVisible) return true;
             var timing = new RestoreTimingScope("ui:shortcut", _timing);
             timing.Mark("start");
             await RestoreShortcutAndMaybeHideAsync(label);
