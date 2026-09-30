@@ -44,22 +44,8 @@ public enum PreviewLayout {
         ((monitorWidth - cardWidth) / 2, (monitorHeight - cardHeight) / 2)
     }
 
-    public static func maxLineCount(_ texts: [String]) -> Int {
-        texts.map { $0.isEmpty ? 0 : $0.split(separator: "\n", omittingEmptySubsequences: false).count }.max() ?? 0
-    }
-
     public static func indexNumberFontSize(bodyHeight: Double) -> Double {
         max(1, min(96, bodyHeight * 0.4))
-    }
-
-    // Why: every tile puts its index at the same height, level with the end of the longest output,
-    //      so the numbers line up across panes yet stay next to where reading ends.
-    public static func indexNumberTop(maxLineCount: Int, lineHeight: Double, bodyHeight: Double) -> Double {
-        let textInset = 10.0
-        let bottomInset = 8.0
-        let number = indexNumberFontSize(bodyHeight: bodyHeight)
-        let top = textInset + Double(maxLineCount) * lineHeight - number
-        return max(0, min(top, bodyHeight - number - bottomInset))
     }
 }
 

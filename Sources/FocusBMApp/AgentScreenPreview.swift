@@ -224,24 +224,17 @@ struct AgentScreenPreviewOverlay: View {
         }
     }
 
-    /// Why: every tile's index sits at the same height, level with the end of the longest output,
-    /// in a left gutter where the eye returns after each line. Colored by agent status.
+    /// Why: Instead of aligning to the end of the longest output (drifts to the bottom-left on large screens), center the index vertically in the body.
+    /// Colored by agent status.
     private func indexNumber(_ capture: AgentScreenCapture, bodyHeight: CGFloat, isTarget: Bool) -> some View {
-        let size = fontSize ?? 14
-        // Why: 1.7 ≈ monospaced line height (1.2) + lineSpacing (0.5) used by captureText.
-        let top = PreviewLayout.indexNumberTop(
-            maxLineCount: PreviewLayout.maxLineCount(state.captures.map(\.text)),
-            lineHeight: size * 1.7,
-            bodyHeight: bodyHeight
-        )
-        return Text("\(capture.index)")
+        Text("\(capture.index)")
             .font(.system(size: PreviewLayout.indexNumberFontSize(bodyHeight: bodyHeight), weight: .heavy))
             .foregroundColor(capture.status?.color ?? PreviewPalette.secondary)
             .opacity(isTarget ? 1 : 0.55)
             .lineLimit(1)
             .minimumScaleFactor(0.3)
             .frame(width: max(1, min(80, bodyHeight * 0.25)))
-            .padding(.top, top)
+            .frame(maxHeight: .infinity)
             .allowsHitTesting(false)
     }
 }
