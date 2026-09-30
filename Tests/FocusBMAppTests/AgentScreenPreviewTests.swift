@@ -61,7 +61,8 @@ private final class ScreenPreviewCaptureProbe: @unchecked Sendable {
         id: "%52",
         title: pane.displayNameWithoutEmoji,
         text: "❯ 1. continue\n  2. something else",
-        index: 1
+        index: 1,
+        status: .idle
     )))
 }
 
@@ -85,7 +86,8 @@ private final class ScreenPreviewCaptureProbe: @unchecked Sendable {
         id: "%2",
         title: pane.displayNameWithoutEmoji,
         text: "❯ prompt",
-        index: 1
+        index: 1,
+        status: .idle
     )))
 }
 
@@ -132,7 +134,6 @@ private final class ScreenPreviewCaptureProbe: @unchecked Sendable {
     #expect(captures.map(\.id) == ["%1", "%2"])
     #expect(captures.map(\.text) == ["pane %1", "pane %2"])
     #expect(captures.map(\.index) == [1, 2])
-    #expect(captures.map(\.numberedTitle)[0].hasPrefix("1  "))
     if case .tmuxPane(let pane) = viewModel.previewItem(forDigit: 2) {
         #expect(pane.paneId == "%2")
     } else {
@@ -211,6 +212,40 @@ private final class ScreenPreviewCaptureProbe: @unchecked Sendable {
     #expect(captures[1].text == initialCaptures[1].text)
     #expect(captures[2].text == "tmux ペインがないため画面キャプチャできません")
     #expect(!probe.paneIDs.contains("aiprocess-123"))
+}
+
+@Test func agentScreenPreview_capturesCarryAgentStatusAndFollowRefresh() async throws {
+    let viewModel = SearchViewModel()
+    let working = TmuxPane(
+        paneId: "%1", sessionName: "s", windowIndex: 0, windowName: "a",
+        command: "claude", title: "✻ Working", currentPath: "/tmp"
+    )
+    let planning = TmuxPane(
+        paneId: "%2", sessionName: "s", windowIndex: 1, windowName: "b",
+        command: "claude", title: "⏸ plan", currentPath: "/tmp"
+    )
+    let probe = ScreenPreviewCaptureProbe(texts: ["%1": "a", "%2": "b"])
+    viewModel.paneScreenCaptureProvider = { probe.capture($0) }
+    viewModel.searchItems = [.tmuxPane(working), .tmuxPane(planning)]
+
+    #expect(viewModel.showAllAgentPreviews())
+    #expect(viewModel.screenPreview?.captures.map(\.status) == [.running, .planMode])
+
+    let finished = TmuxPane(
+        paneId: "%1", sessionName: "s", windowIndex: 0, windowName: "a",
+        command: "claude", title: "Claude Code", currentPath: "/tmp"
+    )
+    viewModel.searchItems = [.tmuxPane(finished), .tmuxPane(planning)]
+    var refreshed = false
+    for _ in 0..<40 {
+        if viewModel.screenPreview?.captures.first?.status == .idle {
+            refreshed = true
+            break
+        }
+        try await Task.sleep(nanoseconds: 50_000_000)
+    }
+    #expect(refreshed)
+    #expect(viewModel.screenPreview?.captures.map(\.status) == [.idle, .planMode])
 }
 
 @Test func agentScreenPreview_stopsRefreshingAfterDeactivate() async throws {

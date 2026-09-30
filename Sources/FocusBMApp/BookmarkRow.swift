@@ -1,6 +1,20 @@
 import SwiftUI
 import FocusBMLib
 
+extension TmuxAgentStatus {
+    // Why: Map the preserved agent state directly instead of deriving color from a running boolean.
+    var color: Color {
+        switch self {
+        case .running:
+            return Color(red: 0.30, green: 0.95, blue: 0.45)
+        case .planMode, .acceptEdits:
+            return Color(red: 1.00, green: 0.80, blue: 0.20)
+        case .idle:
+            return Color(red: 1.00, green: 0.45, blue: 0.45)
+        }
+    }
+}
+
 // Why: Instead of HStack flexible frames, adopted widths precomputed from the panel width. Reason: HStack cannot split space 3:2:2, and the header and every row must share identical column edges.
 struct TableColumns {
     static let horizontalPadding: CGFloat = 10
@@ -73,18 +87,6 @@ struct BookmarkRow: View {
         return .caption
     }
 
-    private func statusColor(for status: TmuxAgentStatus) -> Color {
-        // Why: Map the preserved agent state directly instead of deriving color from a running boolean.
-        switch status {
-        case .running:
-            return Color(red: 0.30, green: 0.95, blue: 0.45)
-        case .planMode, .acceptEdits:
-            return Color(red: 1.00, green: 0.80, blue: 0.20)
-        case .idle:
-            return Color(red: 1.00, green: 0.45, blue: 0.45)
-        }
-    }
-
     var body: some View {
         HStack(spacing: 0) {
             Text(shortcutLabel.map { directNumberKeys ? $0 : "⌘\($0)" } ?? "")
@@ -97,7 +99,7 @@ struct BookmarkRow: View {
                 if let status = searchItem.agentStatus {
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(statusColor(for: status))
+                            .fill(status.color)
                             .frame(width: 10, height: 10)
                         Text(status.label)
                             .font(resolvedCaptionFont)

@@ -177,14 +177,17 @@ class SearchViewModel: ObservableObject {
                     self.screenPreviewCaptureInFlight = false
                     guard let currentPreview = self.screenPreview else { return }
 
+                    // Why: searchItems is refreshed by the agent status monitor, so re-read status here to keep the pill from going stale.
+                    var statuses: [String: TmuxAgentStatus] = [:]
+                    for case .tmuxPane(let pane) in self.searchItems { statuses[pane.paneId] = pane.agentStatus }
                     var didChange = false
                     let captures = currentPreview.captures.map { capture in
-                        guard let rawText = capturedTexts[capture.id] else { return capture }
-                        let text = self.normalizedCaptureText(rawText)
-                        guard text != capture.text else { return capture }
+                        let text = capturedTexts[capture.id].map(self.normalizedCaptureText) ?? capture.text
+                        let status = capture.id.hasPrefix("aiprocess-") ? capture.status : statuses[capture.id]
+                        guard text != capture.text || status != capture.status else { return capture }
                         didChange = true
                         return AgentScreenCapture(
-                            id: capture.id, title: capture.title, text: text, index: capture.index
+                            id: capture.id, title: capture.title, text: text, index: capture.index, status: status
                         )
                     }
                     guard didChange else { return }
@@ -754,7 +757,7 @@ class SearchViewModel: ObservableObject {
     func showHoveredAgentPreview() -> Bool {
         guard let item = previewTargetItem(), let capture = captureScreen(for: item) else { return false }
         screenPreview = .single(AgentScreenCapture(
-            id: capture.id, title: capture.title, text: capture.text, index: 1))
+            id: capture.id, title: capture.title, text: capture.text, index: 1, status: capture.status))
         promptTargetIndex = 1
         promptError = nil
         isPromptFieldFocused = true
@@ -821,7 +824,9 @@ class SearchViewModel: ObservableObject {
         }
         .enumerated()
         .map { offset, capture in
-            AgentScreenCapture(id: capture.id, title: capture.title, text: capture.text, index: offset + 1)
+            AgentScreenCapture(
+                id: capture.id, title: capture.title, text: capture.text, index: offset + 1, status: capture.status
+            )
         }
         guard !captures.isEmpty else { return false }
         screenPreview = captures.count == 1 ? .single(captures[0]) : .tiled(captures)
@@ -840,7 +845,8 @@ class SearchViewModel: ObservableObject {
             return AgentScreenCapture(
                 id: pane.paneId,
                 title: pane.displayNameWithoutEmoji,
-                text: normalizedCaptureText(text)
+                text: normalizedCaptureText(text),
+                status: pane.agentStatus
             )
         case .aiProcess(let process):
             return AgentScreenCapture(

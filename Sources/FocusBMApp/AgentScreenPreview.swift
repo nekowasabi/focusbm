@@ -6,15 +6,15 @@ struct AgentScreenCapture: Identifiable, Equatable {
     let title: String
     let text: String
     let index: Int
+    let status: TmuxAgentStatus?
 
-    init(id: String, title: String, text: String, index: Int = 0) {
+    init(id: String, title: String, text: String, index: Int = 0, status: TmuxAgentStatus? = nil) {
         self.id = id
         self.title = title
         self.text = text
         self.index = index
+        self.status = status
     }
-
-    var numberedTitle: String { index > 0 ? "\(index)  \(title)" : title }
 }
 
 enum AgentScreenPreviewState: Equatable {
@@ -52,7 +52,7 @@ struct AgentScreenPreviewOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black
+            PreviewPalette.backdrop
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onDismiss)
 
@@ -61,7 +61,7 @@ struct AgentScreenPreviewOverlay: View {
                     if state.isTiled {
                         tiledCaptures
                     } else if let capture = state.captures.first {
-                        captureView(capture, showTitle: false)
+                        captureView(capture, cellHeight: nil)
                     }
                 }
                 .padding(12)
@@ -71,8 +71,8 @@ struct AgentScreenPreviewOverlay: View {
                     .padding(.bottom, 6)
 
                 Text("Esc で閉じる")
-                    .font(.caption)
-                    .foregroundColor(Color.white.opacity(0.55))
+                    .font(.system(size: 12))
+                    .foregroundColor(PreviewPalette.hint)
                     .padding(.bottom, 10)
             }
             .frame(width: cardSize.width, height: cardSize.height)
@@ -81,12 +81,12 @@ struct AgentScreenPreviewOverlay: View {
     }
 
     private var promptBar: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
                 if state.isTiled, let promptTargetIndex {
                     Text("→ \(promptTargetIndex)")
-                        .font(captureFont.bold())
-                        .foregroundColor(.accentColor)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(PreviewPalette.accent)
                 }
                 TextField(
                     state.isTiled && promptTargetIndex == nil
@@ -95,19 +95,20 @@ struct AgentScreenPreviewOverlay: View {
                     text: $promptText
                 )
                 .textFieldStyle(.plain)
-                .font(captureFont)
-                .foregroundColor(.white)
+                .font(.system(size: 15))
+                .foregroundColor(PreviewPalette.text)
                 .focused(isPromptFocused)
                 .onSubmit(onSubmitPrompt)
             }
-            .padding(8)
-            .background(Color(white: 0.12))
-            .overlay(Rectangle().stroke(Color.white.opacity(0.35), lineWidth: 1))
+            .padding(.horizontal, 14)
+            .frame(minHeight: 54)
+            .background(RoundedRectangle(cornerRadius: 10).fill(PreviewPalette.pane))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(PreviewPalette.accent, lineWidth: 1))
 
             if let promptError {
                 Text(promptError)
-                    .font(.caption)
-                    .foregroundColor(Color(red: 1, green: 0.4, blue: 0.4))
+                    .font(.system(size: 12))
+                    .foregroundColor(PreviewPalette.error)
             }
         }
     }
@@ -121,14 +122,14 @@ struct AgentScreenPreviewOverlay: View {
     }
 
     private var tiledCaptures: some View {
-        let columns = [GridItem(.flexible()), GridItem(.flexible())]
+        let columns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
         let count = max(1, state.captures.count)
         let rows = CGFloat((count + 1) / 2)
-        // Why: 96 = padding + hint (48) + prompt bar (48), so the bar is not pushed below the card.
-        let cellHeight = max(160, (cardSize.height - 96) / rows - 8)
-        return LazyVGrid(columns: columns, spacing: 8) {
+        // Why: 112 = padding (24) + prompt bar (60) + hint (28), so the bar is not pushed below the card.
+        let cellHeight = max(160, (cardSize.height - 112) / rows - 12)
+        return LazyVGrid(columns: columns, spacing: 12) {
             ForEach(state.captures) { capture in
-                captureView(capture, showTitle: true)
+                captureView(capture, cellHeight: cellHeight)
                     // Why: fixed height instead of minHeight/maxHeight: .infinity — LazyVGrid does not
                     // propagate a height limit, so rows grew to fit the capture text and pushed tiles off-screen.
                     .frame(height: cellHeight, alignment: .topLeading)
@@ -136,55 +137,128 @@ struct AgentScreenPreviewOverlay: View {
         }
     }
 
-    private func captureView(_ capture: AgentScreenCapture, showTitle: Bool) -> some View {
-        ZStack(alignment: .trailing) {
-            VStack(alignment: .leading, spacing: 6) {
-                if showTitle {
-                    Text(capture.title)
-                        .font(captureFont)
-                        .foregroundColor(Color.white.opacity(0.9))
-                        .lineLimit(1)
-                    Rectangle()
-                        .fill(Color.white.opacity(0.4))
-                        .frame(height: 2)
-                }
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        Text(ANSIText.attributed(capture.text))
-                            .font(captureFont)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .textSelection(.enabled)
-                            .id("capture-bottom")
-                    }
-                    .onAppear {
-                        proxy.scrollTo("capture-bottom", anchor: .bottom)
-                    }
-                    // Why: ライブ更新で text が差し替わっても末尾を追従させるため onAppear に加えて再実行する
-                    .onChange(of: capture.text) { _ in
-                        proxy.scrollTo("capture-bottom", anchor: .bottom)
-                    }
+    /// `cellHeight` is non-nil only for tiled captures, which show the index rail.
+    private func captureView(_ capture: AgentScreenCapture, cellHeight: CGFloat?) -> some View {
+        let isTarget = state.isTiled && capture.index == promptTargetIndex
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Text(capture.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(PreviewPalette.text)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                if let status = capture.status {
+                    statusPill(status)
                 }
             }
-            if showTitle, capture.index > 0 {
-                Text("\(capture.index)")
-                    .font(.system(size: 72, weight: .bold, design: .monospaced))
-                    .foregroundColor(Color(red: 1, green: 0.1, blue: 0.1))
-                    .shadow(color: .black, radius: 4)
-                    .padding(.trailing, 8)
-                    .allowsHitTesting(false)
+            .padding(.top, 12)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+
+            HStack(alignment: .top, spacing: 0) {
+                if let cellHeight, capture.index > 0 {
+                    // Why: 50 ≈ header (40) + bottom inset (10), leaving the body inset height.
+                    indexNumber(capture, bodyHeight: cellHeight - 50, isTarget: isTarget)
+                }
+                captureText(capture)
             }
+            .background(PreviewPalette.inset)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .padding(.horizontal, 10)
+            .padding(.bottom, 10)
         }
-        .padding(10)
+        .background(PreviewPalette.pane)
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(Color.white.opacity(0.35))
-                .frame(height: 1)
+                .fill(capture.status?.color ?? PreviewPalette.secondary)
+                .frame(height: 3)
         }
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isTarget ? PreviewPalette.accent : PreviewPalette.border, lineWidth: 1)
+        )
         .overlay {
-            if state.isTiled, capture.index == promptTargetIndex {
-                Rectangle().stroke(Color.accentColor, lineWidth: 3)
+            if isTarget {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(PreviewPalette.accent.opacity(0.25), lineWidth: 3)
+                    .padding(-2)
             }
         }
-        .background(Color(white: 0.07))
+    }
+
+    private func statusPill(_ status: TmuxAgentStatus) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(status.color)
+                .frame(width: 7, height: 7)
+            Text(status.label)
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .foregroundColor(status.color)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
+        .background(Capsule().fill(status.color.opacity(0.14)))
+    }
+
+    private func captureText(_ capture: AgentScreenCapture) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                Text(ANSIText.attributed(capture.text))
+                    .font(captureFont)
+                    .foregroundColor(PreviewPalette.bodyText)
+                    .lineSpacing((fontSize ?? 14) * 0.5)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .textSelection(.enabled)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+                    .id("capture-bottom")
+            }
+            .onAppear {
+                proxy.scrollTo("capture-bottom", anchor: .bottom)
+            }
+            // Why: ライブ更新で text が差し替わっても末尾を追従させるため onAppear に加えて再実行する
+            .onChange(of: capture.text) { _ in
+                proxy.scrollTo("capture-bottom", anchor: .bottom)
+            }
+        }
+    }
+
+    /// Why: every tile's index sits at the same height, level with the end of the longest output,
+    /// in a left gutter where the eye returns after each line. Colored by agent status.
+    private func indexNumber(_ capture: AgentScreenCapture, bodyHeight: CGFloat, isTarget: Bool) -> some View {
+        let size = fontSize ?? 14
+        // Why: 1.7 ≈ monospaced line height (1.2) + lineSpacing (0.5) used by captureText.
+        let top = PreviewLayout.indexNumberTop(
+            maxLineCount: PreviewLayout.maxLineCount(state.captures.map(\.text)),
+            lineHeight: size * 1.7,
+            bodyHeight: bodyHeight
+        )
+        return Text("\(capture.index)")
+            .font(.system(size: PreviewLayout.indexNumberFontSize(bodyHeight: bodyHeight), weight: .heavy))
+            .foregroundColor(capture.status?.color ?? PreviewPalette.secondary)
+            .opacity(isTarget ? 1 : 0.55)
+            .lineLimit(1)
+            .minimumScaleFactor(0.3)
+            .frame(width: max(1, min(80, bodyHeight * 0.25)))
+            .padding(.top, top)
+            .allowsHitTesting(false)
+    }
+}
+
+private enum PreviewPalette {
+    static let backdrop = rgb(0x0D, 0x11, 0x17)
+    static let pane = rgb(0x16, 0x1B, 0x22)
+    static let border = rgb(0x30, 0x36, 0x3D)
+    static let inset = rgb(0x0D, 0x11, 0x17)
+    static let text = rgb(0xE6, 0xED, 0xF3)
+    static let bodyText = rgb(0xC9, 0xD1, 0xD9)
+    static let secondary = rgb(0x8B, 0x94, 0x9E)
+    static let hint = rgb(0x6E, 0x76, 0x81)
+    static let accent = rgb(0x58, 0xA6, 0xFF)
+    static let error = rgb(0xFF, 0xA1, 0x98)
+
+    private static func rgb(_ r: Int, _ g: Int, _ b: Int) -> Color {
+        Color(red: Double(r) / 255, green: Double(g) / 255, blue: Double(b) / 255)
     }
 }

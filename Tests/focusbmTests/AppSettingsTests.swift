@@ -366,6 +366,13 @@ import Yams
     #expect(origin.y == 0)
 }
 
+@Test func test_previewLayout_indexNumberTop_alignsWithLongestOutputWithinBody() {
+    #expect(PreviewLayout.indexNumberTop(maxLineCount: 3, lineHeight: 21, bodyHeight: 500) == 0)
+    #expect(PreviewLayout.indexNumberTop(maxLineCount: 20, lineHeight: 21, bodyHeight: 500) == 334)
+    #expect(PreviewLayout.indexNumberTop(maxLineCount: 40, lineHeight: 21, bodyHeight: 500) == 396)
+    #expect(PreviewLayout.maxLineCount(["a\nb", "c\nd\ne", ""]) == 3)
+}
+
 @Test func test_previewLayout_yamlSize_isClampedAndCentered() {
     let size = PreviewLayout.sizeOnMonitor(
         monitorWidth: 1920, monitorHeight: 1080, previewWidth: 800, previewHeight: 600)
