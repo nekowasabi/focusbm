@@ -18,7 +18,7 @@ class SearchViewModel: ObservableObject {
     @Published var screenPreview: AgentScreenPreviewState? = nil
     @Published var isActive: Bool = false
     /// Live tmux visible-pane capture. Tests replace this to avoid calling tmux.
-    var paneScreenCaptureProvider: (String) -> String? = { TmuxProvider.capturePaneContent(paneId: $0, historyLines: nil) }
+    var paneScreenCaptureProvider: (String) -> String? = { TmuxProvider.capturePaneContent(paneId: $0, historyLines: nil, withEscapes: true) }
 
     private static let AGENT_STATUS_REFRESH_INTERVAL_SEC: TimeInterval = 3
     private var agentStatusTimer: DispatchSourceTimer?
@@ -660,7 +660,7 @@ class SearchViewModel: ObservableObject {
                 ?? pane.statusContent
                 ?? ""
             let trimmed = trimTrailingBlankLines(text)
-            let body = trimmed.trimmingCharacters(in: .whitespacesAndNewlines)
+            let body = ANSIText.stripped(trimmed).trimmingCharacters(in: .whitespacesAndNewlines)
             return AgentScreenCapture(
                 id: pane.paneId,
                 title: pane.displayNameWithoutEmoji,
@@ -680,7 +680,7 @@ class SearchViewModel: ObservableObject {
     // Why: tmux capture-pane pads the pane with blank rows below the prompt.
     private func trimTrailingBlankLines(_ text: String) -> String {
         var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        while let last = lines.last, last.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        while let last = lines.last, ANSIText.stripped(last).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             lines.removeLast()
         }
         return lines.joined(separator: "\n")

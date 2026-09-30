@@ -846,8 +846,10 @@ public struct TmuxProvider {
 
     /// Capture tmux pane text. Default is the visible pane (prompt at the bottom).
     /// Pass `historyLines` only when status detection needs scrollback.
-    public static func capturePaneContent(paneId: String, historyLines: Int? = nil) -> String? {
+    /// `withEscapes` keeps SGR color codes (-e); status detection must leave it false.
+    public static func capturePaneContent(paneId: String, historyLines: Int? = nil, withEscapes: Bool = false) -> String? {
         var args = ["capture-pane", "-p", "-t", paneId]
+        if withEscapes { args.append("-e") }
         if let historyLines {
             args.append(contentsOf: ["-S", "-\(historyLines)"])
         }

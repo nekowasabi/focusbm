@@ -107,9 +107,8 @@ struct AgentScreenPreviewOverlay: View {
                 }
                 ScrollViewReader { proxy in
                     ScrollView {
-                        Text(capture.text)
+                        Text(ANSIText.attributed(capture.text))
                             .font(captureFont)
-                            .foregroundColor(Color(white: 0.9))
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                             .textSelection(.enabled)
                             .id("capture-bottom")
