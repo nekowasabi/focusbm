@@ -23,6 +23,10 @@ class SearchViewModel: ObservableObject {
     private static let AGENT_STATUS_REFRESH_INTERVAL_SEC: TimeInterval = 3
     private var agentStatusTimer: DispatchSourceTimer?
     private var agentStatusRefreshGeneration = 0
+    private static let SCREEN_PREVIEW_REFRESH_INTERVAL_SEC: TimeInterval = 0.5
+    private var screenPreviewTimer: DispatchSourceTimer?
+    private var screenPreviewRefreshGeneration = 0
+    private var screenPreviewCaptureInFlight = false
     @Published var listFontSize: Double? = nil
     @Published var fontName: String? = nil
     @Published var previewWidth: Double? = nil
@@ -108,6 +112,82 @@ class SearchViewModel: ObservableObject {
         agentStatusRefreshGeneration += 1
         agentStatusTimer?.cancel()
         agentStatusTimer = nil
+    }
+
+    private func startScreenPreviewRefresh() {
+        stopScreenPreviewRefresh()
+
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+        timer.schedule(
+            deadline: .now() + Self.SCREEN_PREVIEW_REFRESH_INTERVAL_SEC,
+            repeating: Self.SCREEN_PREVIEW_REFRESH_INTERVAL_SEC
+        )
+        timer.setEventHandler { [weak self] in
+            self?.refreshScreenPreviewAsync()
+        }
+        timer.resume()
+        screenPreviewTimer = timer
+    }
+
+    private func stopScreenPreviewRefresh() {
+        screenPreviewRefreshGeneration += 1
+        screenPreviewTimer?.cancel()
+        screenPreviewTimer = nil
+        screenPreviewCaptureInFlight = false
+    }
+
+    private func refreshScreenPreviewAsync() {
+        DispatchQueue.main.async { [weak self] in
+            // Why: Instead of invalidating each tick, skip overlapping captures so slow results can still be applied.
+            guard let self,
+                  let preview = self.screenPreview,
+                  !self.screenPreviewCaptureInFlight else { return }
+            // Why: Use displayed capture IDs instead of searchItems, which can change while a preview stays visible.
+            let paneIDs = preview.captures.map(\.id).filter { !$0.hasPrefix("aiprocess-") }
+            guard !paneIDs.isEmpty else { return }
+
+            let generation = self.screenPreviewRefreshGeneration
+            // Why: Snapshot the injectable provider on the main queue so background reads cannot race with test replacement.
+            let provider = self.paneScreenCaptureProvider
+            self.screenPreviewCaptureInFlight = true
+
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                final class CaptureBox: @unchecked Sendable { var value: String? }
+                let boxes = paneIDs.map { _ in CaptureBox() }
+                DispatchQueue.concurrentPerform(iterations: paneIDs.count) { index in
+                    boxes[index].value = provider(paneIDs[index])
+                }
+                var capturedTexts: [String: String] = [:]
+                for (paneID, box) in zip(paneIDs, boxes) {
+                    if let text = box.value { capturedTexts[paneID] = text }
+                }
+
+                DispatchQueue.main.async { [weak self] in
+                    guard let self,
+                          self.screenPreviewRefreshGeneration == generation else { return }
+                    self.screenPreviewCaptureInFlight = false
+                    guard let currentPreview = self.screenPreview else { return }
+
+                    var didChange = false
+                    let captures = currentPreview.captures.map { capture in
+                        guard let rawText = capturedTexts[capture.id] else { return capture }
+                        let text = self.normalizedCaptureText(rawText)
+                        guard text != capture.text else { return capture }
+                        didChange = true
+                        return AgentScreenCapture(
+                            id: capture.id, title: capture.title, text: text, index: capture.index
+                        )
+                    }
+                    guard didChange else { return }
+                    switch currentPreview {
+                    case .single:
+                        self.screenPreview = .single(captures[0])
+                    case .tiled:
+                        self.screenPreview = .tiled(captures)
+                    }
+                }
+            }
+        }
     }
 
     private func refreshAgentStatusesAsync() {
@@ -653,6 +733,7 @@ class SearchViewModel: ObservableObject {
 
     @discardableResult
     func dismissScreenPreview() -> Bool {
+        stopScreenPreviewRefresh()
         guard screenPreview != nil else { return false }
         screenPreview = nil
         return true
@@ -663,6 +744,7 @@ class SearchViewModel: ObservableObject {
         guard let item = previewTargetItem(), let capture = captureScreen(for: item) else { return false }
         screenPreview = .single(AgentScreenCapture(
             id: capture.id, title: capture.title, text: capture.text, index: 1))
+        startScreenPreviewRefresh()
         return true
     }
 
@@ -678,6 +760,7 @@ class SearchViewModel: ObservableObject {
         }
         guard !captures.isEmpty else { return false }
         screenPreview = captures.count == 1 ? .single(captures[0]) : .tiled(captures)
+        startScreenPreviewRefresh()
         return true
     }
 
@@ -687,12 +770,10 @@ class SearchViewModel: ObservableObject {
             let text = paneScreenCaptureProvider(pane.paneId)
                 ?? pane.statusContent
                 ?? ""
-            let trimmed = trimTrailingBlankLines(text)
-            let body = ANSIText.stripped(trimmed).trimmingCharacters(in: .whitespacesAndNewlines)
             return AgentScreenCapture(
                 id: pane.paneId,
                 title: pane.displayNameWithoutEmoji,
-                text: body.isEmpty ? "キャプチャできませんでした" : trimmed
+                text: normalizedCaptureText(text)
             )
         case .aiProcess(let process):
             return AgentScreenCapture(
@@ -712,6 +793,12 @@ class SearchViewModel: ObservableObject {
             lines.removeLast()
         }
         return lines.joined(separator: "\n")
+    }
+
+    private func normalizedCaptureText(_ text: String) -> String {
+        let trimmed = trimTrailingBlankLines(text)
+        let body = ANSIText.stripped(trimmed).trimmingCharacters(in: .whitespacesAndNewlines)
+        return body.isEmpty ? "キャプチャできませんでした" : trimmed
     }
 
     func canResolveSessionPullRequest(for item: SearchItem) -> Bool {
@@ -772,6 +859,7 @@ class SearchViewModel: ObservableObject {
     }
 
     deinit {
+        screenPreviewTimer?.cancel()
         agentStatusTimer?.cancel()
     }
 }

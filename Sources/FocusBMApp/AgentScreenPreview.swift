@@ -116,6 +116,10 @@ struct AgentScreenPreviewOverlay: View {
                     .onAppear {
                         proxy.scrollTo("capture-bottom", anchor: .bottom)
                     }
+                    // Why: ライブ更新で text が差し替わっても末尾を追従させるため onAppear に加えて再実行する
+                    .onChange(of: capture.text) { _ in
+                        proxy.scrollTo("capture-bottom", anchor: .bottom)
+                    }
                 }
             }
             if showTitle, capture.index > 0 {
