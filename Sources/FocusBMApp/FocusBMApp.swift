@@ -221,7 +221,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "bookmark.fill", accessibilityDescription: "focusbm")
         }
+        rebuildStatusMenu()
+    }
 
+    // Why: 再読み込み時は NSStatusItem を作り直さずメニューだけ差し替える。
+    //      同じ autosaveName で作り直すと macOS 26 の ControlCenter が新アイテムを
+    //      "Already tracking host" で拒否し、直後に旧アイテムが解放されてアイコンが消えるため。
+    //      removeStatusItem 後に再生成する案は ControlCenter 側の削除が非同期で同じ競合が残るため不採用。
+    private func rebuildStatusMenu() {
         let menu = NSMenu()
 
         let searchItem = NSMenuItem(title: "検索パネルを開く", action: #selector(toggleSearchPanel), keyEquivalent: "")
@@ -380,7 +387,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         cachedPanelWidth = store.settings?.panelWidth.map { CGFloat($0) } ?? defaultWidth
         cachedPanelHeight = store.settings?.panelHeight.map { CGFloat($0) } ?? PanelDefaults.height
         cachedDisplayNumber = store.settings?.displayNumber
-        setupStatusItem()
+        rebuildStatusMenu()
     }
 
     // MARK: - Launch at Login
@@ -396,7 +403,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 try SMAppService.mainApp.register()
             }
-            setupStatusItem()
+            rebuildStatusMenu()
         } catch {
             let alert = NSAlert()
             alert.messageText = "自動起動の設定に失敗しました"
