@@ -31,6 +31,22 @@ public static class PreviewLayout
         return ((monitorWidth - cardWidth) / 2, (monitorHeight - cardHeight) / 2);
     }
 
+    public static int MaxLineCount(IEnumerable<string> texts) =>
+        texts.Select(text => string.IsNullOrEmpty(text) ? 0 : text.Split('\n').Length).DefaultIfEmpty(0).Max();
+
+    public static double IndexNumberFontSize(double bodyHeight) => Math.Max(1, Math.Min(96, bodyHeight * 0.4));
+
+    // Why: every tile puts its index at the same height, level with the end of the longest output,
+    //      so the numbers line up across panes yet stay next to where reading ends.
+    public static double IndexNumberTop(int maxLineCount, double lineHeight, double bodyHeight)
+    {
+        const double textInset = 10;
+        const double bottomInset = 8;
+        var number = IndexNumberFontSize(bodyHeight);
+        var top = textInset + maxLineCount * lineHeight - number;
+        return Math.Max(0, Math.Min(top, bodyHeight - number - bottomInset));
+    }
+
     // Why: tmux capture-pane fills the pane height with blank rows below the prompt.
     //      Scrolling to the absolute bottom then shows an empty card.
     public static string TrimTrailingBlankLines(string? text)

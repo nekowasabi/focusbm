@@ -348,7 +348,6 @@ public class AgentScreenPreviewTests
         Assert.True(vm.IsTiledPreview);
         Assert.Equal(new[] { "pane %1", "pane %2" }, vm.PreviewCaptures.Select(capture => capture.Text).ToArray());
         Assert.Equal(new[] { 1, 2 }, vm.PreviewCaptures.Select(capture => capture.Index).ToArray());
-        Assert.StartsWith("1  ", vm.PreviewCaptures[0].NumberedTitle);
         Assert.Same(first, vm.BookmarkForPreviewDigit(1));
         Assert.Same(second, vm.BookmarkForPreviewDigit(2));
         Assert.Null(vm.BookmarkForPreviewDigit(3));
@@ -387,6 +386,23 @@ public class AgentScreenPreviewTests
         Assert.Equal(new[] { "new %1", "old %2" }, vm.PreviewCaptures.Select(c => c.Text).ToArray());
         Assert.Equal(new[] { 1, 2 }, vm.PreviewCaptures.Select(c => c.Index).ToArray());
         Assert.Same(unchanged, vm.PreviewCaptures[1]);
+    }
+
+    [Fact]
+    public async Task PreviewCaptures_CarryAgentStatusAndFollowReload()
+    {
+        var running = new Bookmark("tmux:a", "claude", "one", new WslProcessState(1, "claude", TmuxPaneId: "%1", AgentStatus: TmuxAgentStatus.Running, ScreenCapture: "a"));
+        var idle = new Bookmark("tmux:b", "codex", "two", new WslProcessState(2, "codex", TmuxPaneId: "%2", AgentStatus: TmuxAgentStatus.Idle, ScreenCapture: "b"));
+        var vm = new SearchPanelViewModel(capturePane: (paneId, _) => Task.FromResult<string?>(paneId == "%1" ? "a" : "b"));
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { running, idle }));
+        Assert.True(vm.ShowAllPreviews());
+        Assert.Equal(new TmuxAgentStatus?[] { TmuxAgentStatus.Running, TmuxAgentStatus.Idle }, vm.PreviewCaptures.Select(c => c.Status).ToArray());
+
+        var finished = running with { State = new WslProcessState(1, "claude", TmuxPaneId: "%1", AgentStatus: TmuxAgentStatus.Idle, ScreenCapture: "a") };
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { finished, idle }), announce: false);
+        await vm.RefreshPreviewAsync();
+
+        Assert.Equal(new TmuxAgentStatus?[] { TmuxAgentStatus.Idle, TmuxAgentStatus.Idle }, vm.PreviewCaptures.Select(c => c.Status).ToArray());
     }
 
     [Fact]

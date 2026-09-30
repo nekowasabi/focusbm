@@ -30,6 +30,7 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
         _restore = restore;
         _pullRequestResolver = pullRequestResolver;
         _capturePane = capturePane;
+        PreviewCaptures.CollectionChanged += (_, _) => OnChanged(nameof(PreviewMaxLineCount));
         _sendPrompt = sendPrompt;
     }
 
@@ -42,6 +43,7 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     public bool IsPreviewVisible => PreviewCaptures.Count > 0;
     public bool IsTiledPreview { get; private set; }
     public int PreviewColumnCount => IsTiledPreview ? 2 : 1;
+    public int PreviewMaxLineCount => PreviewLayout.MaxLineCount(PreviewCaptures.Select(capture => capture.Text));
     public string PreviewFontFamily => Settings.EffectivePreviewFontName ?? "Consolas";
     public double PreviewFontSize => Settings.EffectivePreviewFontSize;
     public string PromptDraft
@@ -405,6 +407,14 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
                     PreviewCaptures[i] = PreviewCaptures[i] with { Text = text };
             }
         }
+        // Why: Load() replaces _all on each background refresh, so re-read status here to keep the pill from going stale.
+        for (var i = 0; i < PreviewCaptures.Count; i++)
+        {
+            var id = PreviewCaptures[i].Id;
+            var status = _all.FirstOrDefault(b => string.Equals(b.Id, id, StringComparison.Ordinal))?.AgentStatus;
+            if (PreviewCaptures[i].Status != status)
+                PreviewCaptures[i] = PreviewCaptures[i] with { Status = status };
+        }
     }
 
     private void ResetPreviewRefresh()
@@ -449,7 +459,7 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
                 ? "tmux ペインがないため画面キャプチャできません"
                 : "キャプチャできませんでした"
             : cached;
-        return new AgentScreenCapture(bookmark.Id, bookmark.DisplayLabel, text);
+        return new AgentScreenCapture(bookmark.Id, bookmark.DisplayLabel, text, Status: bookmark.AgentStatus);
     }
 
     private static string? PaneIdOf(Bookmark bookmark) => bookmark.State switch

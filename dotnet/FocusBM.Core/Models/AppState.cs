@@ -34,10 +34,7 @@ public sealed record WslNvimState(
 
 public sealed record UnknownAppState(string UnknownType, IReadOnlyDictionary<string,string> Fields) : AppState(UnknownType);
 
-public sealed record AgentScreenCapture(string Id, string Title, string Text, int Index = 0)
-{
-    public string NumberedTitle => Index > 0 ? $"{Index}  {Title}" : Title;
-}
+public sealed record AgentScreenCapture(string Id, string Title, string Text, int Index = 0, TmuxAgentStatus? Status = null);
 
 public sealed record BookmarkStore(AppSettings? Settings, IReadOnlyList<Bookmark> Bookmarks)
 {

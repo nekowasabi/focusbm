@@ -95,6 +95,15 @@ public class CoreModelTests
     [InlineData(9, 2, 0)]
     public void DisplayTarget_OneIsPrimary_InvalidFallsBackToPrimary(int? displayNumber, int count, int expected) =>
         Assert.Equal(expected, DisplayTarget.ResolveIndex(displayNumber, count));
+    [Theory]
+    [InlineData(3, 21, 500, 0)]
+    [InlineData(20, 21, 500, 334)]
+    [InlineData(40, 21, 500, 396)]
+    public void PreviewLayout_IndexNumberTop_AlignsWithLongestOutputWithinBody(int lines, double lineHeight, double body, double expected) =>
+        Assert.Equal(expected, PreviewLayout.IndexNumberTop(lines, lineHeight, body));
+    [Fact]
+    public void PreviewLayout_MaxLineCount_UsesLongestCapture() =>
+        Assert.Equal(3, PreviewLayout.MaxLineCount(new[] { "a\nb", "c\nd\ne", "" }));
     [Fact]
     public void PreviewLayout_OmittedSize_UsesMonitorMaximumAndCenters()
     {
