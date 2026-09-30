@@ -22,6 +22,9 @@ public sealed class DefaultProcessRunner : IProcessRunner
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
+                // Why: the default is the OEM code page (CP932 on ja-JP). WSL bash emits UTF-8, and a 3-byte glyph followed by ESC gets its trailing byte pair swallowed, which breaks tmux -e color sequences.
+                StandardOutputEncoding = System.Text.Encoding.UTF8,
+                StandardErrorEncoding = System.Text.Encoding.UTF8,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden
