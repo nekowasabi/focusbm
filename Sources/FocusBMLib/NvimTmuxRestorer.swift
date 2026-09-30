@@ -87,13 +87,18 @@ public struct NvimTmuxRestorer {
         let pane: TmuxPane
         do {
             pane = try findPane(panes, workingDirectory)
-        } catch let error as NvimTmuxRestoreError {
-            throw error
-        } catch is TmuxInputError {
-            throw NvimTmuxRestoreError.noEligiblePane
         } catch {
-            throw NvimTmuxRestoreError.noEligiblePane
+            Diag.log.notice("nvim pane not found among \(panes.count, privacy: .public) panes")
+            switch error {
+            case let error as NvimTmuxRestoreError:
+                throw error
+            case is TmuxInputError:
+                throw NvimTmuxRestoreError.noEligiblePane
+            default:
+                throw NvimTmuxRestoreError.noEligiblePane
+            }
         }
+        Diag.log.notice("nvim pane \(pane.sessionName, privacy: .public):\(pane.windowIndex, privacy: .public) \(pane.paneId, privacy: .public) of \(panes.count, privacy: .public) panes")
 
         guard pane.command == TmuxProvider.NVIM_PANE_COMMAND,
               pane.terminalBundleId == TmuxProvider.ITERM2_BUNDLE_ID else {

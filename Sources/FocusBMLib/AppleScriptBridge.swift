@@ -77,6 +77,7 @@ public struct AppleScriptBridge {
             readGroup.leave()
         }
 
+        let start = DispatchTime.now().uptimeNanoseconds
         try process.run()
 
         if done.wait(timeout: .now() + timeout) == .timedOut {
@@ -84,9 +85,12 @@ public struct AppleScriptBridge {
             if done.wait(timeout: .now() + 1.0) == .timedOut {
                 kill(process.processIdentifier, SIGKILL)
             }
+            Diag.log.notice("osascript timed out after \(timeout, privacy: .public)s")
             throw AppleScriptError.timedOut
         }
         readGroup.wait()
+        let ms = (DispatchTime.now().uptimeNanoseconds - start) / 1_000_000
+        Diag.log.notice("osascript exit=\(process.terminationStatus, privacy: .public) \(ms, privacy: .public)ms")
 
         let output = String(data: outData, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

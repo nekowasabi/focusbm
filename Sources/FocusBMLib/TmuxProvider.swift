@@ -961,12 +961,15 @@ public struct TmuxProvider {
         let errPipe = Pipe()
         process.standardError = errPipe
 
+        let start = DispatchTime.now().uptimeNanoseconds
         do {
             try process.run()
         } catch {
             throw TmuxError.tmuxNotAvailable
         }
         process.waitUntilExit()
+        let ms = (DispatchTime.now().uptimeNanoseconds - start) / 1_000_000
+        Diag.log.notice("tmux \(description, privacy: .public) exit=\(process.terminationStatus, privacy: .public) \(ms, privacy: .public)ms")
 
         if process.terminationStatus != 0 {
             let errOutput = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?

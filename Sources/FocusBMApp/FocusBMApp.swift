@@ -26,6 +26,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var cachedPanelWidth: CGFloat = 500
     private var cachedPanelHeight: CGFloat = 400
     private var cachedDisplayNumber: Int? = nil
+    private var mainStallWatchdog: DispatchSourceTimer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Dock アイコンを非表示（メニューバー常駐）
@@ -34,6 +35,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupStatusItem()
         setupSearchPanel()
         setupHotkey()
+        startMainStallWatchdog()
+    }
+
+    /// Diagnostic: CGEventTap callbacks run on the main run loop, so a main-thread stall delays every keystroke system-wide.
+    private func startMainStallWatchdog() {
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+        timer.schedule(deadline: .now() + 1, repeating: 0.2)
+        timer.setEventHandler {
+            let sent = DispatchTime.now().uptimeNanoseconds
+            DispatchQueue.main.async {
+                let ms = Double(DispatchTime.now().uptimeNanoseconds - sent) / 1_000_000
+                if ms > 250 {
+                    Diag.log.notice("main thread stall \(Int(ms), privacy: .public)ms")
+                }
+            }
+        }
+        timer.resume()
+        mainStallWatchdog = timer
     }
 
     // MARK: - Hotkey (CGEventTap)
@@ -148,6 +167,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func handleCGEvent(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         // タイムアウトで無効化された場合は再有効化
         if type == .tapDisabledByTimeout {
+            Diag.log.notice("event tap disabled by timeout; re-enabling")
             if let tap = eventTap {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
