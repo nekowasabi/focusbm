@@ -348,6 +348,8 @@ class SearchPanel: NSPanel {
             if let label = Self.alphabetShortcutLabel(keyCode: event.keyCode, flags: event.modifierFlags) {
                 if self.viewModel.query.isEmpty,
                    let pair = self.viewModel.shortcutBarItems.first(where: { $0.label == label }) {
+                    // Why: While the preview is visible, shortcut-bar keys must not launch a bookmark behind it; swallow the key instead.
+                    if self.viewModel.screenPreview != nil { return nil }
                     self.executeItem(pair.item)
                     return nil
                 }
