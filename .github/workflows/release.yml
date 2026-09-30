@@ -1,0 +1,41 @@
+name: release
+on:
+  push:
+    tags: [ 'v*' ]
+permissions:
+  contents: write
+jobs:
+  mac-dmg:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: build FocusBMApp.app and dmg
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}" ./scripts/bundle.sh
+          mkdir dmg && cp -R FocusBMApp.app dmg/ && ln -s /Applications dmg/Applications
+          hdiutil create -volname FocusBM -srcfolder dmg -ov -format UDZO "FocusBM-${GITHUB_REF_NAME}-mac.dmg"
+      - uses: actions/upload-artifact@v4
+        with: { name: mac, path: '*.dmg' }
+  windows-zip:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - name: publish and zip
+        shell: pwsh
+        run: |
+          dotnet publish dotnet/FocusBM.App.Wpf/FocusBM.App.Wpf.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=false -p:DebugType=None -p:CopyOutputSymbolsToPublishDirectory=false -o out/FocusBM
+          Move-Item out/FocusBM/FocusBM.App.Wpf.exe out/FocusBM/FocusBM.exe
+          Copy-Item bookmarks.example.windows.yml out/FocusBM/bookmarks.yml
+          Compress-Archive -Path out/FocusBM -DestinationPath "FocusBM-$env:GITHUB_REF_NAME-windows-x64.zip"
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: '*.zip' }
+  publish:
+    needs: [mac-dmg, windows-zip]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+      - run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+        env: { GH_TOKEN: '${{ secrets.GITHUB_TOKEN }}' }

@@ -5,6 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 APP_NAME="FocusBMApp"
+VERSION="${VERSION:-1.1.0}"
 BUNDLE_DIR="$PROJECT_DIR/$APP_NAME.app"
 CONTENTS_DIR="$BUNDLE_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
@@ -24,7 +25,7 @@ mkdir -p "$MACOS_DIR"
 cp ".build/release/$APP_NAME" "$MACOS_DIR/$APP_NAME"
 
 # Info.plist を作成（署名より前に配置する必要がある）
-cat > "$CONTENTS_DIR/Info.plist" << 'PLIST'
+cat > "$CONTENTS_DIR/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -38,9 +39,9 @@ cat > "$CONTENTS_DIR/Info.plist" << 'PLIST'
     <key>CFBundleDisplayName</key>
     <string>FocusBM</string>
     <key>CFBundleVersion</key>
-    <string>1.0.0</string>
+    <string>$VERSION</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>$VERSION</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>
