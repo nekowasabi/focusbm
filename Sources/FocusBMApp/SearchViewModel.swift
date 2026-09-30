@@ -16,6 +16,15 @@ class SearchViewModel: ObservableObject {
     @Published var selectedIndex: Int = 0
     @Published var hoveredIndex: Int? = nil
     @Published var screenPreview: AgentScreenPreviewState? = nil
+    @Published var promptDraft: String = ""
+    /// 1-based capture index that receives the prompt. Single preview is 1; tiled stays nil until Cmd+N.
+    @Published var promptTargetIndex: Int? = nil
+    @Published var isPromptFieldFocused: Bool = false
+    @Published var promptError: String? = nil
+    /// Sends (paneId, text) to the agent. Tests replace this to avoid calling tmux.
+    var promptSender: (String, String) throws -> Void = { try TmuxProvider.sendPrompt(paneId: $0, text: $1) }
+    // Why: Serial queue because every send shares one tmux buffer name; overlapping sends would swap bodies.
+    private let promptSendQueue = DispatchQueue(label: "focusbm.prompt-send", qos: .userInitiated)
     @Published var isActive: Bool = false
     /// Live tmux visible-pane capture. Tests replace this to avoid calling tmux.
     var paneScreenCaptureProvider: (String) -> String? = { TmuxProvider.capturePaneContent(paneId: $0, historyLines: nil, withEscapes: true) }
@@ -736,6 +745,8 @@ class SearchViewModel: ObservableObject {
         stopScreenPreviewRefresh()
         guard screenPreview != nil else { return false }
         screenPreview = nil
+        promptTargetIndex = nil
+        isPromptFieldFocused = false
         return true
     }
 
@@ -744,8 +755,62 @@ class SearchViewModel: ObservableObject {
         guard let item = previewTargetItem(), let capture = captureScreen(for: item) else { return false }
         screenPreview = .single(AgentScreenCapture(
             id: capture.id, title: capture.title, text: capture.text, index: 1))
+        promptTargetIndex = 1
+        promptError = nil
+        isPromptFieldFocused = true
         startScreenPreviewRefresh()
         return true
+    }
+
+    var promptTargetID: String? {
+        guard let captures = screenPreview?.captures,
+              let index = promptTargetIndex,
+              index >= 1, index <= captures.count else { return nil }
+        return captures[index - 1].id
+    }
+
+    /// Modifier that picks a tiled prompt target (settings.previewTargetModifier, default cmd).
+    var promptTargetFlags: NSEvent.ModifierFlags {
+        appSettings?.previewTargetModifier == .ctrl ? .control : .command
+    }
+
+    /// Modifier+N on a tiled preview: retarget the prompt to tile N and focus the field, keeping the draft.
+    @discardableResult
+    func setPromptTarget(_ number: Int, flags: NSEvent.ModifierFlags) -> Bool {
+        guard flags == promptTargetFlags,
+              let preview = screenPreview, preview.isTiled,
+              number >= 1, number <= preview.captures.count else { return false }
+        promptTargetIndex = number
+        isPromptFieldFocused = true
+        return true
+    }
+
+    /// Esc while typing in a tiled preview returns to tile navigation instead of closing it.
+    func blurTiledPromptField() -> Bool {
+        guard isPromptFieldFocused, screenPreview?.isTiled == true else { return false }
+        isPromptFieldFocused = false
+        return true
+    }
+
+    func sendPromptToPreview() {
+        let text = promptDraft
+        guard let paneID = promptTargetID,
+              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let sender = promptSender
+        promptSendQueue.async { [weak self] in
+            let result = Result { try sender(paneID, text) }
+            DispatchQueue.main.async {
+                guard let self else { return }
+                switch result {
+                case .success:
+                    self.promptError = nil
+                    // Why: Clear only the sent body so text typed while tmux was running is not lost.
+                    if self.promptDraft == text { self.promptDraft = "" }
+                case .failure(let error):
+                    self.promptError = error.localizedDescription
+                }
+            }
+        }
     }
 
     @discardableResult
@@ -760,6 +825,8 @@ class SearchViewModel: ObservableObject {
         }
         guard !captures.isEmpty else { return false }
         screenPreview = captures.count == 1 ? .single(captures[0]) : .tiled(captures)
+        promptTargetIndex = captures.count == 1 ? 1 : nil
+        promptError = nil
         startScreenPreviewRefresh()
         return true
     }

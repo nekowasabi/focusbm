@@ -340,6 +340,7 @@ bookmarks:
 | `settings.previewHeight` | integer | `nil`（対象モニタの最大高さ） | Ctrl+P 単体カードの高さ（px）。単体はモニタ中央、全体プレビューは全面 |
 | `settings.previewFontSize` | float | `14` | プレビュー画面のフォントサイズ（pt） |
 | `settings.previewFontName` | string | `nil`（`fontName` へフォールバック） | プレビュー画面のフォント名 |
+| `settings.previewTargetModifier` | string | `"cmd"` | タイル表示でプロンプト送信先を選ぶ修飾キー（`cmd` / `ctrl`）。不正値は `cmd` 扱い |
 | `settings.preferredTerminal` | string | `nil` | tmux ペインを開く際に使用するターミナルの bundleId（例: `"com.github.wez.wezterm"`）。設定すると自動検出より優先される |
 | `settings.directNumberKeys` | bool | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |
 | `settings.filteredNumberKeys` | bool | `false` | `true`: 絞り込み中で候補が2件以上なら数字キー単体でも振り直した番号を選ぶ。`false`: 数字は検索語として入力され、番号選択は Ctrl+数字のみ |

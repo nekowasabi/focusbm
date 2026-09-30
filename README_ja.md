@@ -336,6 +336,7 @@ bookmarks:
 | `settings.previewHeight` | 整数 | `nil`（対象モニタの最大高さ） | Ctrl+P 単体カードの高さ。全体プレビューはモニタ全面 |
 | `settings.previewFontSize` | 小数 | `14` | プレビュー画面のフォントサイズ（pt） |
 | `settings.previewFontName` | 文字列 | `nil`（`fontName` へフォールバック） | プレビュー画面のフォント名 |
+| `settings.previewTargetModifier` | 文字列 | `"cmd"` | タイル表示でプロンプト送信先を選ぶ修飾キー（`cmd` / `ctrl`）。不正値は `cmd` 扱い |
 | `settings.directNumberKeys` | 真偽値 | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |
 | `settings.filteredNumberKeys` | 真偽値 | `false` | `true`: 絞り込み中で候補が2件以上なら数字キー単体でも振り直した番号を選ぶ。`false`: 数字は検索語として入力され、番号選択は Ctrl+数字のみ |
 | `settings.showAIAgentShortcut` | 真偽値? | `nil`（= `true` 相当） | `true`/未指定: AI エージェント行（`aiProcess` と tmux ペインの AI エージェント）にも ⌘1–⌘9 番号を振る（現行動作）。`false`: AI エージェント行には番号を振らず、ブックマーク側の番号が 1,2,3... と詰まる。数字キーによるジャンプも AI 行には効かなくなる |

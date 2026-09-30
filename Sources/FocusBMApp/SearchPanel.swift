@@ -258,6 +258,16 @@ class SearchPanel: NSPanel {
         localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
 
+            // Why: While typing a prompt, only Esc, Cmd+digit and (tiled) the target modifier+digit keep their
+            //      panel meaning; every other key (digits, letters, arrows, Ctrl+P) must reach the text field.
+            if self.viewModel.isPromptFieldFocused, let preview = self.viewModel.screenPreview {
+                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                let isDigit = Self.digitKeyCodes[event.keyCode] != nil
+                let isCmdDigit = isDigit && flags == .command
+                let isTargetDigit = isDigit && preview.isTiled && flags == self.viewModel.promptTargetFlags
+                if event.keyCode != 53 && !isCmdDigit && !isTargetDigit { return event }
+            }
+
             if Self.matchesSessionPullRequestHotkey(
                 keyCode: event.keyCode,
                 flags: event.modifierFlags,
@@ -298,7 +308,13 @@ class SearchPanel: NSPanel {
             // directNumberKeys=false: Cmd+数字のみ
             if let number = Self.digitKeyCodes[event.keyCode] {
                 let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-                let direct = self.viewModel.appSettings?.directNumberKeys ?? true
+                // Why: Modifier+N on tiles picks the prompt target, so it must run before the pane-move and
+                //      Ctrl+digit execute branches below.
+                if self.viewModel.setPromptTarget(number, flags: flags) {
+                    return nil
+                }
+                // Why: Tiled modifier+N (Cmd by default) picks the prompt target, so in a preview bare N always moves regardless of directNumberKeys.
+                let direct = (self.viewModel.appSettings?.directNumberKeys ?? true) || self.viewModel.screenPreview != nil
                 let isBareOrCmd = direct ? (flags.isEmpty || flags == .command) : flags == .command
                 if isBareOrCmd, let item = self.viewModel.previewItem(forDigit: number) {
                     self.executeItem(item)
@@ -348,6 +364,9 @@ class SearchPanel: NSPanel {
                 self.viewModel.moveDown()
                 return nil
             case 53: // Escape
+                if self.viewModel.blurTiledPromptField() {
+                    return nil
+                }
                 if self.viewModel.dismissScreenPreview() {
                     self.applyPreviewWindowLayout(visible: false)
                     return nil

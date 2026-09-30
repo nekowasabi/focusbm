@@ -667,18 +667,25 @@ public struct TmuxProvider {
     }
 
     /// Production executor for input-only tmux commands. Throws on non-zero exit.
-    public static func runTmuxForInput(_ arguments: [String]) throws -> String {
+    /// `stdin` is written to the process and closed before waiting (e.g. `load-buffer -`).
+    public static func runTmuxForInput(_ arguments: [String], stdin: Data? = nil) throws -> String {
         let tmuxArgs = arguments.first == "tmux" ? Array(arguments.dropFirst()) : arguments
         let process = makeTmuxProcess(tmuxArgs)
         let outPipe = Pipe()
         let errPipe = Pipe()
+        let inPipe = Pipe()
         process.standardOutput = outPipe
         process.standardError = errPipe
+        if stdin != nil { process.standardInput = inPipe }
 
         do {
             try process.run()
         } catch {
             throw TmuxInputError.executionFailed(error.localizedDescription)
+        }
+        if let stdin {
+            inPipe.fileHandleForWriting.write(stdin)
+            inPipe.fileHandleForWriting.closeFile()
         }
         process.waitUntilExit()
 
@@ -693,8 +700,31 @@ public struct TmuxProvider {
         return String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
     }
 
+    static let PROMPT_BUFFER_NAME = "focusbm-prompt"
+
+    /// tmux commands that paste a prompt into `paneId` and submit it with Enter.
+    /// The prompt body is fed to `load-buffer -` through stdin, never through argv.
+    // Why: Instead of `send-keys -l <text>`, adopted load-buffer + `paste-buffer -p`. Reason: send-keys -l drops
+    //      embedded newlines and tmux eats a trailing `;` in argv as a command separator (measured on tmux 3.6b).
+    static func sendPromptArgs(paneId: String) -> (load: [String], paste: [String], submit: [String]) {
+        (
+            load: ["tmux", "load-buffer", "-b", PROMPT_BUFFER_NAME, "-"],
+            paste: ["tmux", "paste-buffer", "-p", "-d", "-b", PROMPT_BUFFER_NAME, "-t", paneId],
+            submit: ["tmux", "send-keys", "-t", paneId, "Enter"]
+        )
+    }
+
+    /// Paste `text` into the pane (bracketed paste when the app enabled it) and press Enter.
+    /// Callers must serialize calls because every call shares PROMPT_BUFFER_NAME.
+    public static func sendPrompt(paneId: String, text: String) throws {
+        let args = sendPromptArgs(paneId: paneId)
+        _ = try runTmuxForInput(args.load, stdin: Data(text.utf8))
+        _ = try runTmuxForInput(args.paste)
+        _ = try runTmuxForInput(args.submit)
+    }
+
     public static func focusPaneForInput(_ pane: TmuxPane) throws -> ITermNvimPaneTarget {
-        try focusPaneForInput(pane, clientMap: buildClientMap(), runTmux: runTmuxForInput)
+        try focusPaneForInput(pane, clientMap: buildClientMap(), runTmux: { try runTmuxForInput($0) })
     }
 
     /// Input switch/verify. Resolves the client with resolveClientForInput before any tmux call.

@@ -243,3 +243,104 @@ private final class ScreenPreviewCaptureProbe: @unchecked Sendable {
     #expect(viewModel.screenPreview == nil)
     #expect(probe.callCount == stoppedCallCount)
 }
+
+private final class PromptSendProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private var sent: [(paneID: String, text: String)] = []
+
+    func send(_ paneID: String, _ text: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        sent.append((paneID, text))
+    }
+
+    var calls: [(paneID: String, text: String)] {
+        lock.lock()
+        defer { lock.unlock() }
+        return sent
+    }
+}
+
+private func tiledPromptViewModel() -> SearchViewModel {
+    let viewModel = SearchViewModel()
+    viewModel.paneScreenCaptureProvider = { "pane \($0)" }
+    viewModel.searchItems = [
+        .tmuxPane(TmuxPane(paneId: "%1", sessionName: "s", windowIndex: 0, windowName: "a",
+                           command: "claude", title: "Claude Code", currentPath: "/tmp")),
+        .tmuxPane(TmuxPane(paneId: "%2", sessionName: "s", windowIndex: 1, windowName: "b",
+                           command: "codex", title: "codex", currentPath: "/tmp")),
+    ]
+    return viewModel
+}
+
+@Test func agentPrompt_sendsTargetPaneAndBody() async throws {
+    let viewModel = SearchViewModel()
+    viewModel.paneScreenCaptureProvider = { _ in "screen" }
+    viewModel.searchItems = [.tmuxPane(TmuxPane(
+        paneId: "%52", sessionName: "0", windowIndex: 1, windowName: "claude",
+        command: "claude", title: "Claude Code", currentPath: "/tmp"
+    ))]
+    viewModel.hoveredIndex = 0
+    let probe = PromptSendProbe()
+    viewModel.promptSender = { probe.send($0, $1) }
+    #expect(viewModel.showHoveredAgentPreview())
+    #expect(viewModel.isPromptFieldFocused)
+
+    viewModel.promptDraft = "日本語で修正して; 2行目"
+    viewModel.sendPromptToPreview()
+    for _ in 0..<40 where probe.calls.isEmpty {
+        try await Task.sleep(nanoseconds: 50_000_000)
+    }
+
+    #expect(probe.calls.map(\.paneID) == ["%52"])
+    #expect(probe.calls.map(\.text) == ["日本語で修正して; 2行目"])
+}
+
+@Test func agentPrompt_clearsDraftAfterSend() async throws {
+    let viewModel = tiledPromptViewModel()
+    let probe = PromptSendProbe()
+    viewModel.promptSender = { probe.send($0, $1) }
+    #expect(viewModel.showAllAgentPreviews())
+    #expect(viewModel.setPromptTarget(2, flags: .command))
+
+    viewModel.promptDraft = "run tests"
+    viewModel.sendPromptToPreview()
+    for _ in 0..<40 where !viewModel.promptDraft.isEmpty {
+        try await Task.sleep(nanoseconds: 50_000_000)
+    }
+
+    #expect(viewModel.promptDraft == "")
+    #expect(probe.calls.map(\.paneID) == ["%2"])
+    #expect(viewModel.promptTargetIndex == 2)
+    #expect(viewModel.isPromptFieldFocused)
+}
+
+@Test func agentPrompt_cmdDigitRetargetsTiledPromptKeepingDraft() {
+    let viewModel = tiledPromptViewModel()
+    #expect(viewModel.showAllAgentPreviews())
+    #expect(viewModel.promptTargetID == nil)
+
+    #expect(viewModel.setPromptTarget(1, flags: .command))
+    viewModel.promptDraft = "half typed"
+    #expect(viewModel.promptTargetID == "%1")
+
+    #expect(viewModel.setPromptTarget(2, flags: .command))
+    #expect(viewModel.promptTargetID == "%2")
+    #expect(viewModel.promptDraft == "half typed")
+    #expect(viewModel.isPromptFieldFocused)
+    #expect(!viewModel.setPromptTarget(3, flags: .command))
+    #expect(viewModel.promptTargetID == "%2")
+}
+
+@Test func agentPrompt_ctrlModifierSettingRetargetsWithCtrlOnly() {
+    let viewModel = tiledPromptViewModel()
+    viewModel.appSettings = AppSettings(previewTargetModifier: .ctrl)
+    #expect(viewModel.showAllAgentPreviews())
+    #expect(viewModel.setPromptTarget(1, flags: .control))
+    #expect(viewModel.promptTargetID == "%1")
+
+    #expect(!viewModel.setPromptTarget(2, flags: .command))
+    #expect(viewModel.promptTargetID == "%1")
+    #expect(viewModel.setPromptTarget(2, flags: .control))
+    #expect(viewModel.promptTargetID == "%2")
+}

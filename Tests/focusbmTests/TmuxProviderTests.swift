@@ -1743,3 +1743,10 @@ private func makeClientInfo(
     }
     #expect(seenTTY == "/dev/ttys001")
 }
+
+@Test func sendPromptArgs_pasteBodyFromStdinThenEnterOnPane() {
+    let args = TmuxProvider.sendPromptArgs(paneId: "%12")
+    #expect(args.load == ["tmux", "load-buffer", "-b", "focusbm-prompt", "-"])
+    #expect(args.paste == ["tmux", "paste-buffer", "-p", "-d", "-b", "focusbm-prompt", "-t", "%12"])
+    #expect(args.submit == ["tmux", "send-keys", "-t", "%12", "Enter"])
+}

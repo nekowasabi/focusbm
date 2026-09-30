@@ -42,6 +42,12 @@ struct AgentScreenPreviewOverlay: View {
     let cardSize: CGSize
     let fontSize: Double?
     let fontName: String?
+    @Binding var promptText: String
+    let promptTargetIndex: Int?
+    let promptTargetKeyLabel: String
+    let promptError: String?
+    let isPromptFocused: FocusState<Bool>.Binding
+    let onSubmitPrompt: () -> Void
     let onDismiss: () -> Void
 
     var body: some View {
@@ -60,6 +66,10 @@ struct AgentScreenPreviewOverlay: View {
                 }
                 .padding(12)
 
+                promptBar
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
+
                 Text("Esc で閉じる")
                     .font(.caption)
                     .foregroundColor(Color.white.opacity(0.55))
@@ -68,6 +78,38 @@ struct AgentScreenPreviewOverlay: View {
             .frame(width: cardSize.width, height: cardSize.height)
         }
         .allowsHitTesting(true)
+    }
+
+    private var promptBar: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                if state.isTiled, let promptTargetIndex {
+                    Text("→ \(promptTargetIndex)")
+                        .font(captureFont.bold())
+                        .foregroundColor(.accentColor)
+                }
+                TextField(
+                    state.isTiled && promptTargetIndex == nil
+                        ? "\(promptTargetKeyLabel)+数字で送信先を選んで入力（Enter で送信）"
+                        : "エージェントへの指示（Enter で送信）",
+                    text: $promptText
+                )
+                .textFieldStyle(.plain)
+                .font(captureFont)
+                .foregroundColor(.white)
+                .focused(isPromptFocused)
+                .onSubmit(onSubmitPrompt)
+            }
+            .padding(8)
+            .background(Color(white: 0.12))
+            .overlay(Rectangle().stroke(Color.white.opacity(0.35), lineWidth: 1))
+
+            if let promptError {
+                Text(promptError)
+                    .font(.caption)
+                    .foregroundColor(Color(red: 1, green: 0.4, blue: 0.4))
+            }
+        }
     }
 
     private var captureFont: Font {
@@ -82,7 +124,8 @@ struct AgentScreenPreviewOverlay: View {
         let columns = [GridItem(.flexible()), GridItem(.flexible())]
         let count = max(1, state.captures.count)
         let rows = CGFloat((count + 1) / 2)
-        let cellHeight = max(160, (cardSize.height - 48) / rows - 8)
+        // Why: 96 = padding + hint (48) + prompt bar (48), so the bar is not pushed below the card.
+        let cellHeight = max(160, (cardSize.height - 96) / rows - 8)
         return LazyVGrid(columns: columns, spacing: 8) {
             ForEach(state.captures) { capture in
                 captureView(capture, showTitle: true)
@@ -136,6 +179,11 @@ struct AgentScreenPreviewOverlay: View {
             Rectangle()
                 .fill(Color.white.opacity(0.35))
                 .frame(height: 1)
+        }
+        .overlay {
+            if state.isTiled, capture.index == promptTargetIndex {
+                Rectangle().stroke(Color.accentColor, lineWidth: 3)
+            }
         }
         .background(Color(white: 0.07))
     }

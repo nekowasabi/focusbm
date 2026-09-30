@@ -4,6 +4,7 @@ import FocusBMLib
 struct SearchView: View {
     @ObservedObject var viewModel: SearchViewModel
     @FocusState private var isSearchFieldFocused: Bool
+    @FocusState private var isPromptFieldFocused: Bool
     weak var panel: SearchPanel?
 
     private func bookmarkRow(
@@ -168,7 +169,13 @@ struct SearchView: View {
                     state: preview,
                     cardSize: CGSize(width: card.width, height: card.height),
                     fontSize: viewModel.previewFontSize,
-                    fontName: viewModel.previewFontName ?? viewModel.fontName
+                    fontName: viewModel.previewFontName ?? viewModel.fontName,
+                    promptText: $viewModel.promptDraft,
+                    promptTargetIndex: viewModel.promptTargetIndex,
+                    promptTargetKeyLabel: viewModel.promptTargetFlags == .control ? "Ctrl" : "Cmd",
+                    promptError: viewModel.promptError,
+                    isPromptFocused: $isPromptFieldFocused,
+                    onSubmitPrompt: { viewModel.sendPromptToPreview() }
                 ) {
                     _ = viewModel.dismissScreenPreview()
                     panel?.applyPreviewWindowLayout(visible: false)
@@ -184,6 +191,15 @@ struct SearchView: View {
         }
         .onChange(of: viewModel.screenPreview != nil) { showing in
             panel?.applyPreviewWindowLayout(visible: showing)
+            if !showing { isSearchFieldFocused = true }
+        }
+        // Why: The VM owns prompt focus so SearchPanel's key monitor can read and change it.
+        //      Async because the prompt field is inserted in the same update that requests focus.
+        .onChange(of: viewModel.isPromptFieldFocused) { focused in
+            DispatchQueue.main.async { isPromptFieldFocused = focused }
+        }
+        .onChange(of: isPromptFieldFocused) { focused in
+            viewModel.isPromptFieldFocused = focused
         }
     }
 }
