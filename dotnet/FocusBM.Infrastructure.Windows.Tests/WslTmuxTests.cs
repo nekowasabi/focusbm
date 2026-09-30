@@ -110,6 +110,23 @@ public class WslTmuxTests
     }
 
     [Fact]
+    public async Task CapturePaneContent_AddsEscapeFlagOnlyWhenRequested()
+    {
+        var runner = new SequenceRunner(
+        [
+            new ProcessRunResult(0, "plain\n", string.Empty, false),
+            new ProcessRunResult(0, "\u001b[31mred\u001b[0m\n", string.Empty, false)
+        ]);
+        var svc = new WslTmuxService(new WslSettings(Enabled: true), runner);
+
+        Assert.Equal("plain\n", await svc.CapturePaneContentAsync("%1", withEscapes: false, CancellationToken.None));
+        Assert.Equal("\u001b[31mred\u001b[0m\n", await svc.CapturePaneContentAsync("%1", withEscapes: true, CancellationToken.None));
+        Assert.Equal("%1", runner.Calls[0].Arguments[^1]);
+        Assert.Equal(new[] { "%1", "-e" }, runner.Calls[1].Arguments.TakeLast(2));
+        Assert.Contains("capture-pane -p $2 -t", runner.Calls[1].Arguments[9]);
+    }
+
+    [Fact]
     public async Task RestoreNvim_FocusesSelectedPaneAndSendsExCommand()
     {
         var runner = new SequenceRunner(

@@ -11,13 +11,18 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     private int _generation;
     private readonly Func<Bookmark, CancellationToken, Task<OperationResult>>? _restore;
     private readonly Func<Bookmark, CancellationToken, Task<Uri?>>? _pullRequestResolver;
+    private readonly Func<string, CancellationToken, Task<string?>>? _capturePane;
+    private int _previewGeneration;
+    private bool _previewRefreshInFlight;
 
     public SearchPanelViewModel(
         Func<Bookmark, CancellationToken, Task<OperationResult>>? restore = null,
-        Func<Bookmark, CancellationToken, Task<Uri?>>? pullRequestResolver = null)
+        Func<Bookmark, CancellationToken, Task<Uri?>>? pullRequestResolver = null,
+        Func<string, CancellationToken, Task<string?>>? capturePane = null)
     {
         _restore = restore;
         _pullRequestResolver = pullRequestResolver;
+        _capturePane = capturePane;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -40,7 +45,8 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     public void Load(BookmarkStore store, bool announce = true)
     {
         Settings = store.Settings ?? new AppSettings();
-        _all = store.Bookmarks;
+        // Why: Instead of dropping disabled bookmarks at YAML load, adopted filtering at display sites. Reason: saves rewrite the file from the loaded store and would lose hidden entries.
+        _all = store.Bookmarks.Where(b => b.Enables).ToArray();
         RebuildShortcutBar();
         Refresh();
         OnChanged(nameof(Settings));
@@ -61,8 +67,9 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
         var filtered = BookmarkSearcher.Filter(_all, _query);
         if (gen != _generation) return;
         Results.Clear();
+        var chip = ToggleRepressChipTarget;
         var visible = string.IsNullOrEmpty(_query)
-            ? filtered.Where(bm => string.IsNullOrWhiteSpace(bm.Shortcut))
+            ? filtered.Where(bm => string.IsNullOrWhiteSpace(bm.Shortcut) && bm != chip)
             : filtered;
         foreach (var bm in visible) Results.Add(bm);
         SelectedIndex = Results.Count == 0 ? -1 : Math.Clamp(SelectedIndex, 0, Results.Count - 1);
@@ -133,6 +140,7 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
         {
             if (!string.IsNullOrWhiteSpace(assignment.Bookmark.Shortcut)) ShortcutBar.Add(assignment);
         }
+        if (ToggleRepressChipTarget is { } target) ShortcutBar.Add(new ShortcutAssignment(target, HotkeyParser.Format(Settings.EffectiveHotkey), false));
         OnChanged(nameof(ShortcutBar));
         OnChanged(nameof(ShowShortcuts));
         OnChanged(nameof(ShowShortcutBar));
@@ -172,6 +180,9 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     }
 
     public Bookmark? ToggleRepressTarget => _all.FirstOrDefault(bookmark => bookmark.ExecuteOnToggleRepress);
+
+    /// <summary>The toggle-repress target shown as a togglePanel-hotkey chip in the shortcut bar (empty query). A YAML shortcut keeps its own chip instead.</summary>
+    private Bookmark? ToggleRepressChipTarget => ToggleRepressTarget is { } target && string.IsNullOrWhiteSpace(target.Shortcut) ? target : null;
 
     public Task<OperationResult> RestoreSelectedAsync(CancellationToken cancellationToken = default)
     {
@@ -246,6 +257,7 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
 
     public bool DismissPreview()
     {
+        ResetPreviewRefresh();
         if (PreviewCaptures.Count == 0) return false;
         PreviewCaptures.Clear();
         IsTiledPreview = false;
@@ -274,8 +286,51 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
         return true;
     }
 
+    /// <summary>Re-captures the tmux panes shown in the preview and replaces only captures whose text changed. Call periodically while the preview is visible.</summary>
+    public async Task RefreshPreviewAsync(CancellationToken cancellationToken = default)
+    {
+        // Why: Instead of cancelling the previous tick, adopted skipping while a capture is in flight. Reason: wsl.exe captures can exceed the tick interval and would otherwise never land.
+        if (_capturePane is null || _previewRefreshInFlight || PreviewCaptures.Count == 0) return;
+        var targets = PreviewCaptures
+            .Select(capture => (capture.Id, PaneId: _all.FirstOrDefault(b => string.Equals(b.Id, capture.Id, StringComparison.Ordinal)) is { } bookmark ? PaneIdOf(bookmark) : null))
+            .Where(target => !string.IsNullOrWhiteSpace(target.PaneId))
+            .ToArray();
+        if (targets.Length == 0) return;
+        var generation = _previewGeneration;
+        _previewRefreshInFlight = true;
+        string?[] texts;
+        try
+        {
+            texts = await Task.WhenAll(targets.Select(target => _capturePane(target.PaneId!, cancellationToken)));
+        }
+        catch (Exception)
+        {
+            // A failed tick keeps the last capture; the next tick retries.
+            texts = [];
+        }
+        if (generation != _previewGeneration) return;
+        _previewRefreshInFlight = false;
+        for (var t = 0; t < texts.Length; t++)
+        {
+            if (texts[t] is not { } raw) continue;
+            var text = NormalizeCaptureText(raw);
+            for (var i = 0; i < PreviewCaptures.Count; i++)
+            {
+                if (PreviewCaptures[i].Id == targets[t].Id && PreviewCaptures[i].Text != text)
+                    PreviewCaptures[i] = PreviewCaptures[i] with { Text = text };
+            }
+        }
+    }
+
+    private void ResetPreviewRefresh()
+    {
+        _previewGeneration++;
+        _previewRefreshInFlight = false;
+    }
+
     private void SetPreview(IReadOnlyList<AgentScreenCapture> captures, bool tiled)
     {
+        ResetPreviewRefresh();
         PreviewCaptures.Clear();
         var index = 1;
         foreach (var capture in captures)
@@ -301,18 +356,25 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
             WslProcessState process => process.ScreenCapture,
             _ => null
         });
-        var paneId = bookmark.State switch
-        {
-            WslProcessState process => process.TmuxPaneId,
-            TmuxPaneState pane => pane.PaneId,
-            _ => null
-        };
         var text = string.IsNullOrWhiteSpace(cached)
-            ? string.IsNullOrWhiteSpace(paneId)
+            ? string.IsNullOrWhiteSpace(PaneIdOf(bookmark))
                 ? "tmux ペインがないため画面キャプチャできません"
                 : "キャプチャできませんでした"
             : cached;
         return new AgentScreenCapture(bookmark.Id, bookmark.DisplayLabel, text);
+    }
+
+    private static string? PaneIdOf(Bookmark bookmark) => bookmark.State switch
+    {
+        WslProcessState process => process.TmuxPaneId,
+        TmuxPaneState pane => pane.PaneId,
+        _ => null
+    };
+
+    private static string NormalizeCaptureText(string raw)
+    {
+        var trimmed = PreviewLayout.TrimTrailingBlankLines(raw);
+        return string.IsNullOrWhiteSpace(AnsiText.Strip(trimmed)) ? "キャプチャできませんでした" : trimmed;
     }
 
     private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

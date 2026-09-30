@@ -24,7 +24,7 @@ public sealed class WslTmuxService : ITmuxService, IWslNvimService
         [ -n "$tmux_bin" ] || exit 127
         for socket in /run/user/*/tmux-*/* /tmp/tmux-*/*; do
           if [ -S "$socket" ]; then
-            if "$tmux_bin" -S "$socket" capture-pane -p -t "$1" 2>/dev/null; then exit 0; fi
+            if "$tmux_bin" -S "$socket" capture-pane -p $2 -t "$1" 2>/dev/null; then exit 0; fi
           fi
         done
         exit 1
@@ -277,7 +277,7 @@ public sealed class WslTmuxService : ITmuxService, IWslNvimService
             string? content;
             try
             {
-                content = await CapturePaneContentAsync(result[i].PaneId, cancellationToken).ConfigureAwait(false);
+                content = await CapturePaneContentAsync(result[i].PaneId, withEscapes: false, cancellationToken).ConfigureAwait(false);
             }
             catch
             {
@@ -289,10 +289,14 @@ public sealed class WslTmuxService : ITmuxService, IWslNvimService
         return result;
     }
 
-    private async Task<string?> CapturePaneContentAsync(string paneId, CancellationToken cancellationToken)
+    /// <summary>Captures the visible pane text. <paramref name="withEscapes"/> adds tmux -e (SGR colors) for the preview; status detection must stay plain.</summary>
+    public async Task<string?> CapturePaneContentAsync(string paneId, bool withEscapes, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(paneId) || paneId.StartsWith("-", StringComparison.Ordinal)) return null;
-        var args = BaseArgs().Concat(["--exec", "/bin/bash", "-lc", CapturePaneScript, "focusbm-tmux-capture", paneId]).ToArray();
+        string[] script = withEscapes
+            ? ["--exec", "/bin/bash", "-lc", CapturePaneScript, "focusbm-tmux-capture", paneId, "-e"]
+            : ["--exec", "/bin/bash", "-lc", CapturePaneScript, "focusbm-tmux-capture", paneId];
+        var args = BaseArgs().Concat(script).ToArray();
         var result = await _runner.RunAsync("wsl.exe", args, TimeSpan.FromSeconds(3), cancellationToken).ConfigureAwait(false);
         return result.TimedOut || result.ExitCode != 0 ? null : Redactor.Mask(result.StandardOutput);
     }

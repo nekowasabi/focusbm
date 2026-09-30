@@ -15,6 +15,15 @@ public class SearchViewModelTests
     }
 
     [Fact]
+    public void Load_HidesBookmarksWithEnablesFalse()
+    {
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { new Bookmark("shown", "Chrome", ""), new Bookmark("hidden", "Code", "", Enables: false), new Bookmark("hiddenBar", "Slack", "", Shortcut: "b", Enables: false) }));
+        Assert.Equal(new[] { "shown" }, vm.Results.Select(b => b.Id));
+        Assert.Empty(vm.ShortcutBar);
+    }
+
+    [Fact]
     public void MoveDown_WithTwoColumnSetting_MovesOneRow()
     {
         var vm = new SearchPanelViewModel();
@@ -78,6 +87,30 @@ public class SearchViewModelTests
         vm.Query = "other";
 
         Assert.Same(first, vm.ToggleRepressTarget);
+    }
+
+    [Fact]
+    public void ToggleRepress_EmptyQuery_MovesToShortcutBar()
+    {
+        var target = new Bookmark("focusbm-nvim", "Terminal", "", ExecuteOnToggleRepress: true);
+        var other = new Bookmark("other", "Chrome", "");
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(new AppSettings(Hotkey: new HotkeySettings(",", HotkeyModifiers.Control)), new[] { target, other }));
+
+        Assert.Equal("ctrl+,", vm.ShortcutBar.Single(a => a.Bookmark == target).Shortcut);
+        Assert.DoesNotContain(target, vm.Results);
+        Assert.Equal("1", vm.Shortcuts.Single(a => a.Bookmark == other).Shortcut);
+    }
+
+    [Fact]
+    public void ToggleRepress_WithQuery_AppearsInResults()
+    {
+        var target = new Bookmark("focusbm-nvim", "Terminal", "", ExecuteOnToggleRepress: true);
+        var vm = new SearchPanelViewModel();
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { target, new Bookmark("other", "Chrome", "") }));
+        vm.Query = "nvim";
+
+        Assert.Contains(target, vm.Results);
     }
 
     [Fact]
@@ -331,6 +364,48 @@ public class AgentScreenPreviewTests
         Assert.True(vm.ShowAllPreviews());
         Assert.False(vm.SelectByDigit(1));
         Assert.Same(first, vm.BookmarkForPreviewDigit(1));
+    }
+
+    [Fact]
+    public async Task RefreshPreviewAsync_ReplacesOnlyChangedCapturesWhileVisible()
+    {
+        var first = new Bookmark("tmux:a", "claude", "one", new WslProcessState(1, "claude", TmuxPaneId: "%1", ScreenCapture: "old %1"));
+        var second = new Bookmark("tmux:b", "codex", "two", new WslProcessState(2, "codex", TmuxPaneId: "%2", ScreenCapture: "old %2"));
+        var requested = new List<string>();
+        var vm = new SearchPanelViewModel(capturePane: (paneId, _) =>
+        {
+            requested.Add(paneId);
+            return Task.FromResult<string?>(paneId == "%1" ? "new %1\n\n  \n" : "old %2");
+        });
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { first, second }));
+        Assert.True(vm.ShowAllPreviews());
+        var unchanged = vm.PreviewCaptures[1];
+
+        await vm.RefreshPreviewAsync();
+
+        Assert.Equal(new[] { "%1", "%2" }, requested);
+        Assert.Equal(new[] { "new %1", "old %2" }, vm.PreviewCaptures.Select(c => c.Text).ToArray());
+        Assert.Equal(new[] { 1, 2 }, vm.PreviewCaptures.Select(c => c.Index).ToArray());
+        Assert.Same(unchanged, vm.PreviewCaptures[1]);
+    }
+
+    [Fact]
+    public async Task RefreshPreviewAsync_DoesNotApplyAfterDismiss()
+    {
+        var bookmark = new Bookmark("tmux:a", "claude", "one", new WslProcessState(1, "claude", TmuxPaneId: "%1", ScreenCapture: "old"));
+        var pending = new TaskCompletionSource<string?>();
+        var vm = new SearchPanelViewModel(capturePane: (_, _) => pending.Task);
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { bookmark }));
+        vm.HoveredIndex = 0;
+        Assert.True(vm.ShowHoveredPreview());
+
+        var refresh = vm.RefreshPreviewAsync();
+        vm.DismissPreview();
+        Assert.True(vm.ShowHoveredPreview());
+        pending.SetResult("stale");
+        await refresh;
+
+        Assert.Equal("old", Assert.Single(vm.PreviewCaptures).Text);
     }
 
     [Fact]

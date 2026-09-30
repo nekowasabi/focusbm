@@ -14,6 +14,8 @@ public partial class MainWindow : Window
 {
     private SearchPanelViewModel ViewModel => (SearchPanelViewModel)DataContext;
     private readonly IRestoreTimingSink _timing = new TraceRestoreTimingSink();
+    // Live preview refresh runs only while the preview is shown (one wsl.exe capture per shown pane per tick).
+    private readonly System.Windows.Threading.DispatcherTimer _previewRefreshTimer = new() { Interval = TimeSpan.FromSeconds(0.5) };
     public bool AllowClose { get; set; }
 
     public MainWindow(SearchPanelViewModel viewModel)
@@ -21,10 +23,15 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         viewModel.AutoExecuteRequested += () => Dispatcher.Invoke(() => _ = RestoreAndMaybeHideAsync());
+        _previewRefreshTimer.Tick += async (_, _) => await ViewModel.RefreshPreviewAsync();
         viewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(SearchPanelViewModel.IsPreviewVisible))
+            {
                 SyncPreviewChrome();
+                if (ViewModel.IsPreviewVisible) _previewRefreshTimer.Start();
+                else _previewRefreshTimer.Stop();
+            }
         };
         IsVisibleChanged += (_, _) =>
         {
@@ -115,7 +122,8 @@ public partial class MainWindow : Window
     {
         if ((sender as FrameworkElement)?.DataContext is not ShortcutAssignment assignment || assignment.Shortcut is null) return;
         e.Handled = true;
-        await RestoreShortcutAndMaybeHideAsync(assignment.Shortcut);
+        if (assignment.Bookmark == ViewModel.ToggleRepressTarget) await ExecuteToggleRepressAsync();
+        else await RestoreShortcutAndMaybeHideAsync(assignment.Shortcut);
     }
 
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);

@@ -262,11 +262,11 @@
                                Visibility="{Binding DataContext.IsTiledPreview, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
                     <Border DockPanel.Dock="Top" Height="2" Background="#808080" Margin="0,0,0,8"
                             Visibility="{Binding DataContext.IsTiledPreview, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVis}}"/>
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Loaded="PreviewScroll_OnLoaded">
-                      <TextBlock Text="{Binding Text}"
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Loaded="PreviewScroll_OnLoaded" Binding.TargetUpdated="PreviewScroll_OnLoaded">
+                      <TextBlock Foreground="#E6E6E6" TextWrapping="Wrap"
                                  FontFamily="{Binding DataContext.PreviewFontFamily, RelativeSource={RelativeSource AncestorType=Window}}"
                                  FontSize="{Binding DataContext.PreviewFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
-                                 Foreground="#E6E6E6" TextWrapping="Wrap"/>
+                                 local:AnsiInlines.Text="{Binding Text, NotifyOnTargetUpdated=True}"/>
                     </ScrollViewer>
                   </DockPanel>
                   <TextBlock Text="{Binding Index}"

@@ -17,6 +17,18 @@ public class YamlStorageTests
         Assert.True(round.Bookmarks[0].ExecuteOnToggleRepress);
         Assert.Equal(2, round.Settings!.NormalizedColumns);
     }
+    [Fact] public void Enables_DefaultsTrue_WritesOnlyFalse_AndRoundTrips()
+    {
+        var serializer = new BookmarkYamlSerializer();
+        var yaml = serializer.Serialize(new BookmarkStore(new AppSettings(), new[] { new Bookmark("shown", "Chrome", ""), new Bookmark("hidden", "Code", "", Enables: false) }));
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(yaml, "enables:"));
+        Assert.Contains("enables: false", yaml);
+        var round = serializer.Deserialize(yaml);
+        Assert.True(round.Bookmarks[0].Enables);
+        Assert.False(round.Bookmarks[1].Enables);
+        Assert.Null(round.Bookmarks[1].UnknownFields);
+    }
+
     [Fact] public void LegacyTitleUrl_MigratesWithoutDroppingValues()
     {
         var store = new BookmarkYamlSerializer().Deserialize("bookmarks:\n  - title: docs\n    appName: Browser\n    url: https://example.test\n");

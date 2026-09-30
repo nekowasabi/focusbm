@@ -38,7 +38,7 @@ public static class PreviewLayout
         if (string.IsNullOrEmpty(text)) return text ?? string.Empty;
         var lines = text.Split('\n');
         var end = lines.Length;
-        while (end > 0 && string.IsNullOrWhiteSpace(lines[end - 1].TrimEnd('\r')))
+        while (end > 0 && string.IsNullOrWhiteSpace(AnsiText.Strip(lines[end - 1])))
             end--;
         if (end == 0) return string.Empty;
         return end == lines.Length ? text : string.Join('\n', lines, 0, end);

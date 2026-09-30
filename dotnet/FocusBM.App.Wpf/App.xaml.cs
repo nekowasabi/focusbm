@@ -61,7 +61,8 @@ public partial class App : System.Windows.Application
         var orchestrator = new BookmarkRestoreOrchestrator(activation, browser, tmux, wsl, timing, tmux);
         _viewModel = new SearchPanelViewModel(
             orchestrator.RestoreAsync,
-            wsl is null ? null : ResolvePullRequestAsync);
+            wsl is null ? null : ResolvePullRequestAsync,
+            tmux is null ? null : (paneId, ct) => tmux.CapturePaneContentAsync(paneId, withEscapes: true, ct));
         _viewModel.Load(store);
 
         _window = new MainWindow(_viewModel);

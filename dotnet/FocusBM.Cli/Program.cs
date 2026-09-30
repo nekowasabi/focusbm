@@ -59,7 +59,7 @@ public static class FocusBmCli
     private static async Task<int> ListAsync(IBookmarkRepository repo, TextWriter stdout)
     {
         var store = await repo.LoadAsync();
-        foreach (var item in store.Bookmarks) await stdout.WriteLineAsync($"{item.Id}\t{item.AppName}\t{item.Context}");
+        foreach (var item in store.Bookmarks.Where(b => b.Enables)) await stdout.WriteLineAsync($"{item.Id}\t{item.AppName}\t{item.Context}");
         return 0;
     }
 

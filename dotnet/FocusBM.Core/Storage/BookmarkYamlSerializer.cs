@@ -63,6 +63,7 @@ public sealed class BookmarkYamlSerializer
             if (bm.NoShortcut) sb.AppendLine("    noShortcut: true");
             if (bm.LowPriority) sb.AppendLine("    lowPriority: true");
             if (bm.ExecuteOnToggleRepress) sb.AppendLine("    executeOnToggleRepress: true");
+            if (!bm.Enables) sb.AppendLine("    enables: false");
             if (bm.UnknownFields is not null)
             {
                 foreach (var kv in bm.UnknownFields.OrderBy(k => k.Key))
@@ -224,7 +225,7 @@ public sealed class BookmarkYamlSerializer
         var id = Get(d, "id", Get(d, "title", "untitled"));
         var app = Get(d, "appName", Get(d, "app", "Unknown"));
         var context = Get(d, "context", Get(d, "url", string.Empty));
-        var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "id", "title", "appName", "app", "context", "url", "bundleIdPattern", "shortcut", "noShortcut", "lowPriority", "executeOnToggleRepress" };
+        var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "id", "title", "appName", "app", "context", "url", "bundleIdPattern", "shortcut", "noShortcut", "lowPriority", "executeOnToggleRepress", "enables" };
         var unknown = d.Where(kv => !known.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => Uq(kv.Value), StringComparer.OrdinalIgnoreCase);
         AppState? state = null;
         if (s is not null && s.TryGetValue("type", out var type))
@@ -247,7 +248,7 @@ public sealed class BookmarkYamlSerializer
                 _ => AppState.Unknown(type, s)
             };
         }
-        return new Bookmark(id, app, context, state, GetN(d,"bundleIdPattern"), GetN(d,"shortcut"), ParseBool(GetN(d,"noShortcut")) ?? false, ParseBool(GetN(d,"lowPriority")) ?? false, UnknownFields: unknown.Count == 0 ? null : unknown, ExecuteOnToggleRepress: ParseBool(GetN(d,"executeOnToggleRepress")) ?? false);
+        return new Bookmark(id, app, context, state, GetN(d,"bundleIdPattern"), GetN(d,"shortcut"), ParseBool(GetN(d,"noShortcut")) ?? false, ParseBool(GetN(d,"lowPriority")) ?? false, UnknownFields: unknown.Count == 0 ? null : unknown, ExecuteOnToggleRepress: ParseBool(GetN(d,"executeOnToggleRepress")) ?? false, Enables: ParseBool(GetN(d,"enables")) ?? true);
     }
 
     private static AppSettings TryApplyTogglePanel(AppSettings settings, string text)

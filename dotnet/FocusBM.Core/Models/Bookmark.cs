@@ -13,7 +13,8 @@ public sealed record Bookmark(
     DateTimeOffset? CreatedAt = null,
     IReadOnlyDictionary<string, string>? UnknownFields = null,
     string? PullRequestUrl = null,
-    bool ExecuteOnToggleRepress = false)
+    bool ExecuteOnToggleRepress = false,
+    bool Enables = true)
 {
     public string DisplayName => string.IsNullOrWhiteSpace(Context) ? AppName : $"{AppName} — {Context}";
     public string DisplayLabel => State switch

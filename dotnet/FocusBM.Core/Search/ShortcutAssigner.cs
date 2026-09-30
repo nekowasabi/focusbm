@@ -25,9 +25,16 @@ public static class ShortcutAssigner
         var usedYaml = new HashSet<string>(StringComparer.Ordinal);
         var results = new List<ShortcutAssignment>();
         var number = 1;
+        var toggleRepressTarget = bookmarks.FirstOrDefault(bm => bm.ExecuteOnToggleRepress);
         foreach (var bm in bookmarks)
         {
             if (bm.NoShortcut)
+            {
+                results.Add(new ShortcutAssignment(bm, null, false));
+                continue;
+            }
+            // The toggle-repress target is shown as a hotkey chip in the shortcut bar, so it must not consume an auto number.
+            if (bm == toggleRepressTarget && string.IsNullOrWhiteSpace(bm.Shortcut))
             {
                 results.Add(new ShortcutAssignment(bm, null, false));
                 continue;
