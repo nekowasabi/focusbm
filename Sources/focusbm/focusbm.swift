@@ -243,7 +243,7 @@ extension FocusBM {
 
         mutating func run() throws {
             let store = BookmarkStore.loadYAML()
-            var bookmarks = store.bookmarks
+            var bookmarks = store.bookmarks.filter(\.isEnabled)
 
             if let ctx = context {
                 bookmarks = bookmarks.filter { $0.context == ctx }
@@ -290,7 +290,7 @@ extension FocusBM {
 
         mutating func run() throws {
             let store = BookmarkStore.loadYAML()
-            var bookmarks = store.bookmarks
+            var bookmarks = store.bookmarks.filter(\.isEnabled)
 
             if let ctx = context {
                 bookmarks = bookmarks.filter { $0.context == ctx }

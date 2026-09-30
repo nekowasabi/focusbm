@@ -146,6 +146,10 @@ public struct Bookmark: Codable, Identifiable {
     public var shortcut: String? = nil   // YAML shortcut key (e.g., "g", "G" for Shift+G, "^g" for Ctrl+G)
     public var lowPriority: Bool? = nil  // true: デフォルト表示でリスト下部に移動
     public var executeOnToggleRepress: Bool? = nil   // true: togglePanel再押下時にこのブックマークを実行（先着優先）
+    public var enables: Bool? = nil   // false: hide this bookmark from lists (default: shown)
+
+    /// Why: filter at display sites via this flag, not at YAML load — save/add/delete rewrite the file from store.bookmarks and would drop hidden entries.
+    public var isEnabled: Bool { enables ?? true }
 
     public init(id: String, appName: String, bundleIdPattern: String?, context: String, state: AppState, createdAt: String) {
         self.id = id

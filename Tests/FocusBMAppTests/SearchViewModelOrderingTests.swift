@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Yams
 @testable import FocusBMApp
 @testable import FocusBMLib
 
@@ -859,4 +860,27 @@ private final class AutoExecuteProbe {
     vm.updateItems()
 
     #expect(vm.mainListAssignments.map(\.label) == ["g"])
+}
+
+// MARK: - enables field
+
+/// enables 省略時は表示、enables: false は表示対象から除外されること
+@Test func test_enables_omittedIsShown_falseIsHidden() throws {
+    let yaml = """
+    bookmarks:
+      - id: a
+        appName: A
+        context: ""
+        state: {type: app, windowTitle: ""}
+        createdAt: "2024-01-01T00:00:00Z"
+      - id: b
+        appName: B
+        context: ""
+        state: {type: app, windowTitle: ""}
+        createdAt: "2024-01-01T00:00:00Z"
+        enables: false
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.bookmarks.map(\.isEnabled) == [true, false])
+    #expect(store.bookmarks.filter(\.isEnabled).map(\.id) == ["a"])
 }

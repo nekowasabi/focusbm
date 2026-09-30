@@ -259,7 +259,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // コンテキスト別ブックマーク
         let store = BookmarkStore.loadYAML()
-        let grouped = Dictionary(grouping: store.bookmarks) { $0.context }
+        let grouped = Dictionary(grouping: store.bookmarks.filter(\.isEnabled)) { $0.context }
         for ctx in grouped.keys.sorted() {
             let contextItem = NSMenuItem(title: "[\(ctx)]", action: nil, keyEquivalent: "")
             contextItem.isEnabled = false

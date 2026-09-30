@@ -352,6 +352,7 @@ bookmarks:
 - **tabIndex** — Browser tab index (1-based). If specified, restoration jumps directly to that tab. When used together with `urlPattern`, `tabIndex` takes priority but falls back to URL search if the URL does not match. If omitted and `urlPattern` is set, the URL is opened directly via `open location` (the `https://` prefix is added automatically). If neither is set, the app is simply activated
 - **urlPrefix** — (Optional) If a tab whose URL starts with this prefix is already open, switches to that tab instead of opening a new one. Useful for apps like Slack where the URL changes per page/channel. If omitted, `urlPattern` is used for exact matching as usual
 - **noShortcut** — (Optional) If `true`, the item is not assigned a ⌘1–⌘9 shortcut badge. Subsequent items are numbered consecutively without skipping. Defaults to `false` (or omit the field)
+- **enables** — (Optional) If `false`, the bookmark is hidden from lists (menu bar, search panel, `list`, `switch`). It stays in the YAML. Defaults to `true` (or omit the field)
 - **lowPriority** — (Optional) If `true`, the item is moved to the bottom of the list when there is no search query. In search mode it appears in score order like any other item. Defaults to `false` (or omit the field)
 - **executeOnToggleRepress** — (Optional) If `true`, pressing the togglePanel hotkey again while the panel is open executes this bookmark regardless of the query or selection. Only the first matching bookmark is used. Defaults to `false` (re-press executes the selected item)
 

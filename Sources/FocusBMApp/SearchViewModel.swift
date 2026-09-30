@@ -68,7 +68,7 @@ class SearchViewModel: ObservableObject {
     /// YAML を読み込んで bookmarks を更新する。AX API は呼ばない（起動時にも安全）。
     func load() {
         let store = BookmarkStore.loadYAML()
-        bookmarks = store.bookmarks
+        bookmarks = store.bookmarks.filter(\.isEnabled)
         appSettings = store.settings
         listFontSize = store.settings?.listFontSize
         fontName = store.settings?.fontName
