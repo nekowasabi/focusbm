@@ -1,44 +1,49 @@
-# focusbm macOS 設定例
-# 配置先: ~/.config/focusbm/bookmarks.yml
+# focusbm macOS example config
+# Location: ~/.config/focusbm/bookmarks.yml
 #
-# このファイルをコピーして bookmarks.yml にリネームし、
-# `bookmarks` 配列を自分の用途に合わせて編集してください。
+# Copy this file to bookmarks.yml and edit the `bookmarks` array for your own use.
 #
-# 実スキーマは id / appName / bundleIdPattern / context / state / createdAt です。
-# type: iterm2 は使いません（V1 の iterm2 は app に移行されます）。
-# Windows 用の例は bookmarks.example.windows.yml を参照してください。
+# The actual schema is id / appName / bundleIdPattern / context / state / createdAt.
+# Do not use type: iterm2 (a V1 iterm2 entry is migrated to app).
+# See bookmarks.example.windows.yml for the Windows example.
 
 settings:
   hotkey:
-    # 検索パネルを呼び出すグローバルホットキー（既定: cmd+ctrl+b）
+    # Global hotkey that opens the search panel (default: cmd+ctrl+b).
+    # Pressing it again while the panel is open runs the bookmark marked executeOnToggleRepress
+    # (disabled while a preview is open)
     togglePanel: "cmd+ctrl+b"
-    # 選択中の Claude Code セッションに記録された GitHub PR を開く（既定: cmd+p）
+    # Open the GitHub PR recorded for the selected Claude Code session (default: cmd+p)
     openSessionPullRequest: "cmd+p"
-    # ホバー中（なければ選択中）の AI エージェント画面をキャプチャ表示（既定: ctrl+p）。Esc で閉じる
+    # Show the hovered (or selected) AI agent's screen, in color and live-updated (default: ctrl+p). Esc closes it
     previewHoveredAgent: "ctrl+p"
-    # すべての AI エージェント画面を並べてキャプチャ表示（既定: ctrl+v）。Esc で閉じる
+    # Tile the screens of all AI agents (default: ctrl+v). Esc closes it
     previewAllAgents: "ctrl+v"
-    # AI エージェント一覧を手動更新する（既定: cmd+ctrl+r）
+    # Manually refresh the AI agent list (default: cmd+ctrl+r)
     forceReloadAgents: "cmd+ctrl+r"
 
-  # パネル幅（pixel）。bookmarkListColumns: 2 で未指定の場合 800 が自動適用される
+  # Panel width in pixels. When bookmarkListColumns: 2 and this is omitted, 800 is applied
   panelWidth: 800
 
-  # プレビューは対象モニタの最大座標を基準にする。未指定ならモニタ最大。Ctrl+P は中央寄せ
+  # Preview size is based on the target monitor's maximum. Omit for full monitor size; Ctrl+P is centered
   previewWidth: 1200
   previewHeight: 800
   previewFontSize: 16
-  # 絞り込み画面とプレビューでフォントを分ける。previewFontName 省略時は fontName
+  # Use separate fonts for the filter screen and the preview. previewFontName falls back to fontName
   fontName: "Fira Code"
   previewFontName: "JetBrains Mono"
 
-  # 2 を指定すると panelWidth 未指定時のパネル幅が 800 になる（一覧は常に表形式の 1 列）
+  # Modifier that picks the prompt target (modifier + number) in the tiled preview: cmd or ctrl.
+  # A single-line input at the bottom of the preview sends text to the pane with Enter.
+  previewTargetModifier: "cmd"
+
+  # 2 makes the default panel width 800 when panelWidth is omitted (the list is always one table column)
   bookmarkListColumns: 2
 
-  # AI エージェント行に番号を振るか。未指定時は true。
+  # Number AI agent rows? Defaults to true when omitted.
   # showAIAgentShortcut: false
 
-  # true: 絞り込み中（候補2件以上）も数字キー単体で番号を選ぶ（既定: 数字は検索語として入力）
+  # true: bare number keys also select while filtering (2+ candidates). Default: digits go into the query
   # filteredNumberKeys: false
 
 bookmarks:
@@ -61,10 +66,11 @@ bookmarks:
       windowTitle: ""
     createdAt: "2026-08-15T00:00:00Z"
 
-  # iTerm2 + tmux + nvim 専用（他ターミナル・tmux 外 nvim は対象外）:
-  # - workingDirectory: 省略可。指定時だけ pane_current_path と一致する候補を優先
-  # - exCommand: 省略可。指定するなら先頭コロンなしの一行
-  # パネル表示中に togglePanel を再押下したとき、executeOnToggleRepress の先着1件を実行する
+  # For iTerm2 + tmux + nvim only (other terminals and nvim outside tmux are out of scope):
+  # - workingDirectory: optional. When set, panes whose pane_current_path matches are preferred
+  # - exCommand: optional. A single line without a leading colon
+  # Re-pressing togglePanel while the panel is open runs the first bookmark marked executeOnToggleRepress.
+  # When the query is empty it is shown as a chip in the shortcut bar instead of the main list (no number used).
   - id: project-nvim
     appName: iTerm2
     bundleIdPattern: com.googlecode.iterm2
@@ -72,4 +78,15 @@ bookmarks:
     executeOnToggleRepress: true
     state:
       type: itermNvim
+    createdAt: "2026-08-15T00:00:00Z"
+
+  # enables: false hides a bookmark from lists (menu bar, panel, list, switch) but keeps it in the YAML
+  - id: hidden-example
+    appName: Notes
+    bundleIdPattern: com.apple.Notes
+    context: personal
+    enables: false
+    state:
+      type: app
+      windowTitle: ""
     createdAt: "2026-08-15T00:00:00Z"

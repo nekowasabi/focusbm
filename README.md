@@ -1,5 +1,7 @@
 # focusbm
 
+[日本語版 (README_ja.md)](./README_ja.md)
+
 A bookmark tool for app focus management. The macOS **CLI** and **menu bar app** are the primary implementation. Windows is a .NET port in `dotnet/` (WPF tray + CLI).
 
 ## Overview
@@ -115,6 +117,10 @@ focusbm delete mywork
 - Incrementally search and select bookmarks from the panel to bring apps or browser tabs to the front
 - Fully keyboard-driven (↑↓ to navigate, Enter to restore, Esc to close)
 
+### Download
+
+Prebuilt binaries are attached to each [GitHub Release](https://github.com/nekowasabi/focusbm/releases): `FocusBM-vX.Y.Z-mac.dmg` (macOS app) and `FocusBM-vX.Y.Z-windows-x64.zip` (Windows, requires the .NET 8 runtime). The dmg is ad-hoc signed and not notarized; on first launch, right-click → Open.
+
 ### How to Launch
 
 ```sh
@@ -131,6 +137,19 @@ The default panel hotkey to open the GitHub pull request recorded for the select
 
 You can change it in the `settings` section of your YAML (see below).
 The pull-request action first runs `gh pr view --json url --jq .url` in the selected Claude Code or Codex process or tmux pane's working directory. Claude Code falls back to a structured `prUrl` in its session index; Codex intentionally does not use that Claude-specific fallback. It does nothing when no pull request is found, the data is invalid, or multiple pull requests conflict. The search panel refreshes pull-request results in the background and shows a `#<number>` label for a resolved working directory.
+
+### Agent Screen Preview
+
+`Ctrl+P` shows the hovered (or selected) AI agent's tmux pane; `Ctrl+V` tiles every agent. Escape closes the preview, not the panel.
+
+- **Colors** — captured with `capture-pane -e`, so the pane's ANSI colors are rendered as-is (status detection still uses a plain capture)
+- **Live update** — while a preview is open, panes are re-captured every 0.5 s and only changed panes are redrawn. The timer stops when the preview closes
+- **Send a prompt** — a single-line input at the bottom sends text to the target pane with Enter (`load-buffer` → `paste-buffer -p` → `send-keys Enter`, so newlines, symbols and Japanese stay intact). In the tiled view, pick the target with `previewTargetModifier` + number; a bare number moves to that pane
+- **While a preview is open**, re-pressing `togglePanel` and bookmark shortcuts are disabled so they cannot run a bookmark behind the preview
+
+### Shortcut Bar
+
+When the query is empty, the bookmark marked `executeOnToggleRepress` is removed from the main list and shown as a chip in the shortcut bar, labeled with the `togglePanel` hotkey (e.g. `⌃,`). It does not consume a number.
 
 ### Required Permissions
 
@@ -306,19 +325,20 @@ settings:
     openSessionPullRequest: "cmd+p"
     previewHoveredAgent: "ctrl+p"
     previewAllAgents: "ctrl+v"
+  previewTargetModifier: "cmd"  # Modifier + number picks the prompt target in the tiled preview (cmd / ctrl)
   displayNumber: 1
   listFontSize: 15.0   # Defaults to system .body size (≈13pt) if omitted
-  panelWidth: 600         # 検索パネルの幅（デフォルト: 500）
-  panelHeight: 500        # 検索パネルの高さ（デフォルト: 400）
-  fontName: "Fira Code"   # 絞り込み画面（候補リスト）のフォント名（省略時: system monospaced）
-  previewWidth: 1200      # プレビューカード幅（省略時: 対象モニタの最大幅）
-  previewHeight: 800      # プレビューカード高さ（省略時: 対象モニタの最大高さ）。Ctrl+P は中央寄せ
-  previewFontSize: 16     # プレビューのフォントサイズ（省略時: 14）
-  previewFontName: "JetBrains Mono"  # プレビューのフォント（省略時: fontName）
-  preferredTerminal: "com.github.wez.wezterm"  # 優先ターミナル（bundleId 形式）
-  directNumberKeys: true    # 数字キー単体でブックマークにフォーカス（false: Cmd+数字のみ）
-  # filteredNumberKeys: false # true: 絞り込み中（候補2件以上）も数字キー単体で番号を選ぶ
-  showAIAgentShortcut: true # AI エージェント行（aiProcess / tmux ペインの AI）に番号を振る（false で非表示）
+  panelWidth: 600         # Search panel width in px (default: 500)
+  panelHeight: 500        # Search panel height in px (default: 400)
+  fontName: "Fira Code"   # Font for the filter screen (default: system monospaced)
+  previewWidth: 1200      # Preview card width (default: max width of the target monitor)
+  previewHeight: 800      # Preview card height (default: max height of the target monitor). Ctrl+P is centered
+  previewFontSize: 16     # Preview font size (default: 14)
+  previewFontName: "JetBrains Mono"  # Preview font (default: fontName)
+  preferredTerminal: "com.github.wez.wezterm"  # Preferred terminal (bundleId)
+  directNumberKeys: true    # Bare number keys focus a bookmark (false: Cmd+number only)
+  # filteredNumberKeys: false # true: bare number keys also select while filtering (2+ candidates)
+  showAIAgentShortcut: true # Number AI agent rows (aiProcess / tmux pane agents); false hides the numbers
 
 bookmarks:
   - id: ...
@@ -333,18 +353,18 @@ bookmarks:
 | `settings.hotkey.previewAllAgents` | string | `"ctrl+v"` | Panel hotkey to tile screen-only tmux captures of every AI agent. Escape closes the capture, not the panel |
 | `settings.displayNumber` | integer | `1` | Display number where the panel appears (1-based) |
 | `settings.listFontSize` | float | `nil` (≈13pt) | Font size (pt) for the candidate list. Uses system default if omitted |
-| `settings.panelWidth` | integer | `500` | 検索パネルの幅（px） |
-| `settings.panelHeight` | integer | `400` | 検索パネルの高さ（px） |
-| `settings.fontName` | string | `nil`（システム等幅フォント） | 絞り込み画面（候補リスト）のフォント名。省略時はシステムの等幅フォントを使用 |
-| `settings.previewWidth` | integer | `nil`（対象モニタの最大幅） | Ctrl+P 単体カードの幅（px）。全体プレビュー（Ctrl+V）はモニタ全体を使う |
-| `settings.previewHeight` | integer | `nil`（対象モニタの最大高さ） | Ctrl+P 単体カードの高さ（px）。単体はモニタ中央、全体プレビューは全面 |
-| `settings.previewFontSize` | float | `14` | プレビュー画面のフォントサイズ（pt） |
-| `settings.previewFontName` | string | `nil`（`fontName` へフォールバック） | プレビュー画面のフォント名 |
-| `settings.previewTargetModifier` | string | `"cmd"` | タイル表示でプロンプト送信先を選ぶ修飾キー（`cmd` / `ctrl`）。不正値は `cmd` 扱い |
-| `settings.preferredTerminal` | string | `nil` | tmux ペインを開く際に使用するターミナルの bundleId（例: `"com.github.wez.wezterm"`）。設定すると自動検出より優先される |
-| `settings.directNumberKeys` | bool | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |
-| `settings.filteredNumberKeys` | bool | `false` | `true`: 絞り込み中で候補が2件以上なら数字キー単体でも振り直した番号を選ぶ。`false`: 数字は検索語として入力され、番号選択は Ctrl+数字のみ |
-| `settings.showAIAgentShortcut` | bool? | `nil`（= `true` 相当） | `true`/未指定: AI エージェント行（`aiProcess` および tmux ペインの AI エージェント）にも ⌘1–⌘9 番号を振る（現行動作）。`false`: AI エージェント行に番号を振らず、ブックマーク側の番号が 1,2,3... と詰まる。数字キーによるジャンプも AI 行には効かなくなる |
+| `settings.panelWidth` | integer | `500` | Search panel width (px) |
+| `settings.panelHeight` | integer | `400` | Search panel height (px) |
+| `settings.fontName` | string | `nil` (system monospaced) | Font name for the filter screen (candidate list). Uses the system monospaced font if omitted |
+| `settings.previewWidth` | integer | `nil` (max width of the target monitor) | Width (px) of the single Ctrl+P card. The all-agents preview (Ctrl+V) uses the whole monitor |
+| `settings.previewHeight` | integer | `nil` (max height of the target monitor) | Height (px) of the single Ctrl+P card. The single card is centered; the all-agents preview is full-screen |
+| `settings.previewFontSize` | float | `14` | Preview font size (pt) |
+| `settings.previewFontName` | string | `nil` (falls back to `fontName`) | Preview font name |
+| `settings.previewTargetModifier` | string | `"cmd"` | Modifier key (`cmd` / `ctrl`) that picks the prompt target in the tiled preview. Invalid values fall back to `cmd` |
+| `settings.preferredTerminal` | string | `nil` | bundleId of the terminal used to open tmux panes (e.g. `"com.github.wez.wezterm"`). Takes priority over auto-detection |
+| `settings.directNumberKeys` | bool | `true` | `true`: bare number keys focus a bookmark. `false`: Cmd+number only |
+| `settings.filteredNumberKeys` | bool | `false` | `true`: while filtering with 2+ candidates, bare number keys select the renumbered row. `false`: digits are typed into the query and only Ctrl+number selects |
+| `settings.showAIAgentShortcut` | bool? | `nil` (= `true`) | `true`/omitted: AI agent rows (`aiProcess` and tmux pane agents) also get ⌘1–⌘9 numbers. `false`: AI agent rows are not numbered, bookmark numbers stay contiguous (1, 2, 3...), and number-key jumps no longer reach AI rows |
 
 ### Field Descriptions
 
@@ -560,14 +580,14 @@ focusbm/
 
 ## Bookmark List Layout (List Columns)
 
-絞り込み画面は常に表形式（キー／状態／名前／アプリ／端末／PR／URL）の 1 列で表示します。`~/.config/focusbm/bookmarks.yml` の `bookmarkListColumns` キーは互換のため残しており、`2` を指定して `panelWidth` を未指定にすると 800px のパネル幅が自動適用されます。明示指定した場合はユーザー値を優先します。
+The filter screen is always a single table column (key / status / name / app / terminal / PR / URL). The `bookmarkListColumns` key in `~/.config/focusbm/bookmarks.yml` is kept for compatibility: setting it to `2` with `panelWidth` omitted applies an 800px panel width. An explicit `panelWidth` always wins.
 
-### キー操作
+### Key bindings
 
-- `↑↓`: 上下移動（±1）
-- `1`〜`9`: 直接実行
+- `↑↓`: move up/down (±1)
+- `1`–`9`: run directly
 
-設定例は [`bookmarks.example.yml`](./bookmarks.example.yml)（macOS）と [`bookmarks.example.windows.yml`](./bookmarks.example.windows.yml)（Windows）を参照してください。
+See [`bookmarks.example.yml`](./bookmarks.example.yml) (macOS) and [`bookmarks.example.windows.yml`](./bookmarks.example.windows.yml) (Windows) for examples.
 
 ---
 

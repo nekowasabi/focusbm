@@ -1,39 +1,42 @@
-# focusbm Windows 設定例
-# 配置先（優先順）:
-#   1. 環境変数 FOCUSBM_YAML
-#   2. FocusBM.exe と同じディレクトリの bookmarks.yml
+# focusbm Windows example config
+# Location (in priority order):
+#   1. FOCUSBM_YAML environment variable
+#   2. bookmarks.yml next to FocusBM.exe
 #   3. %AppData%/focusbm/bookmarks.yml
 #
-# make release 後は release/bookmarks.yml がスモーク用の同居設定になる。
-# macOS 用の例は bookmarks.example.yml を参照してください。
+# After `make release`, release/bookmarks.yml is the colocated config used for smoke tests.
+# See bookmarks.example.yml for the macOS example.
 
 settings:
-  # 検索パネルを呼び出すグローバルホットキー
+  # Global hotkey that opens the search panel.
+  # Pressing it again while the panel is open runs the bookmark marked executeOnToggleRepress
+  # (disabled while a preview is open)
   hotkey:
     togglePanel: "ctrl+alt+space"
-    # ホバー中（なければ選択中）の AI エージェント画面キャプチャ（既定: ctrl+p）。Esc で閉じる
+    # Show the hovered (or selected) AI agent's screen, in color and live-updated (default: ctrl+p). Esc closes it
     previewHoveredAgent: "ctrl+p"
-    # すべての AI エージェント画面を並べてキャプチャ（既定: ctrl+v）。Esc で閉じる
+    # Tile the screens of all AI agents (default: ctrl+v). Esc closes it
     previewAllAgents: "ctrl+v"
 
   panelWidth: 800
   bookmarkListColumns: 2
 
-  # プレビューは対象モニタの最大座標を基準。未指定ならモニタ最大。Ctrl+P は中央寄せ
+  # Preview size is based on the target monitor's maximum. Omit for full monitor size; Ctrl+P is centered.
+  # A single-line input at the bottom of the preview sends a prompt to the pane with Enter.
   previewWidth: 1200
   previewHeight: 800
   previewFontSize: 16
   fontName: "Fira Code"
   previewFontName: "JetBrains Mono"
 
-  # C# シリアライザは PR / エージェント再読込キーを settings 直下に書く
+  # The C# serializer writes the PR / agent-reload keys directly under settings
   openSessionPullRequest: "ctrl+p"
   forceReloadAgents: "ctrl+alt+r"
 
   showWslAgents: true
   virtuawinEnabled: true
   imeRestoreEnabled: false
-  # true: 絞り込み中（候補2件以上）も数字キー単体で番号を選ぶ（既定: 数字は検索語として入力）
+  # true: bare number keys also select while filtering (2+ candidates). Default: digits go into the query
   filteredNumberKeys: false
 
   wslEnabled: true
@@ -58,7 +61,8 @@ bookmarks:
       type: app
       windowTitle: ""
 
-  # WSL 上の nvim（itermNvim も読み取り互換で wslNvim になる）
+  # nvim inside WSL (itermNvim is also read as wslNvim for compatibility).
+  # When the query is empty, the executeOnToggleRepress bookmark is shown as a chip in the shortcut bar.
   - id: project-nvim
     appName: Windows Terminal
     context: work
@@ -66,3 +70,12 @@ bookmarks:
     state:
       type: wslNvim
       workingDirectory: /home/takets/repos/focusbm
+
+  # enables: false hides a bookmark from lists but keeps it in the YAML
+  - id: hidden-example
+    appName: Notepad
+    context: personal
+    enables: false
+    state:
+      type: app
+      windowTitle: ""
