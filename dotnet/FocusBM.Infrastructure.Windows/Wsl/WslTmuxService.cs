@@ -277,13 +277,13 @@ public sealed class WslTmuxService : ITmuxService, IWslNvimService
             string? content;
             try
             {
-                content = await CapturePaneContentAsync(result[i].PaneId, withEscapes: false, cancellationToken).ConfigureAwait(false);
+                content = await CapturePaneContentAsync(result[i].PaneId, withEscapes: true, cancellationToken).ConfigureAwait(false);
             }
             catch
             {
                 content = null;
             }
-            var status = DetectAgentStatus(result[i].Title, content);
+            var status = DetectAgentStatus(result[i].Title, content is null ? null : AnsiText.Strip(content));
             result[i] = result[i] with { Status = status.ToString(), AgentStatus = status, CaptureText = content };
         }
         return result;

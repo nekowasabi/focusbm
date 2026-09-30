@@ -174,7 +174,7 @@ public sealed class WslAgentDiscoveryTests
         Assert.Contains("AGENT_PANES[$pane]", script, StringComparison.Ordinal);
         Assert.Contains("[ -n \"${AGENT_PANES[$paneid]+x}\" ] && capture=1", script, StringComparison.Ordinal);
         Assert.Contains("jev-routing", script, StringComparison.Ordinal);
-        Assert.Contains("capture-pane -p -t \"$paneid\"", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("capture-pane -p -t \"$paneid\" -S -30", script, StringComparison.Ordinal);
+        Assert.Contains("capture-pane -p -e -t \"$paneid\"", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("capture-pane -p -e -t \"$paneid\" -S -30", script, StringComparison.Ordinal);
     }
 }

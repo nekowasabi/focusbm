@@ -110,6 +110,24 @@ public class WslTmuxTests
     }
 
     [Fact]
+    public async Task TryListPanes_WithStatus_KeepsColorsButDetectsStatusOnPlainText()
+    {
+        const string colored = "old output\n\u001b[38;5;246m❯\u001b[0m \n";
+        var runner = new SequenceRunner(
+        [
+            new ProcessRunResult(0, "s\t0\t%1\tclaude\tClaude\t/home/alice\n", string.Empty, false),
+            new ProcessRunResult(0, colored, string.Empty, false)
+        ]);
+        var svc = new WslTmuxService(new WslSettings(Enabled: true), runner);
+
+        var pane = Assert.Single((await svc.TryListPanesAsync(CancellationToken.None, includeStatus: true)).Panes);
+
+        Assert.Equal(TmuxAgentStatus.Idle, pane.AgentStatus);
+        Assert.Equal(colored, pane.CaptureText);
+        Assert.Equal("-e", runner.Calls[1].Arguments[^1]);
+    }
+
+    [Fact]
     public async Task CapturePaneContent_AddsEscapeFlagOnlyWhenRequested()
     {
         var runner = new SequenceRunner(

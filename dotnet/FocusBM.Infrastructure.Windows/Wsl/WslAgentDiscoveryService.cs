@@ -141,7 +141,7 @@ public sealed class WslAgentDiscoveryService : IDisposable
               [ -n "${AGENT_PANES[$paneid]+x}" ] && capture=1
               [ "$capture" = 1 ] || continue
               printf '<<PANE %s>>\n' "$paneid"
-              "$tmux_bin" -S "$capture_socket" capture-pane -p -t "$paneid" 2>/dev/null || true
+              "$tmux_bin" -S "$capture_socket" capture-pane -p -e -t "$paneid" 2>/dev/null || true
               printf '\n<<END>>\n'
             done < <(printf '%s\n' "$pane_dump")
           fi
@@ -383,7 +383,7 @@ public sealed class WslAgentDiscoveryService : IDisposable
             {
                 if (!captures.TryGetValue(pane.PaneId, out var body)) return pane;
                 var text = Redactor.Mask(body.ToString());
-                var status = WslTmuxService.DetectAgentStatus(pane.Title, text);
+                var status = WslTmuxService.DetectAgentStatus(pane.Title, AnsiText.Strip(text));
                 return pane with { CaptureText = text, Status = status.ToString(), AgentStatus = status };
             }).ToList();
         }
