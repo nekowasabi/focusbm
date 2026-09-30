@@ -1,0 +1,54 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0}html,body{width:1920px;height:1124px;overflow:hidden;background:#000}body{position:relative}.cap{position:absolute!important}.ln{flex-shrink:0;white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.cap{position:fixed;left:0;right:0;top:0;height:44px;display:flex;align-items:center;gap:14px;padding:0 24px;
+ background:#fff;color:#111;font:500 15px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;z-index:99;border-bottom:1px solid #ddd}
+.cap b{background:#111;color:#fff;padding:3px 10px;border-radius:4px;font-weight:700}
+.capn{font-weight:700}.capi{color:#555}
+.stage{position:absolute;top:44px;left:0;right:0;bottom:0}</style>
+</head><body>
+<div class="cap"><b>案3a</b><span class="capn">3A 透かし番号</span><span class="capi">状態色の大きな番号を右下に薄く重ねる。最新行のすぐ横に番号があり、目線移動が最小</span></div>
+<style>
+.stage{background:#0d1117}
+.card{position:absolute;inset:30px 56px 24px;display:flex;flex-direction:column}
+.grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(2,minmax(0,1fr));gap:16px;flex:1;min-height:0}
+.pane{background:#161b22;border:1px solid #30363d;border-radius:10px;display:flex;flex-direction:column;overflow:hidden;position:relative;min-height:0}
+.pane::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--st)}
+.pane.t{border-color:#58a6ff;box-shadow:0 0 0 3px rgba(88,166,255,.25)}
+.hd{display:flex;align-items:center;gap:10px;padding:12px 16px 8px}
+.nm{font:600 15px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:#e6edf3}
+.ag{font:12px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:#8b949e}
+.pill{margin-left:auto;display:flex;align-items:center;gap:6px;font:600 12px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:var(--st);background:color-mix(in srgb,var(--st) 14%,transparent);border-radius:999px;padding:4px 10px}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--st)}
+.bw{flex:1;min-height:0;margin:0 10px 10px;background:#0d1117;border-radius:6px;display:flex;position:relative;container-type:size;overflow:hidden}
+.bd{flex:1;min-width:0;padding:10px 12px;font:14px/1.55 "JetBrains Mono", "IPAGothic", monospace;color:#c9d1d9;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.dim{color:#6e7681}.acc{color:#d2a8ff}.add{color:#7ee787}.del{color:#ffa198}.ok{color:#7ee787}.warn{color:#e3b341}.cyan{color:#79c0ff}.fg{color:#c9d1d9}
+.big{position:absolute;right:18px;bottom:2px;font:800 min(150px,46cqh)/1 "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;letter-spacing:-.04em;color:var(--st);opacity:.22;pointer-events:none}
+      .pane.t .big{opacity:.4}
+.dock{margin-top:16px;display:flex;align-items:center;gap:10px;background:#161b22;border:1px solid #58a6ff;border-radius:10px;padding:0 14px;height:54px}
+.to{font:600 13px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:#58a6ff;display:flex;align-items:center;gap:6px}
+.to i{width:7px;height:7px;border-radius:50%;background:#fbbf24}
+.ph{flex:1;font:15px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:#6e7681}
+.hint{display:flex;justify-content:space-between;margin-top:8px;font:12px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:#6e7681}
+</style>
+<div class="stage"><div class="card">
+<div class="grid">
+ <div class="pane running" style="--st:#4ade80">
+  <div class="hd"><span class="nm">focusbm</span><span class="ag">Claude Code</span>
+   <span class="pill"><i></i>実行中</span></div>
+  <div class="bw"><div class="bd"><div class="ln"><span class="dim">> プレビューのフォントサイズを YAML で指定できるようにして</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="acc">● </span><span class="fg">Read(Sources/FocusBMApp/AgentScreenPreview.swift)</span></div><div class="ln"><span class="dim">  ⎿  Read 191 lines</span></div><div class="ln"><span class="acc">● </span><span class="fg">Update(Sources/FocusBMLib/Models.swift)</span></div><div class="ln"><span class="dim">  ⎿  Updated with 3 additions</span></div><div class="ln"><span class="dim">     42 </span><span class="add">+    public var previewFontSize: Double?</span></div><div class="ln"><span class="dim">     43 </span><span class="add">+    public var previewFontName: String?</span></div><div class="ln"><span class="dim">     51 </span><span class="del">-    let size = 14</span></div><div class="ln"><span class="acc">● </span><span class="fg">Bash(swift test --filter Preview)</span></div><div class="ln"><span class="dim">  ⎿  </span><span class="ok">Test Suite passed</span><span class="dim"> (12 tests, 0.42s)</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="warn">✻ </span><span class="warn">Compiling… </span><span class="dim">(18s · ↑ 2.1k tokens · esc to interrupt)</span></div></div><div class="big">1</div></div></div>
+ <div class="pane waiting t" style="--st:#fbbf24">
+  <div class="hd"><span class="nm">api-server</span><span class="ag">Codex</span>
+   <span class="pill"><i></i>承認待ち</span></div>
+  <div class="bw"><div class="bd"><div class="ln"><span class="dim">› テストが落ちている原因を調べて</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="acc">• </span><span class="fg">Ran </span><span class="cyan">go test ./internal/...</span></div><div class="ln"><span class="dim">  └ </span><span class="del">FAIL internal/auth  TestTokenRefresh</span></div><div class="ln"><span class="dim">      expected 200, got 401</span></div><div class="ln"><span class="acc">• </span><span class="fg">Explored</span></div><div class="ln"><span class="dim">  └ Read auth/refresh.go, auth/clock.go</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="fg">原因は clock.Now() をテストで固定していないことです。</span></div><div class="ln"><span class="fg">修正方針を 2 つ提示します:</span></div><div class="ln"><span class="fg">  1. clock を注入する  </span><span class="dim">(推奨)</span></div><div class="ln"><span class="fg">  2. 期限判定に許容幅を持たせる</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="warn">▌ 承認待ち: </span><span class="fg">どちらで進めますか?</span></div></div><div class="big">2</div></div></div>
+ <div class="pane idle" style="--st:#94a3b8">
+  <div class="hd"><span class="nm">dotfiles</span><span class="ag">Claude Code</span>
+   <span class="pill"><i></i>待機</span></div>
+  <div class="bw"><div class="bd"><div class="ln"><span class="acc">● </span><span class="fg">Done. 3 files changed.</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="dim">  zsh/.zshrc           </span><span class="add">+4</span><span class="dim"> </span><span class="del">-1</span></div><div class="ln"><span class="dim">  tmux/tmux.conf       </span><span class="add">+2</span></div><div class="ln"><span class="dim">  espanso/match/base.yml </span><span class="add">+8</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="fg">コミット計画:</span></div><div class="ln"><span class="cyan">  feat(tmux): </span><span class="fg">ステータスバーにブランチを表示する</span></div><div class="ln"><span class="cyan">  chore(zsh): </span><span class="fg">未使用の alias を削除する</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="dim">─────────────────────────────────────</span></div><div class="ln"><span class="acc">> </span><span class="dim">▍</span></div></div><div class="big">3</div></div></div>
+ <div class="pane error" style="--st:#f87171">
+  <div class="hd"><span class="nm">blog</span><span class="ag">Codex</span>
+   <span class="pill"><i></i>エラー</span></div>
+  <div class="bw"><div class="bd"><div class="ln"><span class="acc">• </span><span class="fg">Ran </span><span class="cyan">npm run build</span></div><div class="ln"><span class="dim">  └ </span><span class="del">Error: Cannot find module 'remark-gfm'</span></div><div class="ln"><span class="dim">      at Module._resolveFilename (node:internal)</span></div><div class="ln"><span class="dim">      at require (node:internal/modules/cjs)</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="fg">依存が lockfile と一致していません。</span></div><div class="ln"><span class="acc">• </span><span class="fg">Ran </span><span class="cyan">npm ci</span></div><div class="ln"><span class="dim">  └ </span><span class="del">npm ERR! network ETIMEDOUT</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="del">■ </span><span class="fg">ネットワークに接続できないため中断しました</span></div></div><div class="big">4</div></div></div>
+</div>
+<div class="dock"><span class="to"><i></i>→ 2 api-server</span><span class="ph">エージェントへの指示（Enter で送信）</span></div>
+<div class="hint"><span>⌃1–⌃4 送信先を切替</span><span>Esc で閉じる</span></div>
+</div></div></body></html>

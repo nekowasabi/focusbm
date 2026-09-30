@@ -142,6 +142,9 @@ The pull-request action first runs `gh pr view --json url --jq .url` in the sele
 
 `Ctrl+P` shows the hovered (or selected) AI agent's tmux pane; `Ctrl+V` tiles every agent. Escape closes the preview, not the panel.
 
+![Agent screen preview](assets/agent-preview.png)
+
+- **Status and index** — each pane shows its agent status (running / Plan / waiting for input) and a large index in the status color, placed left of the text at the same height in every pane (level with the end of the longest output), so you can pick the prompt target without looking to a corner
 - **Colors** — captured with `capture-pane -e`, so the pane's ANSI colors are rendered as-is (status detection still uses a plain capture)
 - **Live update** — while a preview is open, panes are re-captured every 0.5 s and only changed panes are redrawn. The timer stops when the preview closes
 - **Send a prompt** — a single-line input at the bottom sends text to the target pane with Enter (`load-buffer` → `paste-buffer -p` → `send-keys Enter`, so newlines, symbols and Japanese stay intact). In the tiled view, pick the target with `previewTargetModifier` + number; a bare number moves to that pane

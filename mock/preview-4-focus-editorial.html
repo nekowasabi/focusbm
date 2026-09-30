@@ -1,0 +1,42 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0}html,body{width:1920px;height:1124px;overflow:hidden;background:#000}body{position:relative}.cap{position:absolute!important}.ln{white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.cap{position:fixed;left:0;right:0;top:0;height:44px;display:flex;align-items:center;gap:14px;padding:0 24px;
+ background:#fff;color:#111;font:500 15px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;z-index:99;border-bottom:1px solid #ddd}
+.cap b{background:#111;color:#fff;padding:3px 10px;border-radius:4px;font-weight:700}
+.capn{font-weight:700}.capi{color:#555}
+.stage{position:absolute;top:44px;left:0;right:0;bottom:0}</style>
+</head><body>
+<div class="cap"><b>案4</b><span class="capn">フォーカス＋可読性重視</span><span class="capi">送信先ペインを大きく、他を縮小サムネイル化。大きめの文字・広い行間・左レールで長文を読みやすく</span></div>
+<style>
+.stage{background:#0f0f10}
+.card{position:absolute;inset:30px 56px 24px;display:grid;grid-template-columns:1fr 380px;gap:20px}
+.main{background:#18181b;border-radius:14px;display:flex;flex-direction:column;overflow:hidden;border-left:4px solid #f59e0b}
+.mh{padding:20px 28px 8px;display:flex;align-items:baseline;gap:14px}
+.mn{font:700 26px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:#fafafa}.ms{font:14px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:#71717a}
+.mb{flex:1;padding:10px 28px 20px;font:17px/1.75 "JetBrains Mono", "IPAGothic", monospace;color:#e4e4e7;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.mb .ln:not(:nth-last-child(-n+6)){opacity:.55}
+.dim{color:#71717a}.acc{color:#fbbf24}.add{color:#86efac}.del{color:#fca5a5}.ok{color:#86efac}.warn{color:#fbbf24}.cyan{color:#93c5fd}.fg{color:#e4e4e7}
+.dock{margin:0 20px 20px;display:flex;align-items:center;gap:12px;background:#f59e0b;border-radius:10px;padding:14px 18px}
+.dock .ph{flex:1;font:500 16px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:#422006}.dock .k{font:700 13px "JetBrains Mono", "IPAGothic", monospace;color:#422006;background:rgba(0,0,0,.12);border-radius:5px;padding:3px 8px}
+.side{display:flex;flex-direction:column;gap:14px;min-height:0}
+.th{flex:1;background:#18181b;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;border:1px solid #27272a}
+.th .h{display:flex;align-items:center;gap:10px;padding:10px 14px}
+.th .k{font:700 12px "JetBrains Mono", "IPAGothic", monospace;color:#a1a1aa;background:#27272a;border-radius:5px;padding:2px 7px}
+.th .n{font:600 14px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:#e4e4e7}.th .s{margin-left:auto;font:12px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:#71717a}
+.th .b{flex:1;padding:0 14px 10px;font:11px/1.45 "JetBrains Mono", "IPAGothic", monospace;color:#a1a1aa;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;
+ -webkit-mask-image:linear-gradient(to bottom,transparent,#000 40%)}
+.hint{font:12px "Inter", "Noto Sans JP", "IPAPGothic", sans-serif;color:#52525b;text-align:right}
+</style>
+<div class="stage"><div class="card">
+ <div class="main">
+  <div class="mh"><span class="mn">api-server</span><span class="ms">Codex · wsl · ~/work/api · ⌃2</span></div>
+  <div class="mb"><div class="ln"><span class="dim">› テストが落ちている原因を調べて</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="acc">• </span><span class="fg">Ran </span><span class="cyan">go test ./internal/...</span></div><div class="ln"><span class="dim">  └ </span><span class="del">FAIL internal/auth  TestTokenRefresh</span></div><div class="ln"><span class="dim">      expected 200, got 401</span></div><div class="ln"><span class="acc">• </span><span class="fg">Explored</span></div><div class="ln"><span class="dim">  └ Read auth/refresh.go, auth/clock.go</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="fg">原因は clock.Now() をテストで固定していないことです。</span></div><div class="ln"><span class="fg">修正方針を 2 つ提示します:</span></div><div class="ln"><span class="fg">  1. clock を注入する  </span><span class="dim">(推奨)</span></div><div class="ln"><span class="fg">  2. 期限判定に許容幅を持たせる</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="warn">▌ 承認待ち: </span><span class="fg">どちらで進めますか?</span></div></div>
+  <div class="dock"><span class="ph">エージェントへの指示（Enter で送信）</span><span class="k">⏎</span></div>
+ </div>
+ <div class="side">
+  <div class="th"><div class="h"><span class="k">⌃1</span><span class="n">focusbm</span><span class="s">実行中</span></div><div class="b"><div class="ln"><span class="dim">> プレビューのフォントサイズを YAML で指定できるようにして</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="acc">● </span><span class="fg">Read(Sources/FocusBMApp/AgentScreenPreview.swift)</span></div><div class="ln"><span class="dim">  ⎿  Read 191 lines</span></div><div class="ln"><span class="acc">● </span><span class="fg">Update(Sources/FocusBMLib/Models.swift)</span></div><div class="ln"><span class="dim">  ⎿  Updated with 3 additions</span></div><div class="ln"><span class="dim">     42 </span><span class="add">+    public var previewFontSize: Double?</span></div><div class="ln"><span class="dim">     43 </span><span class="add">+    public var previewFontName: String?</span></div><div class="ln"><span class="dim">     51 </span><span class="del">-    let size = 14</span></div><div class="ln"><span class="acc">● </span><span class="fg">Bash(swift test --filter Preview)</span></div><div class="ln"><span class="dim">  ⎿  </span><span class="ok">Test Suite passed</span><span class="dim"> (12 tests, 0.42s)</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="warn">✻ </span><span class="warn">Compiling… </span><span class="dim">(18s · ↑ 2.1k tokens · esc to interrupt)</span></div></div></div>
+  <div class="th"><div class="h"><span class="k">⌃3</span><span class="n">dotfiles</span><span class="s">待機</span></div><div class="b"><div class="ln"><span class="acc">● </span><span class="fg">Done. 3 files changed.</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="dim">  zsh/.zshrc           </span><span class="add">+4</span><span class="dim"> </span><span class="del">-1</span></div><div class="ln"><span class="dim">  tmux/tmux.conf       </span><span class="add">+2</span></div><div class="ln"><span class="dim">  espanso/match/base.yml </span><span class="add">+8</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="fg">コミット計画:</span></div><div class="ln"><span class="cyan">  feat(tmux): </span><span class="fg">ステータスバーにブランチを表示する</span></div><div class="ln"><span class="cyan">  chore(zsh): </span><span class="fg">未使用の alias を削除する</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="dim">─────────────────────────────────────</span></div><div class="ln"><span class="acc">> </span><span class="dim">▍</span></div></div></div>
+  <div class="th"><div class="h"><span class="k">⌃4</span><span class="n">blog</span><span class="s">エラー</span></div><div class="b"><div class="ln"><span class="acc">• </span><span class="fg">Ran </span><span class="cyan">npm run build</span></div><div class="ln"><span class="dim">  └ </span><span class="del">Error: Cannot find module 'remark-gfm'</span></div><div class="ln"><span class="dim">      at Module._resolveFilename (node:internal)</span></div><div class="ln"><span class="dim">      at require (node:internal/modules/cjs)</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="fg">依存が lockfile と一致していません。</span></div><div class="ln"><span class="acc">• </span><span class="fg">Ran </span><span class="cyan">npm ci</span></div><div class="ln"><span class="dim">  └ </span><span class="del">npm ERR! network ETIMEDOUT</span></div><div class="ln">&nbsp;</div><div class="ln"><span class="del">■ </span><span class="fg">ネットワークに接続できないため中断しました</span></div></div></div>
+  <div class="hint">⌃数字 で切替　·　Esc で閉じる</div>
+ </div>
+</div></div></body></html>
