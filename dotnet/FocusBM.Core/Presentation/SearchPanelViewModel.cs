@@ -12,17 +12,25 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     private readonly Func<Bookmark, CancellationToken, Task<OperationResult>>? _restore;
     private readonly Func<Bookmark, CancellationToken, Task<Uri?>>? _pullRequestResolver;
     private readonly Func<string, CancellationToken, Task<string?>>? _capturePane;
+    private readonly Func<string, string, CancellationToken, Task<OperationResult>>? _sendPrompt;
+    private readonly SemaphoreSlim _promptSendSemaphore = new(1, 1);
+    private string _promptDraft = string.Empty;
+    private int? _promptTargetIndex;
+    private bool _isPromptFieldFocused;
+    private string? _promptError;
     private int _previewGeneration;
     private bool _previewRefreshInFlight;
 
     public SearchPanelViewModel(
         Func<Bookmark, CancellationToken, Task<OperationResult>>? restore = null,
         Func<Bookmark, CancellationToken, Task<Uri?>>? pullRequestResolver = null,
-        Func<string, CancellationToken, Task<string?>>? capturePane = null)
+        Func<string, CancellationToken, Task<string?>>? capturePane = null,
+        Func<string, string, CancellationToken, Task<OperationResult>>? sendPrompt = null)
     {
         _restore = restore;
         _pullRequestResolver = pullRequestResolver;
         _capturePane = capturePane;
+        _sendPrompt = sendPrompt;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -36,6 +44,25 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     public int PreviewColumnCount => IsTiledPreview ? 2 : 1;
     public string PreviewFontFamily => Settings.EffectivePreviewFontName ?? "Consolas";
     public double PreviewFontSize => Settings.EffectivePreviewFontSize;
+    public string PromptDraft
+    {
+        get => _promptDraft;
+        set
+        {
+            value ??= string.Empty;
+            if (_promptDraft == value) return;
+            _promptDraft = value;
+            OnChanged(nameof(PromptDraft));
+        }
+    }
+    public int? PromptTargetIndex => _promptTargetIndex;
+    public string? PromptTargetLabel => IsTiledPreview && PromptTargetIndex is { } index ? $"→ {index}" : null;
+    public bool IsPromptFieldFocused => _isPromptFieldFocused;
+    public string? PromptError => _promptError;
+    public string PromptPlaceholder => IsTiledPreview && PromptTargetIndex is null
+        ? "Ctrl+数字で送信先を選んで入力（Enter で送信）"
+        : "エージェントへの指示（Enter で送信）";
+    public bool IsPromptAvailable => _sendPrompt is not null;
     public AppSettings Settings { get; private set; } = new();
     public string StatusMessage { get; private set; } = "準備完了";
     public string Query { get => _query; set { _query = value ?? string.Empty; Refresh(); OnChanged(nameof(Query)); OnChanged(nameof(ShowShortcuts)); OnChanged(nameof(ShowShortcutBar)); } }
@@ -259,11 +286,15 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     {
         ResetPreviewRefresh();
         if (PreviewCaptures.Count == 0) return false;
+        SetPromptTargetIndex(null);
+        SetPromptFieldFocused(false);
         PreviewCaptures.Clear();
         IsTiledPreview = false;
         OnChanged(nameof(IsPreviewVisible));
         OnChanged(nameof(IsTiledPreview));
         OnChanged(nameof(PreviewColumnCount));
+        OnChanged(nameof(PromptTargetLabel));
+        OnChanged(nameof(PromptPlaceholder));
         return true;
     }
 
@@ -272,7 +303,10 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
         if (PreviewTarget is not { } bookmark) return false;
         var capture = CaptureFromCache(bookmark);
         if (capture is null) return false;
-        SetPreview(new[] { capture }, tiled: false);
+        SetPreview(new[] { capture }, tiled: false, promptTargetIndex: 1);
+        _promptError = null;
+        OnChanged(nameof(PromptError));
+        SetPromptFieldFocused(true);
         return true;
     }
 
@@ -282,8 +316,59 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
         if (agents.Length == 0) return false;
         var captures = agents.Select(CaptureFromCache).OfType<AgentScreenCapture>().ToArray();
         if (captures.Length == 0) return false;
-        SetPreview(captures, tiled: captures.Length > 1);
+        SetPreview(captures, tiled: captures.Length > 1, promptTargetIndex: captures.Length == 1 ? 1 : null);
         return true;
+    }
+
+    public bool SetPromptTarget(int number)
+    {
+        if (!IsTiledPreview || number < 1 || number > PreviewCaptures.Count) return false;
+        SetPromptTargetIndex(number);
+        SetPromptFieldFocused(true);
+        return true;
+    }
+
+    public bool BlurTiledPromptField()
+    {
+        if (!IsPromptFieldFocused || !IsTiledPreview) return false;
+        SetPromptFieldFocused(false);
+        return true;
+    }
+
+    public void SetPromptFieldFocused(bool focused) => SetPromptFieldFocusedValue(focused);
+
+    public async Task SendPromptToPreviewAsync(CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(PromptDraft) || PromptTargetIndex is not { } targetIndex || _sendPrompt is null) return;
+        if (BookmarkForPreviewDigit(targetIndex) is not { } bookmark || string.IsNullOrWhiteSpace(PaneIdOf(bookmark)))
+        {
+            _promptError = "送信先の tmux ペインが見つかりません";
+            OnChanged(nameof(PromptError));
+            return;
+        }
+
+        var paneId = PaneIdOf(bookmark)!;
+        var draft = PromptDraft;
+        await _promptSendSemaphore.WaitAsync(cancellationToken);
+        try
+        {
+            var result = await _sendPrompt(paneId, draft, cancellationToken);
+            if (result.IsSuccess)
+            {
+                _promptError = null;
+                OnChanged(nameof(PromptError));
+                if (PromptDraft == draft) PromptDraft = string.Empty;
+            }
+            else
+            {
+                _promptError = result.Message;
+                OnChanged(nameof(PromptError));
+            }
+        }
+        finally
+        {
+            _promptSendSemaphore.Release();
+        }
     }
 
     /// <summary>Re-captures the tmux panes shown in the preview and replaces only captures whose text changed. Call periodically while the preview is visible.</summary>
@@ -328,7 +413,7 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
         _previewRefreshInFlight = false;
     }
 
-    private void SetPreview(IReadOnlyList<AgentScreenCapture> captures, bool tiled)
+    private void SetPreview(IReadOnlyList<AgentScreenCapture> captures, bool tiled, int? promptTargetIndex)
     {
         ResetPreviewRefresh();
         PreviewCaptures.Clear();
@@ -336,9 +421,12 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
         foreach (var capture in captures)
             PreviewCaptures.Add(capture with { Index = index++ });
         IsTiledPreview = tiled;
+        SetPromptTargetIndex(promptTargetIndex);
         OnChanged(nameof(IsPreviewVisible));
         OnChanged(nameof(IsTiledPreview));
         OnChanged(nameof(PreviewColumnCount));
+        OnChanged(nameof(PromptTargetLabel));
+        OnChanged(nameof(PromptPlaceholder));
     }
 
     public Bookmark? BookmarkForPreviewDigit(int number)
@@ -375,6 +463,22 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     {
         var trimmed = PreviewLayout.TrimTrailingBlankLines(raw);
         return string.IsNullOrWhiteSpace(AnsiText.Strip(trimmed)) ? "キャプチャできませんでした" : trimmed;
+    }
+
+    private void SetPromptTargetIndex(int? index)
+    {
+        if (_promptTargetIndex == index) return;
+        _promptTargetIndex = index;
+        OnChanged(nameof(PromptTargetIndex));
+        OnChanged(nameof(PromptTargetLabel));
+        OnChanged(nameof(PromptPlaceholder));
+    }
+
+    private void SetPromptFieldFocusedValue(bool focused)
+    {
+        if (_isPromptFieldFocused == focused) return;
+        _isPromptFieldFocused = focused;
+        OnChanged(nameof(IsPromptFieldFocused));
     }
 
     private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

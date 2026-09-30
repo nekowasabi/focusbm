@@ -420,4 +420,220 @@ public class AgentScreenPreviewTests
         Assert.Equal("JetBrains Mono", vm.PreviewFontFamily);
         Assert.Equal(18, vm.PreviewFontSize);
     }
+
+    [Fact]
+    public async Task agentPrompt_sendsTargetPaneAndBody()
+    {
+        string? sentPane = null;
+        string? sentBody = null;
+        var calls = 0;
+        var bookmark = PromptAgent("bookmark-52", "%52");
+        var vm = new SearchPanelViewModel(sendPrompt: (paneId, text, _) =>
+        {
+            sentPane = paneId;
+            sentBody = text;
+            calls++;
+            return Task.FromResult(OperationResult.Success("sent"));
+        });
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { bookmark }));
+        vm.HoveredIndex = 0;
+
+        Assert.True(vm.ShowHoveredPreview());
+        vm.PromptDraft = "日本語で修正して; 2行目";
+        await vm.SendPromptToPreviewAsync();
+
+        Assert.Equal("%52", sentPane);
+        Assert.Equal("日本語で修正して; 2行目", sentBody);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task agentPrompt_clearsDraftAfterSend()
+    {
+        string? sentPane = null;
+        var bookmark1 = PromptAgent("bookmark-1", "%1");
+        var bookmark2 = PromptAgent("bookmark-2", "%2");
+        var vm = new SearchPanelViewModel(sendPrompt: (paneId, _, _) =>
+        {
+            sentPane = paneId;
+            return Task.FromResult(OperationResult.Success("sent"));
+        });
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { bookmark1, bookmark2 }));
+
+        Assert.True(vm.ShowAllPreviews());
+        Assert.True(vm.SetPromptTarget(2));
+        vm.PromptDraft = "run the second task";
+        await vm.SendPromptToPreviewAsync();
+
+        Assert.Equal("%2", sentPane);
+        Assert.Equal(string.Empty, vm.PromptDraft);
+        Assert.Equal(2, vm.PromptTargetIndex);
+        Assert.True(vm.IsPromptFieldFocused);
+    }
+
+    [Fact]
+    public async Task agentPrompt_cmdDigitRetargetsTiledPromptKeepingDraft()
+    {
+        string? sentPane = null;
+        var first = PromptAgent("bookmark-1", "%1");
+        var second = PromptAgent("bookmark-2", "%2");
+        var vm = new SearchPanelViewModel(sendPrompt: (paneId, _, _) =>
+        {
+            sentPane = paneId;
+            return Task.FromResult(OperationResult.Success("sent"));
+        });
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { first, second }));
+
+        Assert.True(vm.ShowAllPreviews());
+        Assert.Null(vm.PromptTargetIndex);
+        Assert.True(vm.SetPromptTarget(1));
+        vm.PromptDraft = "keep this draft";
+        Assert.True(vm.SetPromptTarget(2));
+        Assert.Equal("keep this draft", vm.PromptDraft);
+        Assert.False(vm.SetPromptTarget(3));
+        Assert.Equal(2, vm.PromptTargetIndex);
+        await vm.SendPromptToPreviewAsync();
+
+        Assert.Equal("%2", sentPane);
+    }
+
+    [Fact]
+    public async Task agentPrompt_doesNotSendBlankDraftOrMissingTarget()
+    {
+        var calls = 0;
+        var vm = new SearchPanelViewModel(sendPrompt: (_, _, _) =>
+        {
+            calls++;
+            return Task.FromResult(OperationResult.Success("sent"));
+        });
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { PromptAgent("bookmark-1", "%1"), PromptAgent("bookmark-2", "%2") }));
+
+        Assert.True(vm.ShowAllPreviews());
+        vm.PromptDraft = "send this";
+        await vm.SendPromptToPreviewAsync();
+        Assert.True(vm.SetPromptTarget(1));
+        vm.PromptDraft = "  \t\n ";
+        await vm.SendPromptToPreviewAsync();
+
+        Assert.Equal(0, calls);
+    }
+
+    [Fact]
+    public async Task agentPrompt_failedSendKeepsDraftAndFocus()
+    {
+        var vm = new SearchPanelViewModel(sendPrompt: (_, _, _) =>
+            Task.FromResult(OperationResult.VisibleError(OperationStatus.Failed, "tmux failed")));
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { PromptAgent("bookmark-52", "%52") }));
+        vm.HoveredIndex = 0;
+
+        Assert.True(vm.ShowHoveredPreview());
+        vm.PromptDraft = "retry this";
+        await vm.SendPromptToPreviewAsync();
+
+        Assert.Equal("retry this", vm.PromptDraft);
+        Assert.False(string.IsNullOrWhiteSpace(vm.PromptError));
+        Assert.True(vm.IsPromptFieldFocused);
+    }
+
+    [Fact]
+    public async Task agentPrompt_doesNotClearDraftChangedDuringSend()
+    {
+        var release = new TaskCompletionSource<OperationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var vm = new SearchPanelViewModel(sendPrompt: (_, _, _) => release.Task);
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { PromptAgent("bookmark-52", "%52") }));
+        vm.HoveredIndex = 0;
+        Assert.True(vm.ShowHoveredPreview());
+        vm.PromptDraft = "first draft";
+
+        var sending = vm.SendPromptToPreviewAsync();
+        vm.PromptDraft = "new draft while sending";
+        release.SetResult(OperationResult.Success("sent"));
+        await sending;
+
+        Assert.Equal("new draft while sending", vm.PromptDraft);
+    }
+
+    [Fact]
+    public async Task agentPrompt_doesNotSendWithoutPaneId()
+    {
+        var calls = 0;
+        var bookmark = new Bookmark("bookmark-no-pane", "claude", "one", new WslProcessState(1, "claude", ScreenCapture: "screen"));
+        var vm = new SearchPanelViewModel(sendPrompt: (_, _, _) =>
+        {
+            calls++;
+            return Task.FromResult(OperationResult.Success("sent"));
+        });
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { bookmark }));
+        vm.HoveredIndex = 0;
+
+        Assert.True(vm.ShowHoveredPreview());
+        vm.PromptDraft = "send this";
+        await vm.SendPromptToPreviewAsync();
+
+        Assert.Equal(0, calls);
+        Assert.False(string.IsNullOrWhiteSpace(vm.PromptError));
+    }
+
+    [Fact]
+    public void agentPrompt_previewTransitionsUpdateTargetAndFocus()
+    {
+        var one = PromptAgent("bookmark-1", "%1");
+        var single = new SearchPanelViewModel(sendPrompt: (_, _, _) => Task.FromResult(OperationResult.Success("sent")));
+        single.Load(new BookmarkStore(new AppSettings(), new[] { one }));
+        single.HoveredIndex = 0;
+
+        Assert.True(single.ShowHoveredPreview());
+        Assert.Equal(1, single.PromptTargetIndex);
+        Assert.True(single.IsPromptFieldFocused);
+        Assert.True(single.DismissPreview());
+        Assert.Null(single.PromptTargetIndex);
+        Assert.False(single.IsPromptFieldFocused);
+
+        Assert.True(single.ShowAllPreviews());
+        Assert.Equal(1, single.PromptTargetIndex);
+        Assert.False(single.IsPromptFieldFocused);
+
+        var tiled = new SearchPanelViewModel(sendPrompt: (_, _, _) => Task.FromResult(OperationResult.Success("sent")));
+        tiled.Load(new BookmarkStore(new AppSettings(), new[] { one, PromptAgent("bookmark-2", "%2") }));
+        Assert.True(tiled.ShowAllPreviews());
+        Assert.Null(tiled.PromptTargetIndex);
+        Assert.False(tiled.IsPromptFieldFocused);
+        Assert.True(tiled.DismissPreview());
+        Assert.Null(tiled.PromptTargetIndex);
+        Assert.False(tiled.IsPromptFieldFocused);
+    }
+
+    [Fact]
+    public async Task agentPrompt_serializesSends()
+    {
+        var firstStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseFirst = new TaskCompletionSource<OperationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        var vm = new SearchPanelViewModel(sendPrompt: async (_, _, _) =>
+        {
+            if (++calls == 1)
+            {
+                firstStarted.SetResult(true);
+                return await releaseFirst.Task;
+            }
+            return OperationResult.Success("sent");
+        });
+        vm.Load(new BookmarkStore(new AppSettings(), new[] { PromptAgent("bookmark-52", "%52") }));
+        vm.HoveredIndex = 0;
+        Assert.True(vm.ShowHoveredPreview());
+        vm.PromptDraft = "first";
+
+        var first = vm.SendPromptToPreviewAsync();
+        await firstStarted.Task;
+        vm.PromptDraft = "second";
+        var second = vm.SendPromptToPreviewAsync();
+        Assert.Equal(1, calls);
+        releaseFirst.SetResult(OperationResult.Success("sent"));
+        await Task.WhenAll(first, second);
+
+        Assert.Equal(2, calls);
+    }
+
+    private static Bookmark PromptAgent(string id, string paneId) =>
+        new(id, "claude", "one", new WslProcessState(1, "claude", TmuxPaneId: paneId, ScreenCapture: "screen"));
 }

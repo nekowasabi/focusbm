@@ -4,6 +4,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Globalization;
+using System.Windows.Data;
 using System.Diagnostics;
 using FocusBM.Core;
 using Forms = System.Windows.Forms;
@@ -13,6 +15,7 @@ namespace FocusBM.App.Wpf;
 public partial class MainWindow : Window
 {
     private SearchPanelViewModel ViewModel => (SearchPanelViewModel)DataContext;
+    public bool IsPreviewVisible => ViewModel.IsPreviewVisible;
     private readonly IRestoreTimingSink _timing = new TraceRestoreTimingSink();
     // Live preview refresh runs only while the preview is shown (one wsl.exe capture per shown pane per tick).
     private readonly System.Windows.Threading.DispatcherTimer _previewRefreshTimer = new() { Interval = TimeSpan.FromSeconds(0.5) };
@@ -30,7 +33,24 @@ public partial class MainWindow : Window
             {
                 SyncPreviewChrome();
                 if (ViewModel.IsPreviewVisible) _previewRefreshTimer.Start();
-                else _previewRefreshTimer.Stop();
+                else
+                {
+                    _previewRefreshTimer.Stop();
+                    FocusSearchBox(selectAll: false);
+                }
+            }
+            if (e.PropertyName == nameof(SearchPanelViewModel.IsPromptFieldFocused)
+                && ViewModel.IsPromptFieldFocused
+                && ViewModel.IsPromptAvailable
+                && ViewModel.IsPreviewVisible
+                && !PromptBox.IsKeyboardFocusWithin)
+            {
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+                {
+                    if (!ViewModel.IsPromptFieldFocused || !ViewModel.IsPromptAvailable || !ViewModel.IsPreviewVisible) return;
+                    PromptBox.Focus();
+                    Keyboard.Focus(PromptBox);
+                }));
             }
         };
         IsVisibleChanged += (_, _) =>
@@ -292,6 +312,48 @@ public partial class MainWindow : Window
 
     private async void Window_OnPreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (ViewModel.IsPromptAvailable && PromptBox.IsKeyboardFocusWithin)
+        {
+            if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                ViewModel.DismissPreview();
+                return;
+            }
+            if (e.KeyboardDevice.Modifiers == ModifierKeys.Control
+                && DigitFromKey(e.Key) is int promptDigit and >= 1 and <= 9)
+            {
+                if (ViewModel.SetPromptTarget(promptDigit))
+                {
+                    e.Handled = true;
+                    return;
+                }
+                if (await TryActivatePreviewByDigitAsync(e)) return;
+            }
+            if (e.Key == Key.Enter)
+            {
+                e.Handled = true;
+                await ViewModel.SendPromptToPreviewAsync();
+                return;
+            }
+            return;
+        }
+        if (ViewModel.IsPromptAvailable && ViewModel.IsPreviewVisible && ViewModel.IsTiledPreview
+            && e.KeyboardDevice.Modifiers == ModifierKeys.Control
+            && DigitFromKey(e.Key) is int targetDigit and >= 1 and <= 9
+            && ViewModel.SetPromptTarget(targetDigit))
+        {
+            e.Handled = true;
+            return;
+        }
+        if (ViewModel.IsPreviewVisible && e.KeyboardDevice.Modifiers == ModifierKeys.None
+            && DigitFromKey(e.Key) is int previewDigit and >= 1 and <= 9)
+        {
+            e.Handled = true;
+            if (ViewModel.BookmarkForPreviewDigit(previewDigit) is { } bookmark)
+                await RestoreAndMaybeHideAsync(bookmark);
+            return;
+        }
         if (e.Key == Key.Escape)
         {
             e.Handled = true;
@@ -481,7 +543,7 @@ public partial class MainWindow : Window
         if (!ViewModel.IsPreviewVisible) return false;
         if (DigitFromKey(e.Key) is not int digit) return false;
         if (digit < 1 || digit > 9) return false;
-        if (!NumberModifiersOk(e.KeyboardDevice.Modifiers)) return false;
+        if (e.KeyboardDevice.Modifiers != ModifierKeys.Control) return false;
         e.Handled = true;
         if (ViewModel.BookmarkForPreviewDigit(digit) is { } bookmark)
             await RestoreAndMaybeHideAsync(bookmark);
@@ -522,9 +584,17 @@ public partial class MainWindow : Window
 
     private void PreviewOverlay_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (e.OriginalSource is DependencyObject source
+            && (ReferenceEquals(source, PromptEntryPanel) || PromptEntryPanel.IsAncestorOf(source))) return;
         ViewModel.DismissPreview();
         e.Handled = true;
     }
+
+    private void PromptBox_OnGotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e) =>
+        ViewModel.SetPromptFieldFocused(true);
+
+    private void PromptBox_OnLostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e) =>
+        ViewModel.SetPromptFieldFocused(false);
 
     private bool MatchesSessionPullRequestHotkey(System.Windows.Input.KeyEventArgs e) =>
         MatchesPanelHotkey(e, ViewModel.Settings.OpenSessionPullRequestHotkey);
@@ -609,4 +679,14 @@ public partial class MainWindow : Window
         Topmost = true;
         Present();
     }
+}
+
+public sealed class PromptTargetBorderConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture) =>
+        values.Length == 3 && values[0] is int index && values[1] is int targetIndex
+        && values[2] is true && index == targetIndex;
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) =>
+        throw new NotSupportedException();
 }

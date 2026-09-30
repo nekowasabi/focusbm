@@ -238,6 +238,57 @@ public class WslTmuxTests
         Assert.Contains("#{pane_id}", runner.Arguments[9]);
     }
 
+    [Fact]
+    public async Task SendPrompt_PassesBodyAndPaneAsDataAndUsesPasteBuffer()
+    {
+        var runner = new RecordingRunner(new ProcessRunResult(0, "", "", false));
+        var svc = new WslTmuxService(new WslSettings(Enabled:true), runner);
+        const string body = "日本語で修正して; 2行目\n'quote' \"dq\" $(rm -rf ~) `x`;";
+
+        var result = await svc.SendPromptAsync("%52", body);
+
+        Assert.True(result.IsSuccess);
+        var script = runner.Arguments[9];
+        Assert.Contains("load-buffer -b focusbm-prompt -", script);
+        Assert.Contains("paste-buffer -p -d -b focusbm-prompt -t \"$1\"", script);
+        Assert.Contains("send-keys -t \"$1\" Enter", script);
+        Assert.DoesNotContain("send-keys -l", script);
+        Assert.DoesNotContain("日本語", script);
+        Assert.DoesNotContain("rm -rf", script);
+        Assert.Equal("%52", runner.Arguments[^2]);
+        Assert.Equal(body, runner.Arguments[^1]);
+    }
+
+    [Theory]
+    [InlineData("--bad", "hello")]
+    [InlineData("%1", "")]
+    [InlineData("%1", "   ")]
+    [InlineData("%1", "a\0b")]
+    [InlineData("1", "hello")]
+    public async Task SendPrompt_InvalidInput_IsRejectedWithoutRunningProcess(string paneId, string text)
+    {
+        var runner = new RecordingRunner(new ProcessRunResult(0, "", "", false));
+        var svc = new WslTmuxService(new WslSettings(Enabled:true), runner);
+
+        var result = await svc.SendPromptAsync(paneId, text);
+
+        Assert.Equal(OperationStatus.ValidationError, result.Status);
+        Assert.Empty(runner.Arguments);
+    }
+
+    [Fact]
+    public async Task SendPrompt_TimeoutAndFailure_AreNotSuccess()
+    {
+        var timedOut = await new WslTmuxService(new WslSettings(Enabled:true), new RecordingRunner(new ProcessRunResult(-1, "", "", true)))
+            .SendPromptAsync("%1", "hi");
+        var failed = await new WslTmuxService(new WslSettings(Enabled:true), new RecordingRunner(new ProcessRunResult(1, "", "", false)))
+            .SendPromptAsync("%1", "hi");
+
+        Assert.Equal(OperationStatus.Timeout, timedOut.Status);
+        Assert.False(failed.IsSuccess);
+        Assert.Equal(OperationStatus.Failed, failed.Status);
+    }
+
     private sealed class FakeRunner : IProcessRunner { public Task<ProcessRunResult> RunAsync(string f, IReadOnlyList<string> a, TimeSpan t, CancellationToken c = default) => Task.FromResult(new ProcessRunResult(0, "s\t0\t%1\tclaude\ttitle\n", "", false)); }
 
     private sealed class RecordingRunner(ProcessRunResult result) : IProcessRunner

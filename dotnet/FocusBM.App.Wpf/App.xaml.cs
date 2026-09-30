@@ -62,7 +62,8 @@ public partial class App : System.Windows.Application
         _viewModel = new SearchPanelViewModel(
             orchestrator.RestoreAsync,
             wsl is null ? null : ResolvePullRequestAsync,
-            tmux is null ? null : (paneId, ct) => tmux.CapturePaneContentAsync(paneId, withEscapes: true, ct));
+            tmux is null ? null : (paneId, ct) => tmux.CapturePaneContentAsync(paneId, withEscapes: true, ct),
+            tmux is null ? null : (paneId, text, ct) => tmux.SendPromptAsync(paneId, text, ct));
         _viewModel.Load(store);
 
         _window = new MainWindow(_viewModel);
@@ -216,6 +217,8 @@ public partial class App : System.Windows.Application
 
     private async Task HandleTogglePanelHotkeyAsync()
     {
+        // Why: While the agent preview is shown, re-press must not execute or close; the user is reading/typing into the pane.
+        if (_window?.IsVisible == true && _window.IsPreviewVisible) return;
         // Why: Match macOS behavior: re-press confirms the configured target before falling back to the selected row.
         if (_window?.IsVisible == true) await _window.ExecuteToggleRepressAsync();
         else ShowPanel();

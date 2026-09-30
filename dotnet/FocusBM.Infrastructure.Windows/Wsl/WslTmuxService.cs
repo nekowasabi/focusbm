@@ -43,6 +43,23 @@ public sealed class WslTmuxService : ITmuxService, IWslNvimService
         done
         exit 1
         """;
+    // Why: The prompt body arrives as a positional argument and is piped into `load-buffer -`, never spliced into the script
+    // or tmux argv. `send-keys -l` drops embedded newlines and tmux treats a trailing `;` in argv as a command separator (macOS 65d0d04).
+    // paste-buffer -p uses bracketed paste when the app enabled it. The fixed buffer name means callers must serialize sends.
+    private const string SendPromptScript = """
+        tmux_bin=$(command -v tmux || true)
+        [ -n "$tmux_bin" ] || exit 127
+        for socket in /run/user/*/tmux-*/* /tmp/tmux-*/*; do
+          if [ -S "$socket" ]; then
+            "$tmux_bin" -S "$socket" display-message -p -t "$1" '#{pane_id}' >/dev/null 2>&1 || continue
+            printf '%s' "$2" | "$tmux_bin" -S "$socket" load-buffer -b focusbm-prompt - || continue
+            "$tmux_bin" -S "$socket" paste-buffer -p -d -b focusbm-prompt -t "$1" || continue
+            "$tmux_bin" -S "$socket" send-keys -t "$1" Enter || continue
+            exit 0
+          fi
+        done
+        exit 1
+        """;
     // Why: switch-client -t is a session target; session:window either fails or ignores the window,
     // and `|| continue` then skips select-pane. A pane id (`%N`) is the documented special case that
     // changes session, window, and pane for that client. Always follow with select-window/select-pane
@@ -299,6 +316,20 @@ public sealed class WslTmuxService : ITmuxService, IWslNvimService
         var args = BaseArgs().Concat(script).ToArray();
         var result = await _runner.RunAsync("wsl.exe", args, TimeSpan.FromSeconds(3), cancellationToken).ConfigureAwait(false);
         return result.TimedOut || result.ExitCode != 0 ? null : Redactor.Mask(result.StandardOutput);
+    }
+
+    /// <summary>Pastes <paramref name="text"/> into the pane and submits it with Enter. Callers must serialize calls (shared tmux buffer name).</summary>
+    public async Task<OperationResult> SendPromptAsync(string paneId, string text, CancellationToken cancellationToken = default)
+    {
+        if (!_settings.Enabled) return OperationResult.VisibleError(OperationStatus.Unsupported, "WSL/tmux capability disabled");
+        if (!IsPaneId(paneId)) return OperationResult.VisibleError(OperationStatus.ValidationError, "tmux pane ID is invalid");
+        if (string.IsNullOrWhiteSpace(text) || text.Contains('\0')) return OperationResult.VisibleError(OperationStatus.ValidationError, "prompt is empty or invalid");
+        var args = BaseArgs().Concat(["--exec", "/bin/bash", "-lc", SendPromptScript, "focusbm-tmux-prompt", paneId, text]).ToArray();
+        var result = await _runner.RunAsync("wsl.exe", args, TimeSpan.FromSeconds(3), cancellationToken).ConfigureAwait(false);
+        if (result.TimedOut) return OperationResult.VisibleError(OperationStatus.Timeout, "prompt send timed out");
+        return result.ExitCode == 0
+            ? OperationResult.Success("prompt sent")
+            : OperationResult.VisibleError(OperationStatus.Failed, "prompt send failed");
     }
 
     private async Task<OperationResult> SendExCommandAsync(string paneId, string exCommand, CancellationToken cancellationToken)
