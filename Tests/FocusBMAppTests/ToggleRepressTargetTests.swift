@@ -65,3 +65,34 @@ private func makeBookmark(id: String, executeOnToggleRepress: Bool? = nil) -> Bo
 
     #expect(vm.toggleRepressTarget?.id == "focusbm-nvim")
 }
+
+/// 空クエリ: toggle-repress ブックマークはバーに ⌃, ラベルで出て、メインリストから外れ、次の項目が "1" になる
+@Test func toggleRepress_emptyQuery_movesToShortcutBar() {
+    let vm = SearchViewModel()
+    var settings = AppSettings()
+    settings.hotkey.togglePanel = "ctrl+,"
+    vm.appSettings = settings
+    vm.bookmarks = [
+        makeBookmark(id: "focusbm-nvim", executeOnToggleRepress: true),
+        makeBookmark(id: "other"),
+    ]
+    vm.updateItems()
+
+    #expect(vm.shortcutBarItems.first(where: { $0.item.id == "focusbm-nvim" })?.label == "⌃,")
+    let main = vm.mainListAssignments
+    #expect(!main.contains(where: { $0.item.id == "focusbm-nvim" }))
+    #expect(main.first(where: { $0.item.id == "other" })?.label == "1")
+}
+
+/// クエリ非空: toggle-repress ブックマークは検索結果に現れる
+@Test func toggleRepress_withQuery_appearsInMainList() {
+    let vm = SearchViewModel()
+    vm.bookmarks = [
+        makeBookmark(id: "focusbm-nvim", executeOnToggleRepress: true),
+        makeBookmark(id: "other"),
+    ]
+    vm.query = "nvim"
+    vm.updateItems()
+
+    #expect(vm.mainListAssignments.contains(where: { $0.item.id == "focusbm-nvim" }))
+}

@@ -55,6 +55,8 @@ struct ShortcutBadge: View {
 
     // Why: "^g"（Ctrl 記法）は ⌘ を付けず ⌃g と表示する。directNumberKeys の ⌘ 分岐対象外。
     private var displayLabel: String {
+        // "⌃," is already a display form (toggle-repress chip); do not prepend ⌘.
+        if label.hasPrefix("⌃") { return label }
         if label.hasPrefix("^") { return "⌃" + label.dropFirst() }
         return directNumberKeys ? label : "⌘\(label)"
     }

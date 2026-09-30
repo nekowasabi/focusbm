@@ -480,6 +480,11 @@ class SearchViewModel: ObservableObject {
             // noShortcut が true → ラベルなし
             if item.noShortcut { return (item, nil) }
 
+            // Why: The toggle-repress item goes to the shortcut bar (empty query), so it must not consume an auto number.
+            if query.isEmpty && item.id == toggleRepressTarget?.id && !isYAMLShortcutBookmark(item) {
+                return (item, nil)
+            }
+
             // AI エージェント行のショートカット抑止（autoNumber を消費しない）
             if skipAIAgentShortcut && item.isAIAgent {
                 return (item, nil)
@@ -508,12 +513,35 @@ class SearchViewModel: ObservableObject {
     // Why: shortcutAssignments を分解せず filter で分離。理由: 既存ロジックの変更最小化
     /// YAML shortcut 指定があるアイテムのみ（ショートカットバー表示用）
     var shortcutBarItems: [(item: SearchItem, label: String)] {
-        shortcutAssignments.compactMap { pair in
+        var result = shortcutAssignments.compactMap { pair -> (item: SearchItem, label: String)? in
             guard let label = pair.label,
                   case .bookmark(let bm) = pair.item,
                   bm.shortcut != nil else { return nil }
             return (item: pair.item, label: label)
         }
+        // The toggle-repress bookmark is shown as a chip labeled with the togglePanel hotkey.
+        if let target = toggleRepressTarget,
+           !isYAMLShortcutBookmark(target),
+           searchItems.contains(where: { $0.id == target.id }) {
+            result.append((item: target, label: Self.hotkeyDisplayString(appSettings?.hotkey.togglePanel ?? "cmd+ctrl+b")))
+        }
+        return result
+    }
+
+    private func isYAMLShortcutBookmark(_ item: SearchItem) -> Bool {
+        if case .bookmark(let bm) = item, bm.shortcut != nil { return true }
+        return false
+    }
+
+    /// "ctrl+," -> "⌃," (modifier order follows the macOS convention ⌃⌥⇧⌘)
+    static func hotkeyDisplayString(_ hotkey: String) -> String {
+        let parsed = HotkeyParser.parse(hotkey)
+        var out = ""
+        if parsed.modifiers.contains(.control) { out += "⌃" }
+        if parsed.modifiers.contains(.option) { out += "⌥" }
+        if parsed.modifiers.contains(.shift) { out += "⇧" }
+        if parsed.modifiers.contains(.command) { out += "⌘" }
+        return out + parsed.key.uppercased()
     }
 
     /// shortcutBarItems を除いたメインリスト用アサインメント
