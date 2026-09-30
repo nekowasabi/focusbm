@@ -347,6 +347,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func handleTogglePanelHotkey() {
         guard let panel = searchPanel else { return }
         if panel.isVisible {
+            // Why: エージェント画面プレビュー表示中の再押下は誤実行・誤クローズを防ぐため何もしない。
+            if viewModel.screenPreview != nil { return }
             if let item = viewModel.toggleRepressTarget ?? viewModel.selectedItem() {
                 panel.executeItem(item)
             } else {
