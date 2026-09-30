@@ -37,7 +37,11 @@ public struct NvimTmuxRestorer {
     private static let sendLock = NSLock()
 
     public init(
-        listPanes: @escaping () throws -> [TmuxPane] = { try TmuxProvider.listAllPanes() },
+        // Why: listAllPanes ではなく listPanesForInput を使う。listAllPanes は未接続セッションの
+        //      ペインに fallback クライアント（最後に操作した端末）を刻むため、別セッションの nvim が
+        //      iTerm2 のペインと誤判定され、switch-client で iTerm の表示が別セッションへ飛び得る。
+        //      list-panes -a はセッション→ウィンドウ番号→ペイン番号順なので、先頭一致で若いウィンドウが選ばれる。
+        listPanes: @escaping () throws -> [TmuxPane] = { try TmuxProvider.listPanesForInput() },
         findPane: @escaping ([TmuxPane], String?) throws -> TmuxPane = {
             try TmuxProvider.findNvimPaneForFocus(in: $0, workingDirectory: $1)
         },

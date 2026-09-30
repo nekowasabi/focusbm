@@ -526,3 +526,34 @@ private final class RestoreSpy {
     let floatingTarget = try BookmarkRestorer.restoreAndGetTarget(floating)
     if case .none = floatingTarget {} else { Issue.record("Expected .none for floatingWindows") }
 }
+
+@Test func test_focusPath_skipsFallbackStampedDetachedNvim_andPicksLowestITermWindow() throws {
+    let itermTTY = "/dev/ttys001"
+    // listAllPanes stamps the fallback iTerm2 client onto the detached session's pane.
+    let panes = [
+        makeEligiblePane(paneId: "%1", sessionName: "detached", windowIndex: 1, clientTTY: itermTTY),
+        makeEligiblePane(paneId: "%86", sessionName: "iterm", windowIndex: 1, clientTTY: itermTTY),
+        makeEligiblePane(paneId: "%88", sessionName: "iterm", windowIndex: 2, clientTTY: itermTTY),
+    ]
+    let itermClient = TmuxProvider.TmuxClientInfo(
+        tty: itermTTY,
+        sessionName: "iterm",
+        windowIndex: nil,
+        windowName: nil,
+        paneId: nil,
+        clientPid: 111,
+        bundleId: TmuxProvider.ITERM2_BUNDLE_ID,
+        appName: "iTerm2",
+        activity: 0
+    )
+    let clientMap = ["iterm": itermClient, TmuxProvider.fallbackClientKey: itermClient]
+
+    let picked = try TmuxProvider.findNvimPaneForFocus(
+        in: TmuxProvider.attachClientsForInput(panes, clientMap: clientMap)
+    )
+    #expect(picked.paneId == "%86")
+
+    // Documents the bug: raw fallback-stamped panes pick the detached session's nvim.
+    let raw = try TmuxProvider.findNvimPaneForFocus(in: panes)
+    #expect(raw.paneId == "%1")
+}
