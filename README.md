@@ -299,9 +299,9 @@ bookmarks:
     context: work
     state:
       type: browser
-      urlPattern: "https://app.slack.com/client/T0APA1XEE/activity-inbox"
+      urlPattern: "https://app.slack.com/client/T0XXXXXX/activity-inbox"
       title: "Slack"
-      urlPrefix: "https://app.slack.com/client/T0APA1XEE"  # optional
+      urlPrefix: "https://app.slack.com/client/T0XXXXXX"  # optional
     createdAt: "2025-02-18T09:00:00Z"
 
   - id: rarely-used
