@@ -942,19 +942,11 @@ public struct TmuxProvider {
 
         let bundleId = pane.terminalBundleId ?? settings?.preferredTerminal
         let appName = pane.terminalAppName ?? "Terminal"
+        // Why: Removed the "first running known terminal" fallback. It activated an unrelated
+        //      terminal (e.g. iTerm2 for a cmux client); leaving activation empty is safer.
         if let bid = bundleId {
             log("focusPane: will return activation target for '\(appName)' (\(bid))")
             activationTarget = .bundleId(bid, appName: appName)
-        } else if hasClientTTY {
-            let knownIds = ["com.googlecode.iterm2", "com.mitchellh.ghostty",
-                            "com.apple.Terminal", "com.github.wez.wezterm"]
-            for kid in knownIds {
-                let apps = NSRunningApplication.runningApplications(withBundleIdentifier: kid)
-                if let app = apps.first {
-                    activationTarget = .runningApp(app)
-                    break
-                }
-            }
         }
 
         if hasClientTTY {
@@ -1023,6 +1015,7 @@ public struct TmuxProvider {
         case "com.apple.Terminal":        return "🖥️"
         case "com.github.wez.wezterm":    return "⚡"
         case "org.alacritty":             return "🔲"
+        case "com.cmuxterm.app":          return "🧩"
         default:                          return "❓"
         }
     }
@@ -1232,6 +1225,7 @@ public struct TmuxProvider {
         "com.googlecode.iterm2",
         "com.apple.Terminal",
         "org.alacritty",
+        "com.cmuxterm.app",
     ]
 
     /// startPidから親プロセスを最大10回辿り、既知ターミナルアプリを返す
@@ -1241,11 +1235,19 @@ public struct TmuxProvider {
         getParentPID: (pid_t) -> pid_t?
     ) -> (bundleId: String?, appName: String)? {
         var currentPid = startPid
+        // Why: Instead of whitelist-only matching, fall back to the nearest bundled ancestor app.
+        //      The GUI app above a tmux client is its host terminal, so unlisted terminals still resolve;
+        //      the known list only wins when an unrelated app sits between the client and the terminal.
+        var firstBundledApp: (bundleId: String?, appName: String)?
         for _ in 0..<10 {
             if let app = runningApps.first(where: { $0.processIdentifier == currentPid }),
-               let bundleId = app.bundleIdentifier,
-               knownTerminalBundleIds.contains(bundleId) {
-                return (bundleId, app.localizedName ?? bundleId)
+               let bundleId = app.bundleIdentifier {
+                if knownTerminalBundleIds.contains(bundleId) {
+                    return (bundleId, app.localizedName ?? bundleId)
+                }
+                if firstBundledApp == nil {
+                    firstBundledApp = (bundleId, app.localizedName ?? bundleId)
+                }
             }
             // GUIアプリ検索が失敗した場合、プロセス名で iTermServer を検出
             if let procName = sysctlProcessName(currentPid),
@@ -1255,7 +1257,7 @@ public struct TmuxProvider {
             guard let ppid = getParentPID(currentPid), ppid > 1 else { break }
             currentPid = ppid
         }
-        return nil
+        return firstBundledApp
     }
 
     /// sysctl を使って親プロセスPIDを取得

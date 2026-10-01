@@ -64,26 +64,6 @@ import AppKit
     target.activate()
 }
 
-/// .runningApp ケースが正しく構築される（NSRunningApplication.current を使用）
-@Test func test_activationTarget_runningApp_creation() {
-    let app = NSRunningApplication.current
-    let target = ActivationTarget.runningApp(app)
-
-    if case .runningApp(let runningApp) = target {
-        #expect(runningApp.processIdentifier == app.processIdentifier)
-    } else {
-        Issue.record("Expected .runningApp case")
-    }
-}
-
-/// .runningApp の activate() が NSRunningApplication.current で安全に実行される
-@Test func test_activationTarget_runningApp_doesNotCrash() {
-    let app = NSRunningApplication.current
-    let target = ActivationTarget.runningApp(app)
-    // 自プロセスをアクティベートしようとする。クラッシュしないことを確認
-    target.activate()
-}
-
 // MARK: - ActivationTarget enum case 識別テスト
 
 /// 各ケースが distinct であることを確認

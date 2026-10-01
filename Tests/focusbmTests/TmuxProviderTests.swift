@@ -458,6 +458,10 @@ import AppKit
     #expect(TmuxProvider.terminalBundleIdToEmoji("org.alacritty") == "🔲")
 }
 
+@Test func test_terminalBundleIdToEmoji_cmux() {
+    #expect(TmuxProvider.terminalBundleIdToEmoji("com.cmuxterm.app") == "🧩")
+}
+
 @Test func test_terminalBundleIdToEmoji_unknown() {
     #expect(TmuxProvider.terminalBundleIdToEmoji("com.unknown.app") == "❓")
 }
@@ -577,7 +581,7 @@ final class MockRunningApp: RunningAppProtocol {
 }
 
 @Test func test_findTerminalByAncestorProcess_notFound() {
-    // 既知ターミナルがプロセスツリーにない場合 nil
+    // bundleId を持つアプリがプロセスツリーに無い場合 nil
     let mockApps: [any RunningAppProtocol] = [
         MockRunningApp(pid: 999, bundleId: "com.unknown.app", name: "Unknown")
     ]
@@ -588,6 +592,48 @@ final class MockRunningApp: RunningAppProtocol {
         }
     )
     #expect(result == nil)
+}
+
+@Test func test_findTerminalByAncestorProcess_unlistedBundledAncestor() {
+    // tmux(100) → zsh(200) → login(300) → cmux(400)
+    let mockApps: [any RunningAppProtocol] = [
+        MockRunningApp(pid: 400, bundleId: "com.example.newterm", name: "NewTerm")
+    ]
+    let result = TmuxProvider.findTerminalByAncestorProcess(
+        100, runningApps: mockApps,
+        getParentPID: { pid in
+            switch pid { case 100: return 200; case 200: return 300; case 300: return 400; default: return nil }
+        }
+    )
+    #expect(result?.bundleId == "com.example.newterm")
+    #expect(result?.appName == "NewTerm")
+}
+
+@Test func test_findTerminalByAncestorProcess_knownTerminalWinsOverNearerUnlistedApp() {
+    let mockApps: [any RunningAppProtocol] = [
+        MockRunningApp(pid: 200, bundleId: "com.example.wrapper", name: "Wrapper"),
+        MockRunningApp(pid: 300, bundleId: "com.googlecode.iterm2", name: "iTerm2")
+    ]
+    let result = TmuxProvider.findTerminalByAncestorProcess(
+        100, runningApps: mockApps,
+        getParentPID: { pid in
+            switch pid { case 100: return 200; case 200: return 300; default: return nil }
+        }
+    )
+    #expect(result?.bundleId == "com.googlecode.iterm2")
+}
+
+@Test func test_findTerminalByAncestorProcess_cmux() {
+    let mockApps: [any RunningAppProtocol] = [
+        MockRunningApp(pid: 400, bundleId: "com.cmuxterm.app", name: "cmux")
+    ]
+    let result = TmuxProvider.findTerminalByAncestorProcess(
+        100, runningApps: mockApps,
+        getParentPID: { pid in
+            switch pid { case 100: return 400; default: return nil }
+        }
+    )
+    #expect(result?.bundleId == "com.cmuxterm.app")
 }
 
 @Test func test_findTerminalByAncestorProcess_directMatch() {
