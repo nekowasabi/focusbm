@@ -66,7 +66,7 @@ public class SettingsRoundTripTests
     {
         var store = new BookmarkStore(
             new AppSettings(ShowWslAgents: false),
-            new[] { new Bookmark("wsl:42", "wsl", "claude --project", new WslProcessState(42, "claude --project", "WezTerm", "%7", "dev", "3", "/home/takets/project"), LowPriority: true) });
+            new[] { new Bookmark("wsl:42", "wsl", "claude --project", new WslProcessState(42, "claude --project", "WezTerm", "%7", "dev", "3", "/home/user/project"), LowPriority: true) });
 
         var serializer = new BookmarkYamlSerializer();
         var yaml = serializer.Serialize(store);
@@ -80,7 +80,7 @@ public class SettingsRoundTripTests
         Assert.Equal("%7", state.TmuxPaneId);
         Assert.Equal("dev", state.TmuxSession);
         Assert.Equal("3", state.TmuxWindow);
-        Assert.Equal("/home/takets/project", state.WorkingDirectory);
+        Assert.Equal("/home/user/project", state.WorkingDirectory);
         Assert.True(round.Bookmarks[0].LowPriority);
     }
 
@@ -89,13 +89,13 @@ public class SettingsRoundTripTests
     {
         var store = new BookmarkStore(new AppSettings(), new[]
         {
-            new Bookmark("nvim", "tmux", "editor", new WslNvimState("/home/takets/project", "write"))
+            new Bookmark("nvim", "tmux", "editor", new WslNvimState("/home/user/project", "write"))
         });
 
         var round = new BookmarkYamlSerializer().Deserialize(new BookmarkYamlSerializer().Serialize(store));
         var state = Assert.IsType<WslNvimState>(Assert.Single(round.Bookmarks).State);
 
-        Assert.Equal("/home/takets/project", state.WorkingDirectory);
+        Assert.Equal("/home/user/project", state.WorkingDirectory);
         Assert.Equal("write", state.ExCommand);
     }
 

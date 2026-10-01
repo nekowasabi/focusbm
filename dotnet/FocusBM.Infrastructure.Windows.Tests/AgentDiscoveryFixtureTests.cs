@@ -16,31 +16,31 @@ public sealed class AgentDiscoveryFixtureTests
 
     private static readonly TmuxPaneInfo[] LivePanes =
     [
-        new("12", "1", "%40", CurrentCommand: "claude", CurrentDirectory: "/home/takets/repos/changelog", WindowName: "claude"),
-        new("12", "1", "%42", CurrentCommand: "nvim", Title: "changelog: wezterm_neovim changelogmemo", CurrentDirectory: "/home/takets/repos/changelog", WindowName: "claude"),
-        new("dash", "1", "%0", CurrentCommand: "grok", CurrentDirectory: "/home/takets/repos/changelog", WindowName: "grok"),
-        new("dash", "2", "%1", CurrentCommand: "claude", CurrentDirectory: "/home/takets/repos/doctrine-mcp", WindowName: "make"),
-        new("dash", "3", "%2", CurrentCommand: "cursor-agent", CurrentDirectory: "/home/takets/repos/doctrine-mcp", WindowName: "cursor-agent"),
-        new("dash", "5", "%4", CurrentCommand: "cursor-agent", CurrentDirectory: "/home/takets/repos/focusbm-win", WindowName: "cursor-agent"),
-        new("dash", "5", "%62", CurrentCommand: "zsh", CurrentDirectory: "/home/takets/repos/focusbm-win", WindowName: "cursor-agent"),
-        new("dash", "7", "%57", CurrentCommand: "npm", CurrentDirectory: "/home/takets/repos/dashboard", WindowName: "npm"),
+        new("12", "1", "%40", CurrentCommand: "claude", CurrentDirectory: "/home/user/repos/changelog", WindowName: "claude"),
+        new("12", "1", "%42", CurrentCommand: "nvim", Title: "changelog: wezterm_neovim changelogmemo", CurrentDirectory: "/home/user/repos/changelog", WindowName: "claude"),
+        new("dash", "1", "%0", CurrentCommand: "grok", CurrentDirectory: "/home/user/repos/changelog", WindowName: "grok"),
+        new("dash", "2", "%1", CurrentCommand: "claude", CurrentDirectory: "/home/user/repos/doctrine-mcp", WindowName: "make"),
+        new("dash", "3", "%2", CurrentCommand: "cursor-agent", CurrentDirectory: "/home/user/repos/doctrine-mcp", WindowName: "cursor-agent"),
+        new("dash", "5", "%4", CurrentCommand: "cursor-agent", CurrentDirectory: "/home/user/repos/focusbm-win", WindowName: "cursor-agent"),
+        new("dash", "5", "%62", CurrentCommand: "zsh", CurrentDirectory: "/home/user/repos/focusbm-win", WindowName: "cursor-agent"),
+        new("dash", "7", "%57", CurrentCommand: "npm", CurrentDirectory: "/home/user/repos/dashboard", WindowName: "npm"),
     ];
 
     private static readonly WslProcessInfo[] LiveProcesses =
     [
-        new(8360, 1, "claude --model sonnet", "/home/takets/repos/changelog", "%40", "WezTerm"),
-        new(32575, 1, "grok", "/home/takets/repos/changelog", "%0", "WezTerm"),
-        new(44252, 1, "claude --model sonnet", "/home/takets/repos/doctrine-mcp", "%1", "WezTerm"),
-        new(2798, 1, "cursor-agent --yolo", "/home/takets/repos/doctrine-mcp", "%2", "WezTerm"),
-        new(75431, 1, "cursor-agent --yolo", "/home/takets/repos/focusbm-win", "%4", "WezTerm"),
+        new(8360, 1, "claude --model sonnet", "/home/user/repos/changelog", "%40", "WezTerm"),
+        new(32575, 1, "grok", "/home/user/repos/changelog", "%0", "WezTerm"),
+        new(44252, 1, "claude --model sonnet", "/home/user/repos/doctrine-mcp", "%1", "WezTerm"),
+        new(2798, 1, "cursor-agent --yolo", "/home/user/repos/doctrine-mcp", "%2", "WezTerm"),
+        new(75431, 1, "cursor-agent --yolo", "/home/user/repos/focusbm-win", "%4", "WezTerm"),
     ];
 
     private static readonly WslProcessInfo[] NoiseProcesses =
     [
-        new(18934, 1, "claude bg-pty-host --bg-pty-host /tmp/foo.sock", "/home/takets/repos/kb"),
-        new(22682, 1, "claude daemon run --json-path /tmp/d.json", "/home/takets"),
-        new(27742, 1, "node /home/alice/.npm/_npx/copilot-language-server --stdio", "/home/takets", "%42", "WezTerm"),
-        new(72111, 1, "claude bg-pty-host --bg-pty-host /tmp/bar.sock", "/home/takets/repos/doctrine-mcp", "%0", "WezTerm"),
+        new(18934, 1, "claude bg-pty-host --bg-pty-host /tmp/foo.sock", "/home/user/repos/kb"),
+        new(22682, 1, "claude daemon run --json-path /tmp/d.json", "/home/user"),
+        new(27742, 1, "node /home/alice/.npm/_npx/copilot-language-server --stdio", "/home/user", "%42", "WezTerm"),
+        new(72111, 1, "claude bg-pty-host --bg-pty-host /tmp/bar.sock", "/home/user/repos/doctrine-mcp", "%0", "WezTerm"),
     ];
 
     public static readonly string[] ExpectedDisplayLabels =
@@ -85,12 +85,12 @@ public sealed class AgentDiscoveryFixtureTests
     public void Parse_ExcludesDaemonAndLanguageServerNoise()
     {
         const string output = """
-            8360	1	/home/takets/repos/changelog	%40	WezTerm	claude --model sonnet
-            18934	1	/home/takets/repos/kb			claude bg-pty-host --bg-pty-host /tmp/foo.sock
-            22682	1	/home/takets				claude daemon run --json-path /tmp/d.json
-            27742	1	/home/takets	%42	WezTerm	node /home/alice/.npm/_npx/copilot-language-server --stdio
-            72111	1	/home/takets/repos/doctrine-mcp	%0	WezTerm	claude bg-pty-host --bg-pty-host /tmp/bar.sock
-            32575	1	/home/takets/repos/changelog	%0	WezTerm	grok
+            8360	1	/home/user/repos/changelog	%40	WezTerm	claude --model sonnet
+            18934	1	/home/user/repos/kb			claude bg-pty-host --bg-pty-host /tmp/foo.sock
+            22682	1	/home/user				claude daemon run --json-path /tmp/d.json
+            27742	1	/home/user	%42	WezTerm	node /home/alice/.npm/_npx/copilot-language-server --stdio
+            72111	1	/home/user/repos/doctrine-mcp	%0	WezTerm	claude bg-pty-host --bg-pty-host /tmp/bar.sock
+            32575	1	/home/user/repos/changelog	%0	WezTerm	grok
             """;
 
         var processes = WslProcessService.Parse(output, includeTmuxDescendants: true);

@@ -108,7 +108,7 @@ public sealed class WslProcessTests
     [Fact]
     public void Parse_RecognizesDevinCliWithLiveTmuxMetadata()
     {
-        const string output = "3316227\t2040\t/home/takets/repos/focusbm-win\t%4\tWezTerm\tdevin acp\n";
+        const string output = "3316227\t2040\t/home/user/repos/focusbm-win\t%4\tWezTerm\tdevin acp\n";
 
         var process = Assert.Single(WslProcessService.Parse(output, includeTmuxDescendants: true));
 

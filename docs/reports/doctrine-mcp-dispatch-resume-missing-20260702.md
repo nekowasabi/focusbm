@@ -10,7 +10,7 @@
 
 ## Scope
 
-- Workspace: `/Users/ttakeda/repos/focusbm`
+- Workspace: `/Users/user/repos/focusbm`
 - Objective:
   - `Use x-mcp --min-cycles 2 --worktree --strct-cycle --fanout 10 skill: docs/requirements/zombie-process-refresh-plan.md すべて実装してください。`
 - Relevant requirement file:
@@ -157,7 +157,7 @@ Input summary:
 ```json
 {
   "task": "--strct-cycle skill: docs/requirements/zombie-process-refresh-plan.md すべて実装してください。",
-  "workspace": "/Users/ttakeda/repos/focusbm",
+  "workspace": "/Users/user/repos/focusbm",
   "flags": [
     "--min-cycles",
     "2",
@@ -239,7 +239,7 @@ Input summary:
 {
   "mission_id": "20260702-073838-88309-001",
   "task": "--strct-cycle skill: docs/requirements/zombie-process-refresh-plan.md すべて実装してください。",
-  "workspace": "/Users/ttakeda/repos/focusbm",
+  "workspace": "/Users/user/repos/focusbm",
   "options": {
     "resume_token": "20260702-073838-88309-001-cycle-1"
   }
@@ -267,7 +267,7 @@ Input summary:
 {
   "mission_id": "20260702-073838-88309-001",
   "task": "--strct-cycle skill: docs/requirements/zombie-process-refresh-plan.md すべて実装してください。",
-  "workspace": "/Users/ttakeda/repos/focusbm",
+  "workspace": "/Users/user/repos/focusbm",
   "resume_token": "20260702-073838-88309-001-cycle-1",
   "options": {
     "resume_token": "20260702-073838-88309-001-cycle-1"
@@ -366,7 +366,7 @@ Input summary:
 {
   "mission_id": "20260702-074153-88309-003",
   "task": "--strct-cycle skill: docs/requirements/zombie-process-refresh-plan.md すべて実装してください。",
-  "workspace": "/Users/ttakeda/repos/focusbm",
+  "workspace": "/Users/user/repos/focusbm",
   "options": {
     "resume_token": "20260702-074153-88309-003-cycle-1"
   }
@@ -396,7 +396,7 @@ Input summary:
 {
   "mission_id": "20260702-074153-88309-003",
   "task": "--strct-cycle skill: docs/requirements/zombie-process-refresh-plan.md すべて実装してください。",
-  "workspace": "/Users/ttakeda/repos/focusbm",
+  "workspace": "/Users/user/repos/focusbm",
   "options": {
     "resume_token": "20260702-074153-88309-003-cycle-1"
   }

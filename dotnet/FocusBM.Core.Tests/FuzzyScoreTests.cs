@@ -174,12 +174,12 @@ public class FilterTests
             "tmux:12:1:%40",
             "claude @ WezTerm — changelog",
             "12:1.%40 · window claude · cwd <redacted-user-path>/repos/changelog · process node <redacted-user-path>/.local/bin/claude",
-            new WslProcessState(42, "claude", "WezTerm", "%40", "12", "1", "/home/takets/repos/changelog"));
+            new WslProcessState(42, "claude", "WezTerm", "%40", "12", "1", "/home/user/repos/changelog"));
         var doctrine = new Bookmark(
             "tmux:12:1:%41",
             "claude @ WezTerm — doctrine-mcp",
             "12:1.%41 · window claude · cwd <redacted-user-path>/repos/doctrine-mcp · process node <redacted-user-path>/.local/bin/claude",
-            new WslProcessState(43, "claude", "WezTerm", "%41", "12", "1", "/home/takets/repos/doctrine-mcp"));
+            new WslProcessState(43, "claude", "WezTerm", "%41", "12", "1", "/home/user/repos/doctrine-mcp"));
         var result = BookmarkSearcher.Filter(new[] { changelog, doctrine }, "claudoctrine");
         var only = Assert.Single(result);
         Assert.Equal("tmux:12:1:%41", only.Id);
@@ -194,8 +194,8 @@ public class FilterTests
             "wsl:42",
             "claude @ WezTerm — changelog",
             "no tmux · cwd <redacted-user-path>/repos/changelog · process node <redacted-user-path>/.local/bin/claude · PID 42",
-            new WslProcessState(42, "claude", "WezTerm", WorkingDirectory: "/home/takets/repos/changelog"));
-        var result = BookmarkSearcher.Filter(new[] { agent }, "takets/chang");
+            new WslProcessState(42, "claude", "WezTerm", WorkingDirectory: "/home/user/repos/changelog"));
+        var result = BookmarkSearcher.Filter(new[] { agent }, "user/chang");
         Assert.Single(result);
     }
 
@@ -208,7 +208,7 @@ public class FilterTests
             "wsl:42",
             "claude @ WezTerm — changelog",
             "no tmux · cwd <redacted-user-path>/repos/changelog · process node <redacted-user-path>/.local/bin/claude · PID 42",
-            new WslProcessState(42, "claude", "WezTerm", WorkingDirectory: "/home/takets/repos/changelog"));
+            new WslProcessState(42, "claude", "WezTerm", WorkingDirectory: "/home/user/repos/changelog"));
         var result = BookmarkSearcher.Filter(new[] { agent }, "process");
         Assert.Empty(result);
     }

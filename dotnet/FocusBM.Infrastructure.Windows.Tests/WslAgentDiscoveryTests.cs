@@ -12,15 +12,15 @@ public sealed class WslAgentDiscoveryTests
     {
         const string output = """
             @PANES
-            dash	1	%0	grok	title	/home/takets/repos/changelog	grok
-            12	1	%40	claude	title2	/home/takets/repos/doctrine-mcp	claude
+            dash	1	%0	grok	title	/home/user/repos/changelog	grok
+            12	1	%40	claude	title2	/home/user/repos/doctrine-mcp	claude
             @CLIENTS
             dash	WezTerm
             12	WindowsTerminal
             @PROCESSES
-            8360	1	/home/takets/repos/changelog	%40	WezTerm	claude --model sonnet
-            32575	1	/home/takets/repos/changelog	%0	WezTerm	grok
-            18934	1	/home/takets/repos/kb			claude bg-pty-host --bg-pty-host /tmp/foo.sock
+            8360	1	/home/user/repos/changelog	%40	WezTerm	claude --model sonnet
+            32575	1	/home/user/repos/changelog	%0	WezTerm	grok
+            18934	1	/home/user/repos/kb			claude bg-pty-host --bg-pty-host /tmp/foo.sock
             @STATUS	1	1	1
             
             """;
@@ -41,7 +41,7 @@ public sealed class WslAgentDiscoveryTests
     {
         const string output = """
             @PANES
-            dash	5	%52	cursor-agent	Preview On Hover	/home/takets/repos/focusbm-win	cursor-agent
+            dash	5	%52	cursor-agent	Preview On Hover	/home/user/repos/focusbm-win	cursor-agent
             @CAPTURES
             <<PANE %52>>
             ❯ 1. continue
@@ -50,7 +50,7 @@ public sealed class WslAgentDiscoveryTests
             @CLIENTS
             dash	WezTerm
             @PROCESSES
-            42	1	/home/takets/repos/focusbm-win	%52	WezTerm	cursor-agent --yolo
+            42	1	/home/user/repos/focusbm-win	%52	WezTerm	cursor-agent --yolo
             @STATUS	1	1	1
             
             """;

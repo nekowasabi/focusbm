@@ -69,7 +69,7 @@ bookmarks:
     executeOnToggleRepress: true
     state:
       type: wslNvim
-      workingDirectory: /home/takets/repos/focusbm
+      workingDirectory: /home/user/repos/focusbm
 
   # enables: false hides a bookmark from lists but keeps it in the YAML
   - id: hidden-example

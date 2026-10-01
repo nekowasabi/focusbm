@@ -282,9 +282,9 @@ bookmarks:
     context: work
     state:
       type: browser
-      urlPattern: "https://app.slack.com/client/T0APA1XEE/activity-inbox"
+      urlPattern: "https://app.slack.com/client/T0XXXXXXX/activity-inbox"
       title: "Slack"
-      urlPrefix: "https://app.slack.com/client/T0APA1XEE"  # 省略可能
+      urlPrefix: "https://app.slack.com/client/T0XXXXXXX"  # 省略可能
     createdAt: "2025-02-18T09:00:00Z"
 
   - id: rarely-used

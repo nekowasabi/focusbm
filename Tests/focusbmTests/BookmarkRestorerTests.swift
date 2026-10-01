@@ -79,7 +79,7 @@ import Testing
     // URL 列は表示しないため検索対象外。"mfs" が notion の URL "mortgagefss" に拾われないこと
     let bookmarks = [
         Bookmark(id: "slack-mfs-workspace", appName: "Google Chrome", bundleIdPattern: "com.google.Chrome",
-                 context: "chrome", state: .browser(urlPattern: "https://app.slack.com/client/T0APA1XEE/activity-inbox", title: "", tabIndex: nil, urlPrefix: nil),
+                 context: "chrome", state: .browser(urlPattern: "https://app.slack.com/client/T0XXXXXXX/activity-inbox", title: "", tabIndex: nil, urlPrefix: nil),
                  createdAt: "2024-01-01T00:00:00Z"),
         Bookmark(id: "notion-ai-root", appName: "Google Chrome", bundleIdPattern: "com.google.Chrome",
                  context: "chrome", state: .browser(urlPattern: "https://app.notion.com/p/mortgagefss/AI-root", title: "", tabIndex: nil, urlPrefix: nil),

@@ -46,8 +46,8 @@ public sealed class AgentSearchItemsTests
     {
         var panes = new[]
         {
-            new TmuxPaneInfo("12", "1", "%40", CurrentCommand: "claude", CurrentDirectory: "/home/takets/repos/changelog", WindowName: "claude"),
-            new TmuxPaneInfo("12", "1", "%42", CurrentCommand: "nvim", CurrentDirectory: "/home/takets/repos/changelog", WindowName: "claude"),
+            new TmuxPaneInfo("12", "1", "%40", CurrentCommand: "claude", CurrentDirectory: "/home/user/repos/changelog", WindowName: "claude"),
+            new TmuxPaneInfo("12", "1", "%42", CurrentCommand: "nvim", CurrentDirectory: "/home/user/repos/changelog", WindowName: "claude"),
         };
 
         var items = AgentSearchItems.Build(
