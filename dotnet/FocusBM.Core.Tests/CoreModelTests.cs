@@ -65,6 +65,8 @@ public class CoreModelTests
     [InlineData("/usr/bin/cursor-agent --use-system-ca index.js --yolo", "➡️")]
     [InlineData("pi", "π")]
     [InlineData("node /usr/local/bin/pi", "π")]
+    [InlineData("gemini", "♊")]
+    [InlineData("node /usr/local/lib/node_modules/@google/gemini-cli/bin/gemini", "♊")]
     public void AgentEmoji_IdentifiesClaudeCodexAndGrok(string command, string emoji)
     {
         var bm = new Bookmark("wsl:1", "agent", "", new WslProcessState(1, command));
