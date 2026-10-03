@@ -344,6 +344,19 @@ import Yams
     #expect(item.agentEmoji == "➡️")
 }
 
+@Test func test_agentEmoji_tmuxPane_hermes_via_title() {
+    // Why: hermes は command=python3.x で title だけが判別材料。名前列と同じく📨になることを保証する
+    let pane = TmuxPane(paneId: "%136", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "python3.14", title: "prayground: hermes", currentPath: "/tmp")
+    #expect(SearchItem.tmuxPane(pane).agentEmoji == "📨")
+}
+
+@Test func test_agentEmoji_tmuxPane_claudeStaysRobot() {
+    let pane = TmuxPane(paneId: "%47", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "claude", title: "✳ Claude Code", currentPath: "/tmp")
+    #expect(SearchItem.tmuxPane(pane).agentEmoji == "🤖")
+}
+
 @Test func test_agentEmoji_tmuxPane_cursorAgent_via_resolvedNodeCommand() {
     var pane = TmuxPane(paneId: "%64", sessionName: "s", windowIndex: 0,
                         windowName: "w", command: "node", title: "", currentPath: "/tmp")
