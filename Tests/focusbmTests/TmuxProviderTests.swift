@@ -1210,6 +1210,19 @@ final class MockRunningApp: RunningAppProtocol {
     #expect(TmuxProvider.agentCommandToEmoji("unknown") == "🤖")
 }
 
+@Test func test_agentCommandToEmoji_cursorAgent() {
+    #expect(TmuxProvider.agentCommandToEmoji("cursor-agent") == "➡️")
+}
+
+@Test func test_agentCommandToEmoji_gemini() {
+    #expect(TmuxProvider.agentCommandToEmoji("gemini") == "♊")
+}
+
+@Test func test_agentCommandToEmoji_agentAndNodeStayGeneric() {
+    #expect(TmuxProvider.agentCommandToEmoji("agent") == "🤖")
+    #expect(TmuxProvider.agentCommandToEmoji("node") == "🤖")
+}
+
 // MARK: - Node.js AI Tool Detection Tests
 
 @Test func test_isAIAgent_nodeCommand_withResolvedCodex() {

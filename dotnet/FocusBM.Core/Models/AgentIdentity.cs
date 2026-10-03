@@ -17,7 +17,8 @@ public static class AgentIdentity
             "grok" => "🔫",
             "cursor-agent" => "➡️",
             "pi" => "π",
-            "claude" or "aider" or "gemini" or "opencode" => "🤖",
+            "gemini" => "♊",
+            "claude" or "aider" or "opencode" => "🤖",
             _ => null
         };
     }

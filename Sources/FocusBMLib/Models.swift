@@ -595,7 +595,12 @@ public enum SearchItem: Identifiable {
             // Why: Node.js経由で検出されたAIツールはcommandが"node"になるため、
             //      resolvedNodeCommandを優先して絵文字を解決する
             let effectiveCommand = p.resolvedNodeCommand ?? p.command
-            return TmuxProvider.agentCommandToEmoji(effectiveCommand)
+            let byCommand = TmuxProvider.agentCommandToEmoji(effectiveCommand)
+            if byCommand != "🤖" { return byCommand }
+            // Why: hermes は python3.x 上で動き command では判別できない。agentName は title からも
+            //      判定するので、その先頭語（"Grok Build"→"grok"）で引き直して名前と絵文字を揃える
+            let nameKey = p.agentName.split(separator: " ").first.map { $0.lowercased() } ?? ""
+            return TmuxProvider.agentCommandToEmoji(nameKey)
         case .aiProcess(let p):
             return TmuxProvider.agentCommandToEmoji(p.command)
         default:
