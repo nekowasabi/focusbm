@@ -192,6 +192,10 @@ class SearchPanel: NSPanel {
             guard let url = viewModel.sessionPullRequestURL(for: item) else { return }
             DispatchQueue.main.async {
                 guard let self, self.isVisible else { return }
+                // Why: open(url) の前面化は LaunchServices 経由の別プロセス処理で順序保証が無い。
+                //      close() の前アプリ復帰 activate が後から走るとブラウザのフォーカスを奪うため、
+                //      URL を開く経路では復帰対象を捨ててから閉じる。
+                self.previousApp = nil
                 Self.performSessionPullRequestAction(url: url, close: self.close, openURL: openURL)
             }
         }
