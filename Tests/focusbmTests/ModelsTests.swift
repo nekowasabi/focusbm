@@ -328,6 +328,30 @@ import Yams
     #expect(item.agentEmoji == "☕")
 }
 
+@Test func test_agentEmoji_aiProcess_cursorAgent() {
+    let process = ProcessProvider.AIProcess(
+        pid: 9, command: "cursor-agent", workingDirectory: "/tmp",
+        terminalBundleId: nil, terminalAppName: nil, terminalEmoji: "👻", title: ""
+    )
+    let item = SearchItem.aiProcess(process)
+    #expect(item.agentEmoji == "➡️")
+}
+
+@Test func test_agentEmoji_tmuxPane_cursorAgent() {
+    let pane = TmuxPane(paneId: "%63", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "cursor-agent", title: "", currentPath: "/tmp")
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.agentEmoji == "➡️")
+}
+
+@Test func test_agentEmoji_tmuxPane_cursorAgent_via_resolvedNodeCommand() {
+    var pane = TmuxPane(paneId: "%64", sessionName: "s", windowIndex: 0,
+                        windowName: "w", command: "node", title: "", currentPath: "/tmp")
+    pane.resolvedNodeCommand = "cursor-agent"
+    let item = SearchItem.tmuxPane(pane)
+    #expect(item.agentEmoji == "➡️")
+}
+
 @Test func test_agentEmoji_tmuxPane_codex_via_resolvedNodeCommand() {
     // Why: command="node" でもresolvedNodeCommandが"codex"なら📖を返すことを保証する
     var pane = TmuxPane(paneId: "%21", sessionName: "s", windowIndex: 0,
