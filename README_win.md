@@ -503,6 +503,12 @@ IME 制御は opt-in です。
 - 検索パネル表示時に IME を OFF
 - パネル非表示 / restore 後に IME 状態を復元
 
+アプリをアクティブにした後に IME を OFF にする場合は `imeOff` を使います（MS-IME / ATOK いずれも `WM_IME_CONTROL` で閉じます。`imeRestoreEnabled` とは独立）。
+
+```powershell
+.\artifacts\focusbm-cli\FocusBM.Cli.exe config set imeOff true
+```
+
 ---
 
 ## 14. VirtuaWin連携

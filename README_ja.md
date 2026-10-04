@@ -323,6 +323,7 @@ settings:
   directNumberKeys: true  # 数字キー単体でブックマークにフォーカス（false: Cmd+数字のみ）
   # filteredNumberKeys: false # true: 絞り込み中（候補2件以上）も数字キー単体で番号を選ぶ
   showAIAgentShortcut: true # AI エージェント行（aiProcess / tmux ペインの AI）に番号を振る（false で非表示）
+  # imeOff: true # ブックマークのアプリをアクティブにした後、入力ソースを ASCII に切り替える（デフォルト: false）
 
 bookmarks:
   - id: ...
@@ -346,6 +347,7 @@ bookmarks:
 | `settings.directNumberKeys` | 真偽値 | `true` | `true`: 数字キー単体でブックマークにフォーカス。`false`: Cmd+数字のみ |
 | `settings.filteredNumberKeys` | 真偽値 | `false` | `true`: 絞り込み中で候補が2件以上なら数字キー単体でも振り直した番号を選ぶ。`false`: 数字は検索語として入力され、番号選択は Ctrl+数字のみ |
 | `settings.showAIAgentShortcut` | 真偽値? | `nil`（= `true` 相当） | `true`/未指定: AI エージェント行（`aiProcess` と tmux ペインの AI エージェント）にも ⌘1–⌘9 番号を振る（現行動作）。`false`: AI エージェント行には番号を振らず、ブックマーク側の番号が 1,2,3... と詰まる。数字キーによるジャンプも AI 行には効かなくなる |
+| `settings.imeOff` | 真偽値? | `nil`（= `false` 相当） | `true`: ブックマークのアプリをアクティブにした後、入力ソースを ASCII に切り替える（日本語 IME をオフにする）。検索パネルとメニューからの復元に適用され、CLI は対象外 |
 
 ### フィールド説明
 

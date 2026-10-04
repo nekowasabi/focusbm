@@ -307,6 +307,8 @@ public struct AppSettings: Codable, Equatable {
     /// Why: showTmuxAgents（行自体の表示制御）とは責務が異なる。
     /// 表示はするがブックマーク側の番号連続性を優先したいユースケース向けに独立トグルを用意した。
     public var showAIAgentShortcut: Bool?
+    /// アプリのアクティベート後に入力ソースを ASCII へ切り替える（デフォルト: false）
+    public var imeOff: Bool?
     /// タイル表示でプロンプト送信先を選ぶ修飾キー（cmd / ctrl、デフォルト: cmd）
     public var previewTargetModifier: PreviewTargetModifier?
 
@@ -329,6 +331,7 @@ public struct AppSettings: Codable, Equatable {
         filteredNumberKeys: Bool? = nil,
         bookmarkListColumns: Int? = nil,
         showAIAgentShortcut: Bool? = nil,
+        imeOff: Bool? = nil,
         previewTargetModifier: PreviewTargetModifier? = nil
     ) {
         self.hotkey = hotkey
@@ -349,6 +352,7 @@ public struct AppSettings: Codable, Equatable {
         self.filteredNumberKeys = filteredNumberKeys
         self.bookmarkListColumns = bookmarkListColumns
         self.showAIAgentShortcut = showAIAgentShortcut
+        self.imeOff = imeOff
         self.previewTargetModifier = previewTargetModifier
     }
 
@@ -375,6 +379,7 @@ public struct AppSettings: Codable, Equatable {
         directNumberKeys = try container.decodeIfPresent(Bool.self, forKey: .directNumberKeys)
         filteredNumberKeys = try container.decodeIfPresent(Bool.self, forKey: .filteredNumberKeys)
         showAIAgentShortcut = try container.decodeIfPresent(Bool.self, forKey: .showAIAgentShortcut)
+        imeOff = try container.decodeIfPresent(Bool.self, forKey: .imeOff)
         let rawColumns = try container.decodeIfPresent(Int.self, forKey: .bookmarkListColumns)
         // Why: normalizedColumns で {1,2} 以外を nil に正規化。
         // UIは最大2列グリッドのみサポートするため、それ以外の値は未指定扱いとする。

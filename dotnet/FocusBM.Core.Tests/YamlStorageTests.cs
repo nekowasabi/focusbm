@@ -207,6 +207,7 @@ public class HotkeySettingsRoundTripTests
               autoExecuteDelay: 0.3
               directNumberKeys: true
               showAIAgentShortcut: false
+              imeOff: true
             bookmarks:
               - id: ghostty
                 appName: Ghostty
@@ -241,6 +242,9 @@ public class HotkeySettingsRoundTripTests
         Assert.Equal(0.3, s.AutoExecuteDelay);
         Assert.True(s.EffectiveDirectNumberKeys);
         Assert.False(s.EffectiveShowAIAgentShortcut);
+        Assert.True(s.EffectiveImeOff);
+        Assert.True(new BookmarkYamlSerializer().Deserialize(new BookmarkYamlSerializer().Serialize(store)).Settings!.EffectiveImeOff);
+        Assert.False(new AppSettings().EffectiveImeOff);
         Assert.Equal(",", s.EffectiveHotkey.Key);
         Assert.Equal("^s", store.Bookmarks[0].Shortcut);
         Assert.IsType<WslNvimState>(store.Bookmarks[1].State);

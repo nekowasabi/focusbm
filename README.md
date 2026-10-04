@@ -342,6 +342,7 @@ settings:
   directNumberKeys: true    # Bare number keys focus a bookmark (false: Cmd+number only)
   # filteredNumberKeys: false # true: bare number keys also select while filtering (2+ candidates)
   showAIAgentShortcut: true # Number AI agent rows (aiProcess / tmux pane agents); false hides the numbers
+  # imeOff: true # Switch input source to ASCII after activating a bookmark's app (default: false)
 
 bookmarks:
   - id: ...
@@ -368,6 +369,7 @@ bookmarks:
 | `settings.directNumberKeys` | bool | `true` | `true`: bare number keys focus a bookmark. `false`: Cmd+number only |
 | `settings.filteredNumberKeys` | bool | `false` | `true`: while filtering with 2+ candidates, bare number keys select the renumbered row. `false`: digits are typed into the query and only Ctrl+number selects |
 | `settings.showAIAgentShortcut` | bool? | `nil` (= `true`) | `true`/omitted: AI agent rows (`aiProcess` and tmux pane agents) also get ⌘1–⌘9 numbers. `false`: AI agent rows are not numbered, bookmark numbers stay contiguous (1, 2, 3...), and number-key jumps no longer reach AI rows |
+| `settings.imeOff` | bool? | `nil` (= `false`) | `true`: after a bookmark's app is activated, the input source switches to ASCII (turns off Japanese IME). Applies to the search panel and the menu restore, not the CLI |
 
 ### Field Descriptions
 

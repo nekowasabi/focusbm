@@ -128,7 +128,7 @@ public static class FocusBmCli
         var browser = settings.BrowserCdp?.Enabled == true ? new ChromiumCdpTabService(settings) : null;
         var tmux = settings.Wsl?.Enabled == true ? new WslTmuxService(settings.Wsl, new DefaultProcessRunner()) : null;
         var wsl = settings.Wsl?.Enabled == true ? new WslProcessService(settings.Wsl, new DefaultProcessRunner()) : null;
-        var orchestrator = new BookmarkRestoreOrchestrator(new WindowsActivationService(settings.VirtuaWinEnabled), browser, tmux, wsl);
+        var orchestrator = new BookmarkRestoreOrchestrator(new WindowsActivationService(settings.VirtuaWinEnabled, imeOff: settings.EffectiveImeOff), browser, tmux, wsl);
         var result = await orchestrator.RestoreAsync(selected);
         var line = $"{result.Status}: {result.Message}";
         if (result.IsSuccess) { await stdout.WriteLineAsync(line); return 0; }
@@ -216,6 +216,7 @@ public static class FocusBmCli
             await stdout.WriteLineAsync($"openSessionPullRequest={settings.OpenSessionPullRequestHotkey}");
             await stdout.WriteLineAsync($"forceReloadAgents={settings.ForceReloadAgentsHotkey}");
             await stdout.WriteLineAsync($"imeRestoreEnabled={settings.ImeRestoreEnabled}");
+            await stdout.WriteLineAsync($"imeOff={settings.EffectiveImeOff}");
             await stdout.WriteLineAsync($"virtuawinEnabled={settings.VirtuaWinEnabled}");
             await stdout.WriteLineAsync($"browserCdpEnabled={settings.BrowserCdp?.Enabled ?? false}");
             await stdout.WriteLineAsync($"browserCdpEndpoint={settings.BrowserCdp?.Endpoint ?? string.Empty}");
@@ -250,6 +251,7 @@ public static class FocusBmCli
             "panelHeight" => settings with { PanelHeight = double.TryParse(value, out var h) ? h : throw new ArgumentException("panelHeight must be a number") },
             "displayNumber" => settings with { DisplayNumber = Int() },
             "imeRestoreEnabled" => settings with { ImeRestoreEnabled = Bool() },
+            "imeOff" => settings with { ImeOff = Bool() },
             "virtuawinEnabled" => settings with { VirtuaWinEnabled = Bool() },
             "browserCdpEnabled" => settings with { BrowserCdp = (settings.BrowserCdp ?? new BrowserCdpSettings()) with { Enabled = Bool() } },
             "browserCdpEndpoint" => settings with { BrowserCdp = (settings.BrowserCdp ?? new BrowserCdpSettings()) with { Endpoint = value } },

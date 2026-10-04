@@ -208,6 +208,7 @@ class SearchPanel: NSPanel {
     //      SearchItem はメインスレッドでスナップショット済みのため、close() 後の VM 状態変化と競合しない。
     func executeItem(_ item: SearchItem) {
         let viewModel = self.viewModel
+        let switchToASCII = viewModel.appSettings?.imeOff == true
         let label = item.debugLabel
         let start = DispatchTime.now().uptimeNanoseconds
         Diag.log.notice("execute begin \(label, privacy: .public)")
@@ -218,7 +219,7 @@ class SearchPanel: NSPanel {
             Diag.log.notice("execute resolved \(label, privacy: .public) target=\(target.map { "\($0)" } ?? "nil", privacy: .public) \(resolvedMs, privacy: .public)ms")
             guard let target else { return }
             DispatchQueue.main.async {
-                target.activate()
+                target.activate(switchToASCII: switchToASCII)
                 let totalMs = (DispatchTime.now().uptimeNanoseconds - start) / 1_000_000
                 Diag.log.notice("execute activated \(label, privacy: .public) \(totalMs, privacy: .public)ms")
             }

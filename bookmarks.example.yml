@@ -43,6 +43,9 @@ settings:
   # Number AI agent rows? Defaults to true when omitted.
   # showAIAgentShortcut: false
 
+  # Switch the input source to ASCII (turn off Japanese IME) after a bookmark's app is activated. Default: false
+  # imeOff: true
+
   # true: bare number keys also select while filtering (2+ candidates). Default: digits go into the query
   # filteredNumberKeys: false
 

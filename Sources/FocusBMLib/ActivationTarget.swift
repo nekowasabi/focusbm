@@ -1,4 +1,5 @@
 import AppKit
+import CInputSource
 
 /// panel.close() 後に実行するアプリアクティベーション情報。
 /// osascript プロセス起動を避け、NSRunningApplication.activate を使用する。
@@ -10,7 +11,7 @@ public enum ActivationTarget {
     /// アクティベーション不要
     case none
 
-    public func activate() {
+    public func activate(switchToASCII: Bool = false) {
         switch self {
         case .bundleId(let bid, let appName):
             if let app = AppleScriptBridge.findRunningApp(bundleIdPattern: bid, appName: appName) {
@@ -19,7 +20,11 @@ public enum ActivationTarget {
         case .pid(let pid):
             NSRunningApplication(processIdentifier: pid)?.activate(options: .activateIgnoringOtherApps)
         case .none:
-            break
+            return
+        }
+        // Why: macOS restores the per-app input source after activation, so switch once that has settled.
+        if switchToASCII {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { CInputSource_switchToASCII() }
         }
     }
 }

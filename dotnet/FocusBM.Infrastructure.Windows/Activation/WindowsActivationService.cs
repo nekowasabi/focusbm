@@ -9,16 +9,18 @@ public sealed class WindowsActivationService : IActivationService
 {
     private readonly bool _virtuawinEnabled;
     private readonly IRestoreTimingSink? _timing;
+    private readonly bool _imeOff;
 
-    public WindowsActivationService(bool virtuawinEnabled = true, IRestoreTimingSink? timing = null)
+    public WindowsActivationService(bool virtuawinEnabled = true, IRestoreTimingSink? timing = null, bool imeOff = false)
     {
+        _imeOff = imeOff;
         _virtuawinEnabled = virtuawinEnabled;
         _timing = timing;
     }
 
-    public Task<OperationResult> ActivateAsync(ActivationTarget target, CancellationToken cancellationToken = default)
+    public async Task<OperationResult> ActivateAsync(ActivationTarget target, CancellationToken cancellationToken = default)
     {
-        if (!OperatingSystem.IsWindows()) return Task.FromResult(OperationResult.VisibleError(OperationStatus.Unsupported, "Windows activation is unavailable on this OS"));
+        if (!OperatingSystem.IsWindows()) return OperationResult.VisibleError(OperationStatus.Unsupported, "Windows activation is unavailable on this OS");
         var timing = new RestoreTimingScope($"activation:{target.GetType().Name}", _timing);
         timing.Mark("start");
         var result = target switch
@@ -28,8 +30,14 @@ public sealed class WindowsActivationService : IActivationService
             ActivationTarget.TmuxPane => OperationResult.VisibleError(OperationStatus.Unsupported, "tmux restore requires WSL/tmux provider"),
             _ => OperationResult.VisibleError(OperationStatus.Unsupported, "unsupported activation target")
         };
+        if (_imeOff && result.IsSuccess)
+        {
+            // Why: let the foreground change settle so the IME of the newly active window is the one turned off.
+            await Task.Delay(150, cancellationToken).ConfigureAwait(false);
+            WindowsImeService.TurnOffForForeground();
+        }
         timing.Mark("complete", result.Status.ToString());
-        return Task.FromResult(result);
+        return result;
     }
 
     private OperationResult ActivateApp(ActivationTarget.App target, RestoreTimingScope timing)

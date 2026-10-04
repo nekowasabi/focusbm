@@ -382,7 +382,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let bookmark = store.bookmarks.first(where: { $0.id == bookmarkId }) else { return }
         do {
             let target = try BookmarkRestorer.restoreAndGetTarget(bookmark)
-            target.activate()
+            target.activate(switchToASCII: store.settings?.imeOff == true)
         } catch {
             let alert = NSAlert()
             alert.messageText = "復元エラー"

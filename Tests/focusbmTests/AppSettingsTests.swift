@@ -605,6 +605,44 @@ import Yams
     #expect(decoded.settings?.showAIAgentShortcut == false)
 }
 
+// MARK: - imeOff
+
+@Test func test_appSettings_imeOff_default() {
+    #expect(AppSettings().imeOff == nil)
+}
+
+@Test func test_appSettings_imeOff_fromYAML() throws {
+    for (raw, expected) in [("true", true), ("false", false)] {
+        let yaml = """
+        settings:
+          imeOff: \(raw)
+        bookmarks: []
+        """
+        let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+        #expect(store.settings?.imeOff == expected)
+    }
+}
+
+@Test func test_appSettings_imeOff_omitted() throws {
+    let yaml = """
+    settings:
+      hotkey:
+        togglePanel: "cmd+ctrl+b"
+    bookmarks: []
+    """
+    let store = try YAMLDecoder().decode(BookmarkStore.self, from: yaml)
+    #expect(store.settings?.imeOff == nil)
+}
+
+@Test func test_appSettings_imeOff_roundTrip() throws {
+    var store = BookmarkStore()
+    store.settings = AppSettings(imeOff: true)
+
+    let text = try YAMLEncoder().encode(store)
+    let decoded = try YAMLDecoder().decode(BookmarkStore.self, from: text)
+    #expect(decoded.settings?.imeOff == true)
+}
+
 // MARK: - filteredNumberKeys
 
 @Test func test_appSettings_filteredNumberKeys_omitted() throws {

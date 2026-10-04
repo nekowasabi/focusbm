@@ -50,6 +50,24 @@ public sealed class WindowsImeService : IImeService
         }
     }
 
+    // Why: ImmGetContext fails for another process's window, and the foreground window is that after activating
+    //      another app. WM_IME_CONTROL to the default IME window works for any IME (MS-IME, ATOK) without a per-process context.
+    public static bool TurnOffForForeground()
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+        var hwnd = GetForegroundWindow();
+        if (hwnd == IntPtr.Zero) return false;
+        var imeWnd = ImmGetDefaultIMEWnd(hwnd);
+        if (imeWnd == IntPtr.Zero) return false;
+        return SendMessageTimeout(imeWnd, WM_IME_CONTROL, new IntPtr(IMC_SETOPENSTATUS), IntPtr.Zero, SMTO_ABORTIFHUNG, 200, out _) != IntPtr.Zero;
+    }
+
+    private const uint WM_IME_CONTROL = 0x0283;
+    private const int IMC_SETOPENSTATUS = 0x0006;
+    private const uint SMTO_ABORTIFHUNG = 0x0002;
+
+    [DllImport("imm32.dll")] private static extern IntPtr ImmGetDefaultIMEWnd(IntPtr hWnd);
+    [DllImport("user32.dll", SetLastError = true)] private static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("imm32.dll")] private static extern IntPtr ImmGetContext(IntPtr hWnd);
     [DllImport("imm32.dll")] private static extern bool ImmReleaseContext(IntPtr hWnd, IntPtr hIMC);

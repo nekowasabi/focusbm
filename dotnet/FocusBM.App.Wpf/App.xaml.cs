@@ -50,7 +50,7 @@ public partial class App : System.Windows.Application
         FocusBmLog.Open(BookmarkPaths.ResolveDefaultLogPath());
         FocusBmLog.Write("app", "startup");
         var timing = new TraceRestoreTimingSink();
-        var activation = new WindowsActivationService(settings.VirtuaWinEnabled, timing);
+        var activation = new WindowsActivationService(settings.VirtuaWinEnabled, timing, settings.EffectiveImeOff);
         var browser = settings.BrowserCdp?.Enabled == true ? new ChromiumCdpTabService(settings, timing: timing) : null;
         var runner = new DefaultProcessRunner(timing);
         var tmux = settings.Wsl?.Enabled == true ? new WslTmuxService(settings.Wsl, runner, timing) : null;
