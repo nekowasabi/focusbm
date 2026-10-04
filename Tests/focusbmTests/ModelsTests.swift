@@ -474,7 +474,7 @@ import Yams
     #expect(TmuxAgentStatus.running.label == "実行中")
     #expect(TmuxAgentStatus.planMode.label == "Plan")
     #expect(TmuxAgentStatus.acceptEdits.label == "Accept edits")
-    #expect(TmuxAgentStatus.idle.label == "入力待ち")
+    #expect(TmuxAgentStatus.idle.label == "Waiting")
 }
 
 @Test func test_tableColumns_bookmark() {

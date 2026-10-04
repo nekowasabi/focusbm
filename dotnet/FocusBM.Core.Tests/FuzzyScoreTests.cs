@@ -243,7 +243,7 @@ public class FilterTests
             "codex @ Windows Terminal — other",
             "",
             new WslProcessState(2, "codex", "Windows Terminal", "%2", "t", "2", "/home/u/repos/other", TmuxAgentStatus.Idle));
-        var result = BookmarkSearcher.Filter(new[] { RunningTmuxAgent(), idle }, "入力待ち");
+        var result = BookmarkSearcher.Filter(new[] { RunningTmuxAgent(), idle }, "Waiting");
         Assert.Same(idle, Assert.Single(result));
     }
 

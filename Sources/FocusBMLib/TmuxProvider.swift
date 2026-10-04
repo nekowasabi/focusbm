@@ -80,7 +80,7 @@ public enum TmuxAgentStatus {
         case .running: return "実行中"
         case .planMode: return "Plan"
         case .acceptEdits: return "Accept edits"
-        case .idle: return "入力待ち"
+        case .idle: return "Waiting"
         }
     }
 }

@@ -8,6 +8,6 @@ public static class AgentStatusText
         TmuxAgentStatus.Running => "実行中",
         TmuxAgentStatus.PlanMode => "Plan",
         TmuxAgentStatus.AcceptEdits => "Accept edits",
-        _ => "入力待ち"
+        _ => "Waiting"
     };
 }
