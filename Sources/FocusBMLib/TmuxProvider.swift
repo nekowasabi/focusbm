@@ -650,8 +650,10 @@ public struct TmuxProvider {
 
     /// Live list for itermNvim: display enumeration, then strict client restamp.
     public static func listPanesForInput(settings: AppSettings? = nil) throws -> [TmuxPane] {
-        let panes = try listAllPanes(settings: settings)
-        return attachClientsForInput(panes, clientMap: buildClientMap())
+        // Why: one ps snapshot for both calls. ps -axo costs ~0.6s with ~1300 processes.
+        let snapshot = ProcessSnapshot.capture()
+        let panes = try listAllPanes(settings: settings, snapshot: snapshot)
+        return attachClientsForInput(panes, clientMap: buildClientMap(snapshot: snapshot))
     }
 
     static func switchClientForInputArgs(tty: String, paneId: String) -> [String] {
@@ -762,10 +764,10 @@ public struct TmuxProvider {
         }
 
         if process.terminationStatus != 0 {
-            throw TmuxError.executionFailed(errOutput.isEmpty ? "exit code \(process.terminationStatus)" : errOutput)
-        }
             let errOutput = String(data: result.stderr, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            throw TmuxError.executionFailed(errOutput.isEmpty ? "exit code \(process.terminationStatus)" : errOutput)
+        }
 
         let output = String(data: result.stdout, encoding: .utf8) ?? ""
         log("list-panes raw output: \(output.trimmingCharacters(in: .newlines))")
@@ -961,9 +963,9 @@ public struct TmuxProvider {
         log("focusPane: \(description)")
         let process = makeTmuxProcess(arguments.first == "tmux" ? Array(arguments.dropFirst()) : arguments)
         let start = DispatchTime.now().uptimeNanoseconds
+        let result: (stdout: Data, stderr: Data)
         do {
             result = try process.runDrainingOutput()
-        let result: (stdout: Data, stderr: Data)
         } catch {
             throw TmuxError.tmuxNotAvailable
         }
