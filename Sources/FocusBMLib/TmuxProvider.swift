@@ -400,8 +400,8 @@ public struct TmuxProvider {
     // tmuxが起動しているか確認
     public static func isTmuxAvailable() -> Bool {
         let process = makeTmuxProcess(["info"])
-        process.standardOutput = Pipe()
-        process.standardError = Pipe()
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
         do {
             try process.run()
             process.waitUntilExit()
@@ -457,18 +457,12 @@ public struct TmuxProvider {
     static func buildClientMap(snapshot: ProcessSnapshot? = nil) -> [String: TmuxClientInfo] {
         let process = makeTmuxProcess(["list-clients", "-F", "#{client_tty}||#{client_session}||#{window_index}||#{window_name}||#{pane_id}||#{client_pid}||#{client_activity}"])
 
-        let outPipe = Pipe()
-        process.standardOutput = outPipe
-        process.standardError = Pipe()
-        try? process.run()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            log("buildClientMap: list-clients failed with exit code \(process.terminationStatus)")
+        guard let result = try? process.runDrainingOutput(), process.terminationStatus == 0 else {
+            log("buildClientMap: list-clients failed")
             return [:]
         }
 
-        let output = String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+        let output = String(data: result.stdout, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         log("buildClientMap raw output: \(output)")
 
@@ -673,33 +667,22 @@ public struct TmuxProvider {
     public static func runTmuxForInput(_ arguments: [String], stdin: Data? = nil) throws -> String {
         let tmuxArgs = arguments.first == "tmux" ? Array(arguments.dropFirst()) : arguments
         let process = makeTmuxProcess(tmuxArgs)
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        let inPipe = Pipe()
-        process.standardOutput = outPipe
-        process.standardError = errPipe
-        if stdin != nil { process.standardInput = inPipe }
-
+        let result: (stdout: Data, stderr: Data)
         do {
-            try process.run()
+            result = try process.runDrainingOutput(stdin: stdin)
         } catch {
             throw TmuxInputError.executionFailed(error.localizedDescription)
         }
-        if let stdin {
-            inPipe.fileHandleForWriting.write(stdin)
-            inPipe.fileHandleForWriting.closeFile()
-        }
-        process.waitUntilExit()
 
         if process.terminationStatus != 0 {
-            let errOutput = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            let errOutput = String(data: result.stderr, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             throw TmuxInputError.executionFailed(
                 errOutput.isEmpty ? "exit code \(process.terminationStatus)" : errOutput
             )
         }
 
-        return String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return String(data: result.stdout, encoding: .utf8) ?? ""
     }
 
     static let PROMPT_BUFFER_NAME = "focusbm-prompt"
@@ -771,26 +754,20 @@ public struct TmuxProvider {
         let snapshot = snapshot ?? ProcessSnapshot.capture()
         let process = makeTmuxProcess(["list-panes", "-a", "-F", formatString])
 
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        process.standardOutput = outPipe
-        process.standardError = errPipe
-
+        let result: (stdout: Data, stderr: Data)
         do {
-            try process.run()
+            result = try process.runDrainingOutput()
         } catch {
             throw TmuxError.tmuxNotAvailable
         }
-        process.waitUntilExit()
-
-        let errOutput = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
         if process.terminationStatus != 0 {
             throw TmuxError.executionFailed(errOutput.isEmpty ? "exit code \(process.terminationStatus)" : errOutput)
         }
+            let errOutput = String(data: result.stderr, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
-        let output = String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let output = String(data: result.stdout, encoding: .utf8) ?? ""
         log("list-panes raw output: \(output.trimmingCharacters(in: .newlines))")
         var panes = try parseOutput(output)
         log("parsed panes count: \(panes.count)")
@@ -983,22 +960,18 @@ public struct TmuxProvider {
     private static func runTmuxCommand(_ arguments: [String], description: String, fatalOnFailure: Bool) throws {
         log("focusPane: \(description)")
         let process = makeTmuxProcess(arguments.first == "tmux" ? Array(arguments.dropFirst()) : arguments)
-        process.standardOutput = Pipe()
-        let errPipe = Pipe()
-        process.standardError = errPipe
-
         let start = DispatchTime.now().uptimeNanoseconds
         do {
-            try process.run()
+            result = try process.runDrainingOutput()
+        let result: (stdout: Data, stderr: Data)
         } catch {
             throw TmuxError.tmuxNotAvailable
         }
-        process.waitUntilExit()
         let ms = (DispatchTime.now().uptimeNanoseconds - start) / 1_000_000
         Diag.log.notice("tmux \(description, privacy: .public) exit=\(process.terminationStatus, privacy: .public) \(ms, privacy: .public)ms")
 
         if process.terminationStatus != 0 {
-            let errOutput = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            let errOutput = String(data: result.stderr, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             if fatalOnFailure {
                 throw TmuxError.executionFailed(errOutput.isEmpty ? "\(description) failed" : errOutput)
@@ -1054,15 +1027,9 @@ public struct TmuxProvider {
     /// tmux show-environment でセッション作成時の TERM_PROGRAM を取得してターミナルを識別
     private static func terminalAppFromTmuxEnv(session: String) -> (bundleId: String?, appName: String)? {
         let process = makeTmuxProcess(["show-environment", "-t", session, "TERM_PROGRAM"])
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        try? process.run()
-        process.waitUntilExit()
+        guard let result = try? process.runDrainingOutput(), process.terminationStatus == 0 else { return nil }
 
-        guard process.terminationStatus == 0 else { return nil }
-
-        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+        let output = String(data: result.stdout, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
         // 出力形式: "TERM_PROGRAM=iTerm.app"（設定済み）or "-TERM_PROGRAM"（未設定）
@@ -1098,13 +1065,9 @@ public struct TmuxProvider {
         let clientProcess = makeTmuxProcess(["list-clients",
             "-t", "\(sessionName):\(pane.windowIndex)",
             "-F", "#{client_tty}||#{client_pid}"])
-        let pipe = Pipe()
-        clientProcess.standardOutput = pipe
-        clientProcess.standardError = Pipe()
-        try? clientProcess.run()
-        clientProcess.waitUntilExit()
+        let clientOutput = (try? clientProcess.runDrainingOutput())?.stdout ?? Data()
 
-        let rawOutput = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+        let rawOutput = String(data: clientOutput, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         log("detectTerminal for session '\(sessionName)': clientMap miss, per-session fallback")
         log("list-clients raw output: '\(rawOutput)'")

@@ -184,13 +184,7 @@ public struct ProcessProvider {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
         process.arguments = ["-f", processNamePattern(name)]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        try? process.run()
-        process.waitUntilExit()
-
-        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let output = String(data: (try? process.runDrainingOutput())?.stdout ?? Data(), encoding: .utf8) ?? ""
         return output.split(separator: "\n").compactMap { Int32($0.trimmingCharacters(in: .whitespaces)) }
     }
 
@@ -243,13 +237,7 @@ public struct ProcessProvider {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/ps")
         process.arguments = ["-p", "\(pid)", "-o", "tty="]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        try? process.run()
-        process.waitUntilExit()
-
-        let tty = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+        let tty = String(data: (try? process.runDrainingOutput())?.stdout ?? Data(), encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return tty.isEmpty || tty == "??" ? nil : tty
     }
@@ -281,13 +269,7 @@ public struct ProcessProvider {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
         process.arguments = ["-p", "\(pid)", "-d", "cwd", "-Fn"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        try? process.run()
-        process.waitUntilExit()
-
-        let output = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let output = String(data: (try? process.runDrainingOutput())?.stdout ?? Data(), encoding: .utf8) ?? ""
         for line in output.split(separator: "\n") {
             if line.hasPrefix("n") && !line.hasPrefix("n ") {
                 return String(line.dropFirst())

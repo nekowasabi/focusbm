@@ -58,25 +58,11 @@ public struct ProcessSnapshot {
         return parse(output)
     }
 
-    /// プロセスを spawn し、stdout を EOF まで読み切ってから終了を待つ。
-    // Why: waitUntilExit() を先に呼ぶと、出力がパイプ容量(macOS ~64KB)を超えた時点で
-    //      子プロセスが write ブロックし waitUntilExit が戻らないデッドロックになる。
-    //      ps -axo は実機で ~165KB になり得るため、readDataToEndOfFile を先行させる。
     static func collectStandardOutput(executableURL: URL, arguments: [String]) -> Data {
         let process = Process()
         process.executableURL = executableURL
         process.arguments = arguments
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        do {
-            try process.run()
-        } catch {
-            return Data()
-        }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return data
+        return (try? process.runDrainingOutput())?.stdout ?? Data()
     }
 
     /// ps -axo 出力のパース。`pid ppid tty stat args(残り全部)` の固定5カラム。
