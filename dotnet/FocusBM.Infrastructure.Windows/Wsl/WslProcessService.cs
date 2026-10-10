@@ -63,7 +63,7 @@ public sealed class WslProcessService : IWslProcessFocusService
           case "$command_name" in
             claude|aider|gemini|copilot|codex|devin|hermes|opencode|pi|grok|grok-[0-9]*|cursor-agent)
               case "$command" in
-                *" app-server"*|*" mcp-server"*|*" --chrome-native-host"*|*"opencode serve"*|*" bg-pty-host"*|*" bg-spare"*|*" daemon run"*) ;;
+                *" app-server"*|*" mcp-server"*|*" --chrome-native-host"*|*"opencode serve"*|*" bg-pty-host"*|*" bg-spare"*|*" daemon run"*|claude*" -p "*|claude*" --print"*|*/claude*" -p "*|*/claude*" --print"*) ;;
                 *)
                   cwd=$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)
                   probe_pid=$pid
@@ -366,6 +366,8 @@ public sealed class WslProcessService : IWslProcessFocusService
         var tokens = commandLine.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         if (tokens.Any(token => token is "app-server" or "mcp-server" or "--chrome-native-host" or "bg-pty-host" or "bg-spare")) return true;
         if (commandLine.Contains(" daemon run", StringComparison.OrdinalIgnoreCase)) return true;
+        // Why: SessionEnd hooks spawn headless `claude -p` that inherits TMUX_PANE; it is not an interactive agent.
+        if (GetCommandName(commandLine) == "claude" && tokens.Any(token => token is "-p" or "--print")) return true;
         return Regex.IsMatch(commandLine, @"(^|/)opencode\s+serve(\s|$)", RegexOptions.IgnoreCase);
     }
 

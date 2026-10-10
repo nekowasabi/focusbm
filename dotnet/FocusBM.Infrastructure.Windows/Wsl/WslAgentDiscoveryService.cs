@@ -83,7 +83,7 @@ public sealed class WslAgentDiscoveryService : IDisposable
               case "$command_name" in
                 claude|aider|gemini|copilot|codex|devin|hermes|opencode|pi|grok|grok-[0-9]*|cursor-agent)
                   case "$command" in
-                    *" app-server"*|*" mcp-server"*|*" --chrome-native-host"*|*"opencode serve"*|*" bg-pty-host"*|*" bg-spare"*|*" daemon run"*) ;;
+                    *" app-server"*|*" mcp-server"*|*" --chrome-native-host"*|*"opencode serve"*|*" bg-pty-host"*|*" bg-spare"*|*" daemon run"*|claude*" -p "*|claude*" --print"*|*/claude*" -p "*|*/claude*" --print"*) ;;
                     *) is_agent=1 ;;
                   esac
                   ;;

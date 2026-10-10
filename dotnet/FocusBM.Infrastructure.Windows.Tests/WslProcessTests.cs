@@ -15,6 +15,8 @@ public sealed class WslProcessTests
             11 10 claude --inside-tmux
             20 1 claude --outside
             21 1 codex app-server
+            26 1 claude -p summarize transcript
+            27 1 /usr/bin/claude --model sonnet --print hi
             22 1 codex mcp-server
             23 1 /usr/bin/aider --outside
             24 1 /usr/bin/codex --outside
