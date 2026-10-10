@@ -144,6 +144,25 @@ public class CoreModelTests
     [InlineData("\n  \n", "")]
     public void PreviewLayout_TrimTrailingBlankLines_StopsAtPrompt(string input, string expected) =>
         Assert.Equal(expected, PreviewLayout.TrimTrailingBlankLines(input));
+
+    [Theory]
+    [InlineData(
+        "● done\n\n✻ Waiting\njev gate: allow 12 / ask 0 / deny 0 · stop: pass   [-]\n\n\u001b[2m────────\u001b[0m\n❯ \n────────\n  repo\n  ⏵⏵ bypass permissions on\n",
+        "● done\n\n✻ Waiting")]
+    [InlineData(
+        "❯ old prompt\nhi\n\n  ⠴ Waiting for response…\n\n  ╭──────╮\n  │ ❯    │\n  ╰── Grok 4.7 ─╯\n\n  Shift+Tab:mode\n",
+        "❯ old prompt\nhi\n\n  ⠴ Waiting for response…")]
+    [InlineData(
+        "  ⌥ main ~/repos/x\n   ╭────╮\n   │ Grok Build │\n   ╰────╯\n\n   Tip: Use Shift+Tab to cycle modes\n\n  ╭──────────╮\n  │ ❯ █      │\n  ╰──── Grok 4.7 (high) · always-approve ──╯\n\n                Grok Build 1.0.50 [stable]\n",
+        "  ⌥ main ~/repos/x\n   ╭────╮\n   │ Grok Build │\n   ╰────╯\n\n   Tip: Use Shift+Tab to cycle modes")]
+    [InlineData(
+        "› reply hi\n\n• hi\n\n\n\u001b[1m›\u001b[0m \u001b[2mAsk Codex to do anything\u001b[0m\n\n  GPT · high\n  ? for shortcuts\n",
+        "› reply hi\n\n• hi")]
+    [InlineData("Allow?\n\n❯ 1. Yes\n  2. No", "Allow?\n\n❯ 1. Yes\n  2. No")]
+    [InlineData("output\n❯ prompt\n\n", "output\n❯ prompt")]
+    [InlineData("output\n[-] jev gate: allow 1\njev gate: allow 2 · stop: pass  [-]", "output")]
+    public void PreviewLayout_TextAbovePrompt_CutsAtClaudeGrokCodexInputBox(string input, string expected) =>
+        Assert.Equal(expected, PreviewLayout.TextAbovePrompt(input));
     [Fact]
     public void AppSettings_PreviewFont_FallsBackToListFont()
     {

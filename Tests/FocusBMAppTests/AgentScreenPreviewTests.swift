@@ -91,6 +91,55 @@ private final class ScreenPreviewCaptureProbe: @unchecked Sendable {
     )))
 }
 
+private func previewText(capturing screen: String) -> String? {
+    let viewModel = SearchViewModel()
+    viewModel.paneScreenCaptureProvider = { _ in screen }
+    viewModel.searchItems = [.tmuxPane(TmuxPane(
+        paneId: "%2", sessionName: "0", windowIndex: 3, windowName: "claude",
+        command: "claude", title: "Claude Code", currentPath: "/tmp"
+    ))]
+    viewModel.hoveredIndex = 0
+    _ = viewModel.showHoveredAgentPreview()
+    return viewModel.screenPreview?.captures.first?.text
+}
+
+@Test(arguments: [
+    (
+        "claude",
+        "● done\n\n✻ Waiting\njev gate: allow 12 / ask 0 / deny 0 · stop: pass   [-]\n\n"
+            + "\u{1B}[2m────────\u{1B}[0m\n❯ \n────────\n  repo\n  ⏵⏵ bypass permissions on\n",
+        "● done\n\n✻ Waiting"
+    ),
+    (
+        "grok",
+        "❯ old prompt\nhi\n\n  ⠴ Waiting for response…\n\n  ╭──────╮\n  │ ❯    │\n  ╰── Grok 4.7 ─╯\n\n  Shift+Tab:mode\n",
+        "❯ old prompt\nhi\n\n  ⠴ Waiting for response…"
+    ),
+    (
+        "grok-start",
+        "  ⌥ main ~/repos/x\n   ╭────╮\n   │ Grok Build │\n   ╰────╯\n\n   Tip: Use Shift+Tab to cycle modes\n\n"
+            + "  ╭──────────╮\n  │ ❯ █      │\n  ╰──── Grok 4.7 (high) · always-approve ──╯\n\n                Grok Build 1.0.50 [stable]\n",
+        "  ⌥ main ~/repos/x\n   ╭────╮\n   │ Grok Build │\n   ╰────╯\n\n   Tip: Use Shift+Tab to cycle modes"
+    ),
+    (
+        "codex",
+        "› reply hi\n\n• hi\n\n\n\u{1B}[1m›\u{1B}[0m \u{1B}[2mAsk Codex to do anything\u{1B}[0m\n\n  GPT · high\n  ? for shortcuts\n",
+        "› reply hi\n\n• hi"
+    ),
+])
+func agentScreenPreview_cutsAtPromptBox(agent: String, screen: String, expected: String) {
+    #expect(previewText(capturing: screen) == expected, "\(agent)")
+}
+
+@Test func agentScreenPreview_keepsWholeScreenWithoutPromptBox() {
+    #expect(previewText(capturing: "Allow?\n\n❯ 1. Yes\n  2. No") == "Allow?\n\n❯ 1. Yes\n  2. No")
+    #expect(previewText(capturing: "output\n❯ prompt") == "output\n❯ prompt")
+}
+
+@Test func agentScreenPreview_dropsJevGateLinesEvenWithoutPrompt() {
+    #expect(previewText(capturing: "output\n[-] jev gate: allow 1\njev gate: allow 2 · stop: pass  [-]") == "output")
+}
+
 @Test func agentScreenPreview_escapeDismissesCaptureWithoutClearingItems() {
     let viewModel = SearchViewModel()
     viewModel.paneScreenCaptureProvider = { _ in "screen" }

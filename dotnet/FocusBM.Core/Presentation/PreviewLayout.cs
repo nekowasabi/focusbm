@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace FocusBM.Core;
 
 /// <summary>
@@ -45,6 +47,35 @@ public static class PreviewLayout
         var number = IndexNumberFontSize(bodyHeight);
         var top = textInset + maxLineCount * lineHeight - number;
         return Math.Max(0, Math.Min(top, bodyHeight - number - bottomInset));
+    }
+
+    // Why: the preview shows the conversation, not the input box and footer below it.
+    //      Claude: `───` / `❯` / `───`. Grok Build: `╭──╮` / `│ ❯ │` / `╰──╯`.
+    //      Codex has no border; its composer is a `›` line after a blank line.
+    //      `❯ 1.` / `› 1.` are approval choices, not the input box, so they are never cut.
+    public static string TextAbovePrompt(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return TrimTrailingBlankLines(text);
+        var lines = text.Split('\n').Where(line =>
+        {
+            var stripped = AnsiText.Strip(line).Trim();
+            return !stripped.StartsWith("jev gate:", StringComparison.Ordinal)
+                && !stripped.StartsWith("[-] jev gate:", StringComparison.Ordinal);
+        }).ToArray();
+        var plain = lines.Select(line => AnsiText.Strip(line).Trim()).ToArray();
+        static bool IsRule(string line) => line.Length > 0 && line.All(c => c is '─' or '╭' or '╮');
+        var prompt = Array.FindLastIndex(plain, line =>
+        {
+            var body = line.Trim('│', ' ', '\t');
+            return (body.StartsWith('❯') || body.StartsWith('›')) && !Regex.IsMatch(body, @"^[❯›]\s*\d+\.");
+        });
+        var all = TrimTrailingBlankLines(string.Join('\n', lines));
+        if (prompt < 0) return all;
+        var cut = prompt;
+        while (cut > 0 && IsRule(plain[cut - 1])) cut--;
+        var isCodexComposer = plain[prompt].StartsWith('›') && (prompt == 0 || plain[prompt - 1].Length == 0);
+        if ((cut == prompt && !isCodexComposer) || plain.Take(cut).All(line => line.Length == 0)) return all;
+        return TrimTrailingBlankLines(string.Join('\n', lines, 0, cut));
     }
 
     // Why: tmux capture-pane fills the pane height with blank rows below the prompt.

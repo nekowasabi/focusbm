@@ -868,8 +868,33 @@ class SearchViewModel: ObservableObject {
         return lines.joined(separator: "\n")
     }
 
+    // Why: the preview shows the conversation, not the input box and footer below it.
+    //      Claude: `───` / `❯` / `───`. Grok Build: `╭──╮` / `│ ❯ │` / `╰──╯`.
+    //      Codex has no border; its composer is a `›` line after a blank line.
+    //      `❯ 1.` / `› 1.` are approval choices, not the input box, so they are never cut.
+    private func textAbovePrompt(_ text: String) -> String {
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            .filter { line in
+                let plain = ANSIText.stripped(line).trimmingCharacters(in: .whitespaces)
+                return !plain.hasPrefix("jev gate:") && !plain.hasPrefix("[-] jev gate:")
+            }
+        let plain = lines.map { ANSIText.stripped($0).trimmingCharacters(in: .whitespaces) }
+        let isRule = { (line: String) in !line.isEmpty && line.allSatisfy { "─╭╮".contains($0) } }
+        guard let prompt = plain.lastIndex(where: { line in
+            let body = line.trimmingCharacters(in: CharacterSet(charactersIn: "│").union(.whitespaces))
+            return (body.hasPrefix("❯") || body.hasPrefix("›")) &&
+                body.range(of: #"^[❯›]\s*\d+\."#, options: .regularExpression) == nil
+        }) else { return lines.joined(separator: "\n") }
+        var cut = prompt
+        while cut > 0, isRule(plain[cut - 1]) { cut -= 1 }
+        let isCodexComposer = plain[prompt].hasPrefix("›") && (prompt == 0 || plain[prompt - 1].isEmpty)
+        guard cut < prompt || isCodexComposer,
+              plain[..<cut].contains(where: { !$0.isEmpty }) else { return lines.joined(separator: "\n") }
+        return lines[..<cut].joined(separator: "\n")
+    }
+
     private func normalizedCaptureText(_ text: String) -> String {
-        let trimmed = trimTrailingBlankLines(text)
+        let trimmed = trimTrailingBlankLines(textAbovePrompt(text))
         let body = ANSIText.stripped(trimmed).trimmingCharacters(in: .whitespacesAndNewlines)
         return body.isEmpty ? "キャプチャできませんでした" : trimmed
     }

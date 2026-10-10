@@ -449,7 +449,7 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
     private static AgentScreenCapture? CaptureFromCache(Bookmark bookmark)
     {
         if (!bookmark.IsAIAgent) return null;
-        var cached = PreviewLayout.TrimTrailingBlankLines(bookmark.State switch
+        var cached = PreviewLayout.TextAbovePrompt(bookmark.State switch
         {
             WslProcessState process => process.ScreenCapture,
             _ => null
@@ -471,7 +471,7 @@ public sealed class SearchPanelViewModel : INotifyPropertyChanged
 
     private static string NormalizeCaptureText(string raw)
     {
-        var trimmed = PreviewLayout.TrimTrailingBlankLines(raw);
+        var trimmed = PreviewLayout.TextAbovePrompt(raw);
         return string.IsNullOrWhiteSpace(AnsiText.Strip(trimmed)) ? "キャプチャできませんでした" : trimmed;
     }
 
